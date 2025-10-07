@@ -1,0 +1,66 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build artifacts (DO NOT COMMIT)
+build/*.r1cs
+build/*.wasm
+build/*.sym
+build/*.wtns
+build/*.zkey
+build/*.ptau
+build/*.json
+build/witness.wtns
+build/proof.json
+build/public.json
+
+# Keep build directory structure but ignore contents
+!build/.gitkeep
+
+# Generated contracts (optional - can regenerate)
+# Uncomment if you want to track the Solidity verifier
+# contracts/Verifier.sol
+
+# Compiled JavaScript
+*.js.map
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS specific
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Circom cache
+.cache/
+
+# Test coverage
+coverage/
+
+# Documentation build (if using static site generators)
+docs/_build/
+docs/.vitepress/dist/
+docs/.vitepress/cache/

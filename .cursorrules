@@ -1,0 +1,222 @@
+# ZK Rebalancing Proof - Project Context
+
+## Project Overview
+
+Building a Zero-Knowledge proof system for portfolio rebalancing validation using ERC-8004 standard.
+
+### Goal
+
+Create a PoC that proves portfolio rebalancing satisfies constraints (min/max allocation limits) without revealing actual positions, using ZK proofs verified on-chain.
+
+## Technology Stack
+
+- **ZK Framework**: Circom 2.0.0 + SnarkJS
+- **Proof System**: Groth16 (efficient on-chain verification)
+- **Smart Contracts**: Solidity ^0.8.0
+- **Standard**: ERC-8004 Agent Validation Registry
+
+## Key Architecture Components
+
+### 1. Circom Circuit (`circuits/rebalancing.circom`)
+
+- **Purpose**: ZK circuit that proves rebalancing validity
+- **Private Inputs**: oldBalances, newBalances, prices (hidden from chain)
+- **Public Inputs**: totalValueCommitment, minAllocationPct, maxAllocationPct
+- **Constraints**:
+  - Total portfolio value preservation
+  - Each asset allocation within min/max bounds
+- **Output**: dataHash commitment
+
+### 2. Verifier Contract (AgentValidatorID)
+
+- Auto-generated Solidity contract from circuit
+- Verifies Groth16 proofs on-chain
+- Acts as the AgentValidatorID in ERC-8004
+- Can emit ValidationResponse events directly
+
+### 3. ERC-8004 Integration
+
+- **AgentValidatorID**: The deployed Verifier contract address
+- **AgentServerID**: Off-chain service generating proofs
+- **DataHash**: Commitment to computation (from circuit output)
+
+## Project Structure
+
+```
+rebalancing-zkp/
+├── circuits/
+│   └── rebalancing.circom          # Main ZK circuit
+├── circomlib/                       # Helper libraries (cloned)
+├── input/
+│   └── input.json                   # Test inputs
+├── build/                           # Compiled artifacts
+├── scripts/
+│   └── test.js                      # Proof generation script
+├── contracts/
+│   └── Verifier.sol                 # Generated verifier
+└── .cursorrules                     # This file
+```
+
+## Common Commands
+
+### Circuit Compilation
+
+```bash
+circom circuits/rebalancing.circom --r1cs --wasm --sym -o build/
+```
+
+### Proof Generation
+
+```bash
+# Generate witness
+node build/rebalancing_js/generate_witness.js build/rebalancing_js/rebalancing.wasm input/input.json build/witness.wtns
+
+# Generate proof
+snarkjs groth16 prove build/rebalancing_final.zkey build/witness.wtns build/proof.json build/public.json
+```
+
+### Verification
+
+```bash
+snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json
+```
+
+## Circom Best Practices
+
+### 1. Includes
+
+- Always use relative paths for circomlib: `include "circomlib/comparators.circom"`
+- Common includes needed:
+  - `circomlib/comparators.circom` - For LessThan, GreaterThan, IsEqual
+  - `circomlib/gates.circom` - For AND, OR, NOT
+  - `circomlib/poseidon.circom` - For hashing (more efficient than direct multiplication)
+
+### 2. Signal Constraints
+
+- Use `<==` for constrained assignments (creates constraint + assigns)
+- Use `<--` for unconstrained assignments (witness generation only)
+- Use `===` for equality constraints
+- Avoid division in constraints when possible (expensive)
+
+### 3. Circuit Optimization
+
+- Minimize number of constraints (each costs gas on verification)
+- Use components from circomlib instead of custom logic
+- Avoid loops where possible, unroll when you can
+- Use bit operations efficiently
+
+### 4. Common Errors & Fixes
+
+#### "no such file or directory" for circomlib
+
+**Fix**: Clone circomlib at project root
+
+```bash
+git clone https://github.com/iden3/circomlib.git
+```
+
+#### "Parse error on line 1: pragma circom 2.0.0"
+
+**Fix**: Ensure circom version 2.0.0+ is installed
+
+```bash
+npm install -g circom@latest
+circom --version
+```
+
+#### Division by zero in constraints
+
+**Fix**: Add checks before division or use inverse multiplication
+
+#### Non-quadratic constraints
+
+**Fix**: Break complex expressions into intermediate signals
+
+## Input Format
+
+### input.json Structure
+
+```json
+{
+  "oldBalances": ["1000", "500", "2000", "750"],
+  "newBalances": ["800", "600", "1800", "900"],
+  "prices": ["100", "200", "50", "150"],
+  "totalValueCommitment": "420000",
+  "minAllocationPct": "10",
+  "maxAllocationPct": "40"
+}
+```
+
+**Important**: All values must be strings for large number support.
+
+## Circom Syntax Rules
+
+1. **Template Parameters**: Use `template Name(n)` for parameterized circuits
+2. **Arrays**: Declare with size: `signal input balances[4]`
+3. **Components**: Instantiate before use: `component cmp = IsEqual();`
+4. **Loops**: Use `var` for loop counters, not `signal`
+5. **Main Component**: Always end with: `component main = CircuitName(params);`
+6. **Public Inputs**: Specify in main: `component main {public [input1, input2]} = Circuit();`
+
+## Gas Considerations
+
+- Groth16 verification: ~250k-300k gas
+- Keep circuit constraints minimal
+- Consider batching multiple validations
+
+## Security Notes
+
+- Never expose private inputs in logs/errors
+- Use proper commitment schemes (Poseidon hash recommended)
+- Audit circuit before production deployment
+- Use MPC ceremony for trusted setup in production
+
+## Development Workflow
+
+1. **Design Circuit**: Define constraints in Circom
+2. **Test Locally**: Generate proofs with test inputs
+3. **Compile**: Generate R1CS and WASM
+4. **Trusted Setup**: Run Powers of Tau ceremony
+5. **Generate Verifier**: Export to Solidity
+6. **Deploy**: Deploy verifier contract (AgentValidatorID)
+7. **Integrate**: Connect with ERC-8004 registry
+
+## Debugging Tips
+
+### Circuit Issues
+
+- Use `log()` in Circom for debugging witness generation
+- Check constraint count: `snarkjs info -r build/rebalancing.r1cs`
+- Verify witness generation works before proving
+
+### Proof Generation Failures
+
+- Ensure witness values satisfy all constraints
+- Check for overflow in calculations
+- Verify input format matches circuit expectations
+
+### On-chain Verification Failures
+
+- Ensure public inputs match exactly between proof and verification
+- Check verifier contract deployed correctly
+- Verify proof/verification key compatibility
+
+## Assistant Instructions
+
+When helping with this project:
+
+1. Always reference circomlib for common operations
+2. Use Circom 2.0.0 syntax
+3. Ensure all file paths are relative to project root
+4. Include error handling in scripts
+5. Follow the established project structure
+6. Prioritize security and constraint efficiency
+7. Test changes incrementally
+8. Provide complete, working code (no placeholders)
+
+## Current Issues to Watch
+
+- Circomlib path resolution (must be at root)
+- Large number handling (use strings in JSON)
+- Constraint explosion with complex logic
+- Gas costs for on-chain verification
