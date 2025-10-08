@@ -94,7 +94,7 @@ echo ""
 # Step 6: Generate Solidity verifier
 echo "6️⃣  Generating Solidity verifier..."
 cd ..
-snarkjs zkey export solidityverifier build/rebalancing_final.zkey contracts/Verifier.sol > /dev/null
+snarkjs zkey export solidityverifier build/rebalancing_final.zkey contracts/src/Verifier.sol > /dev/null
 echo -e "${GREEN}✅ Solidity verifier generated${NC}"
 echo ""
 
@@ -142,7 +142,7 @@ echo "     ├── verification_key.json"
 echo "     ├── witness.wtns"
 echo "     ├── proof.json"
 echo "     └── public.json"
-echo "  📁 contracts/"
+echo "  📁 contracts/src/"
 echo "     └── Verifier.sol"
 echo ""
 echo "Next steps:"
