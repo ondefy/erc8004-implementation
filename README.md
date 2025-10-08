@@ -19,8 +19,6 @@ npm test
 npm run proof:generate
 ```
 
-For all available commands, see [NPM_SCRIPTS.md](NPM_SCRIPTS.md).
-
 ## Technology Stack
 
 - **ZK Framework**: Circom 0.5.46 (Circom 1.x)
