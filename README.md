@@ -6,6 +6,21 @@ A Zero-Knowledge proof system for validating portfolio rebalancing operations us
 
 This project proves that a portfolio rebalancing satisfies constraints (total value preservation and allocation limits) without revealing actual positions, using ZK proofs verified on-chain.
 
+## Quick Start
+
+```bash
+# Complete setup (first time)
+npm run setup
+
+# Test proof generation
+npm test
+
+# Generate a proof
+npm run proof:generate
+```
+
+For all available commands, see [NPM_SCRIPTS.md](NPM_SCRIPTS.md).
+
 ## Technology Stack
 
 - **ZK Framework**: Circom 0.5.46 (Circom 1.x)

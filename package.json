@@ -1,16 +1,50 @@
 {
   "name": "rebalancing-zkp",
   "version": "1.0.0",
+  "description": "Zero-Knowledge proof system for portfolio rebalancing validation using Circom, Groth16, and ERC-8004",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
-  "description": "",
+  "scripts": {
+    "setup:zkp": "bash scripts/setup.sh",
+    "circuit:compile": "circom circuits/rebalancing.circom --r1cs --wasm --sym -o build/ && ([ -f rebalancing.r1cs ] && mv rebalancing.* build/ || true)",
+    "circuit:info": "snarkjs r1cs info build/rebalancing.r1cs",
+    "proof:generate": "bash scripts/generate-proof.sh",
+    "proof:verify": "snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json",
+    "verifier:export": "snarkjs zkey export solidityverifier build/rebalancing_final.zkey contracts/src/Verifier.sol",
+    "forge:build": "cd contracts && forge build",
+    "forge:test": "cd contracts && forge test -vvv",
+    "forge:deploy:local": "cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url localhost --broadcast",
+    "forge:deploy:sepolia": "cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url sepolia --broadcast --verify",
+    "forge:clean": "cd contracts && forge clean",
+    "anvil": "anvil",
+    "test": "npm run forge:test",
+    "clean:zkp": "rm -rf build/*.r1cs build/*.wasm build/*.sym build/*.wtns build/*.zkey build/*.ptau build/proof.json build/public.json build/witness.json",
+    "clean": "npm run clean:zkp && npm run forge:clean"
+  },
+  "keywords": [
+    "zero-knowledge",
+    "zk-proof",
+    "circom",
+    "groth16",
+    "snarkjs",
+    "portfolio",
+    "rebalancing",
+    "blockchain",
+    "erc-8004",
+    "foundry",
+    "solidity"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/rebalancing-zkp.git"
+  },
   "dependencies": {
     "snarkjs": "^0.7.5"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

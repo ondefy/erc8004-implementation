@@ -3,34 +3,37 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 
-# Build artifacts (DO NOT COMMIT)
+# ZK Build artifacts (DO NOT COMMIT)
 build/*.r1cs
 build/*.wasm
 build/*.sym
 build/*.wtns
 build/*.zkey
 build/*.ptau
-build/*.json
-build/witness.wtns
 build/proof.json
 build/public.json
+build/witness.json
 
-# Keep build directory structure but ignore contents
+# Keep build directory structure
 !build/.gitkeep
+!build/README.md
 
-# Generated contracts (optional - can regenerate)
-# Uncomment if you want to track the Solidity verifier
-# contracts/Verifier.sol
+# Foundry / Forge
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+contracts/lib/
 
-# Compiled JavaScript
-*.js.map
+# Keep foundry config and scripts
+!contracts/foundry.toml
+!contracts/script/
+!contracts/src/
 
-# Environment variables
+# Environment variables & secrets
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # IDE specific files
 .vscode/
@@ -44,23 +47,22 @@ build/public.json
 logs/
 *.log
 
-# Temporary files
-tmp/
-temp/
-*.tmp
-
 # OS specific
 Thumbs.db
 .AppleDouble
 .LSOverride
+
+# Temporary files
+tmp/
+temp/
+*.tmp
 
 # Circom cache
 .cache/
 
 # Test coverage
 coverage/
+lcov.info
 
-# Documentation build (if using static site generators)
+# Documentation build
 docs/_build/
-docs/.vitepress/dist/
-docs/.vitepress/cache/
