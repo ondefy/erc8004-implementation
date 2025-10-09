@@ -12,7 +12,18 @@ import "../src/ReputationRegistry.sol";
  */
 contract Deploy is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerPrivateKey;
+
+        // Try to load PRIVATE_KEY from environment
+        // If not found (local dev), use Anvil's default account #0
+        try vm.envUint("PRIVATE_KEY") returns (uint256 key) {
+            deployerPrivateKey = key;
+            console.log("Using PRIVATE_KEY from environment");
+        } catch {
+            // Anvil's default account #0 private key
+            deployerPrivateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+            console.log("Using Anvil default account for local deployment");
+        }
 
         vm.startBroadcast(deployerPrivateKey);
 
