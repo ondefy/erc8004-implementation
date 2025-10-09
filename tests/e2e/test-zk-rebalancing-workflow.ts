@@ -8,7 +8,26 @@ import { createPublicClient, createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { randomBytes } from "crypto";
+import { execSync } from "child_process";
+import { readFileSync } from "fs";
+import { join } from "path";
 import { RebalancerAgent, ValidatorAgent, ClientAgent } from "../../agents";
+
+async function deployContracts(): Promise<void> {
+  console.log("─".repeat(70));
+  console.log("STEP 0: Deploy Contracts");
+  console.log("─".repeat(70));
+
+  try {
+    execSync("npm run forge:deploy:local", {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    console.log("✅ Contracts deployed\n");
+  } catch (error) {
+    throw new Error("Failed to deploy contracts. Is Anvil running?");
+  }
+}
 
 async function testZkRebalancingE2E(): Promise<void> {
   console.log("\n" + "=".repeat(70));
@@ -22,6 +41,9 @@ async function testZkRebalancingE2E(): Promise<void> {
   });
 
   console.log("✅ Connected to blockchain\n");
+
+  // Deploy contracts
+  await deployContracts();
 
   const timestamp = Date.now();
 
@@ -82,57 +104,69 @@ async function testZkRebalancingE2E(): Promise<void> {
   await validator.registerAgent();
   await client.registerAgent();
 
+  // Load input data
+  console.log("\n" + "─".repeat(70));
+  console.log("STEP 4: Load Input Data");
+  console.log("─".repeat(70));
+
+  const inputPath = join(process.cwd(), "input", "input.json");
+  const inputData = JSON.parse(readFileSync(inputPath, "utf-8"));
+
+  console.log(`📂 Loaded from: input/input.json`);
+  console.log(`   Assets: ${inputData.oldBalances.length}`);
+  console.log(`   Total Value: ${parseInt(inputData.totalValueCommitment).toLocaleString()}`);
+
   // Create plan
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 4: Create Rebalancing Plan");
+  console.log("STEP 5: Create Rebalancing Plan");
   console.log("─".repeat(70));
 
   const plan = await rebalancer.createRebalancingPlan(
-    ["1000", "1000", "1000", "750"],
-    ["800", "800", "1200", "950"],
-    ["100", "100", "100", "100"],
-    "10",
-    "40"
+    inputData.oldBalances,
+    inputData.newBalances,
+    inputData.prices,
+    inputData.minAllocationPct,
+    inputData.maxAllocationPct
   );
 
   // Generate proof
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 5: Generate ZK Proof");
+  console.log("STEP 6: Generate ZK Proof");
   console.log("─".repeat(70));
 
   const proof = rebalancer.generateZkProof(plan);
 
   // Submit for validation
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 6: Submit for Validation");
+  console.log("STEP 7: Submit for Validation");
   console.log("─".repeat(70));
 
   await rebalancer.submitProofForValidation(proof, validator.agentId!);
 
   // Validate
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 7: Validate Proof");
+  console.log("STEP 8: Validate Proof");
   console.log("─".repeat(70));
 
   const validationResult = await validator.validateProof(proof);
 
   // Submit validation
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 8: Submit Validation");
+  console.log("STEP 9: Submit Validation");
   console.log("─".repeat(70));
 
   await validator.submitValidation(validationResult);
 
   // Authorize feedback
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 9: Authorize Feedback");
+  console.log("STEP 10: Authorize Feedback");
   console.log("─".repeat(70));
 
   await rebalancer.authorizeClientFeedback(client.agentId!);
 
   // Evaluate and feedback
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 10: Client Feedback");
+  console.log("STEP 11: Client Feedback");
   console.log("─".repeat(70));
 
   const score = client.evaluateRebalancingQuality(proof);
@@ -140,7 +174,7 @@ async function testZkRebalancingE2E(): Promise<void> {
 
   // Check reputation
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 11: Check Reputation");
+  console.log("STEP 12: Check Reputation");
   console.log("─".repeat(70));
 
   client.checkRebalancerReputation(rebalancer.agentId!);
@@ -150,6 +184,7 @@ async function testZkRebalancingE2E(): Promise<void> {
   console.log("  ✅ TEST COMPLETE");
   console.log("=".repeat(70));
   console.log("\nAll steps executed successfully!");
+  console.log("  • Input loaded from input/input.json");
   console.log("  • ZK proof generated and validated");
   console.log("  • Agents registered and coordinated");
   console.log("  • Feedback and reputation tracked");
