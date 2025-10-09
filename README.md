@@ -1,53 +1,87 @@
 # ZK Rebalancing Proof - Portfolio Rebalancing Validation
 
-A Zero-Knowledge proof system for validating portfolio rebalancing operations using Circom and Groth16, compatible with ERC-8004 standard.
+A Zero-Knowledge proof system for validating portfolio rebalancing operations using Circom and Groth16, with **ERC-8004 Agentic Orchestration** for trustless multi-agent workflows.
 
 ## Overview
 
-This project proves that a portfolio rebalancing satisfies constraints (total value preservation and allocation limits) without revealing actual positions, using ZK proofs verified on-chain.
+This project demonstrates privacy-preserving portfolio rebalancing validation using:
+
+- **Zero-Knowledge Proofs** (Groth16) to prove constraint satisfaction without revealing positions
+- **ERC-8004 Standard** for trustless agent coordination on blockchain
+- **Multi-Agent System** with Rebalancer, Validator, and Client agents
+- **On-chain Verification** and reputation management
 
 ## Quick Start
 
 ```bash
 # Complete setup (first time)
-npm run setup
+npm install
+pip install -r requirements.txt
 
-# Test proof generation
-npm test
+# Run the complete demo with agentic orchestration
+./run_demo.sh
 
-# Generate a proof
-npm run proof:generate
+# Or run individual components:
+
+# 1. Setup ZK proof system
+npm run setup:zkp
+
+# 2. Deploy ERC-8004 contracts (in separate terminal with anvil running)
+npm run forge:deploy:local
+
+# 3. Run end-to-end test
+python3 tests/e2e/test_zk_rebalancing_workflow.py
 ```
 
 ## Technology Stack
 
+### Zero-Knowledge Proofs
+
 - **ZK Framework**: Circom 0.5.46 (Circom 1.x)
 - **Proof System**: Groth16 (efficient on-chain verification)
 - **Proof Library**: SnarkJS 0.7.5
-- **Smart Contracts**: Solidity (auto-generated verifier)
 - **Curve**: bn128
+
+### Agentic Orchestration
+
+- **Standard**: ERC-8004 Trustless Agents
+- **Smart Contracts**: Solidity (Foundry)
+- **Agent Framework**: Python + Web3.py
+- **Blockchain**: Ethereum-compatible (Anvil for testing)
 
 ## Project Structure
 
 ```
 rebalancing-zkp/
+├── agents/                          # 🤖 Agentic Orchestration
+│   ├── base_agent.py               # ERC-8004 base functionality
+│   ├── rebalancer_agent.py         # ZK proof generation service
+│   ├── validator_agent.py          # ZK proof validation service
+│   └── client_agent.py             # Feedback and reputation
 ├── circuits/
 │   └── rebalancing.circom          # Main ZK circuit
-├── input/
-│   └── input.json                  # Test inputs
-├── build/
-│   ├── rebalancing.r1cs            # Compiled R1CS constraints
+├── contracts/                       # 📜 Smart Contracts
+│   ├── src/
+│   │   ├── IdentityRegistry.sol    # Agent registration
+│   │   ├── ValidationRegistry.sol  # Validation workflows
+│   │   ├── ReputationRegistry.sol  # Feedback system
+│   │   └── Verifier.sol            # ZK proof verifier
+│   └── script/
+│       └── Deploy.s.sol            # Deployment script
+├── tests/
+│   └── e2e/
+│       └── test_zk_rebalancing_workflow.py  # Complete demo
+├── docs/
+│   ├── FILE_EXPLANATION.md         # Detailed file documentation
+│   └── AGENTIC_WORKFLOW.md         # Agent workflow guide
+├── build/                           # ZK proof artifacts
+│   ├── rebalancing.r1cs            # Compiled constraints
 │   ├── rebalancing.wasm            # Circuit WebAssembly
-│   ├── rebalancing.sym             # Symbol table
-│   ├── pot8_final.ptau             # Powers of Tau ceremony
 │   ├── rebalancing_final.zkey      # Proving key
 │   ├── verification_key.json       # Verification key
-│   ├── witness.wtns                # Generated witness
-│   ├── proof.json                  # Generated proof
-│   └── public.json                 # Public inputs
-├── contracts/
-│   └── Verifier.sol                # Solidity verifier contract
-└── README.md                       # This file
+│   └── ...
+├── run_demo.sh                      # 🚀 Complete demo runner
+└── requirements.txt                 # Python dependencies
 ```
 
 ## Circuit Specification
@@ -282,18 +316,88 @@ Check that:
 2. Witness generation succeeds without errors
 3. Public inputs match between proof generation and verification
 
+## Agentic Workflow
+
+This project implements a complete multi-agent system following ERC-8004:
+
+### Agent Roles
+
+1. **Rebalancer Agent (Server)**
+
+   - Creates portfolio rebalancing plans
+   - Generates zero-knowledge proofs
+   - Submits proofs for validation
+   - Manages client feedback authorization
+
+2. **Validator Agent**
+
+   - Validates ZK proofs cryptographically
+   - Verifies rebalancing logic
+   - Submits validation responses on-chain
+   - Maintains validation audit trail
+
+3. **Client Agent**
+   - Evaluates service quality
+   - Provides feedback and ratings
+   - Checks rebalancer reputation
+   - Manages service requests
+
+### Complete Workflow
+
+```
+1. Agents register on ERC-8004 Identity Registry
+2. Rebalancer creates plan and generates ZK proof
+3. Rebalancer submits proof for validation
+4. Validator verifies proof cryptographically
+5. Validator submits validation response on-chain
+6. Rebalancer authorizes client feedback
+7. Client evaluates quality and provides feedback
+8. Reputation system tracks service quality
+```
+
+**See [docs/AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md) for complete details.**
+
+## Key Features
+
+✅ **Privacy**: Portfolio positions hidden via ZK proofs  
+✅ **Trust**: Cryptographic validation of constraints  
+✅ **Transparency**: All interactions recorded on-chain  
+✅ **Reputation**: Feedback system for service quality  
+✅ **Composability**: ERC-8004 standard for agent interoperability
+
+## Documentation
+
+- **[FILE_EXPLANATION.md](docs/FILE_EXPLANATION.md)** - Detailed explanation of every file
+- **[AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md)** - Complete agent workflow guide
+- **[AGENTIC_CLARIFICATION.md](docs/AGENTIC_CLARIFICATION.md)** - Why "agentic" ≠ AI (important!)
+- **[INTEGRATION_SUMMARY.md](docs/INTEGRATION_SUMMARY.md)** - What was integrated
+- **[QUICK_START.md](docs/QUICK_START.md)** - 5-minute quick start
+- **[FOUNDRY_SETUP.md](docs/FOUNDRY_SETUP.md)** - Foundry contract setup
+- **[NPM_SCRIPTS.md](docs/NPM_SCRIPTS.md)** - Available npm scripts
+
 ## Next Steps
+
+### Completed ✅
 
 1. ✅ Circuit compilation
 2. ✅ Trusted setup (Powers of Tau)
 3. ✅ Proof generation and verification
 4. ✅ Solidity verifier generation
-5. 🔲 Deploy verifier contract to testnet
-6. 🔲 Integrate with ERC-8004 registry
-7. 🔲 Build off-chain proof generation service
-8. 🔲 Add range check circuits for allocation constraints
-9. 🔲 Upgrade to Circom 2.x
-10. 🔲 Security audit
+5. ✅ ERC-8004 registry integration
+6. ✅ Multi-agent orchestration
+7. ✅ Feedback and reputation system
+8. ✅ End-to-end demo workflow
+
+### Roadmap 🔲
+
+1. 🔲 Deploy to testnet (Sepolia/Base Sepolia)
+2. 🔲 Add on-chain proof verification
+3. 🔲 Implement TEE-based key management
+4. 🔲 Add range check circuits for allocation constraints
+5. 🔲 Upgrade to Circom 2.x
+6. 🔲 Build web UI for agent interaction
+7. 🔲 Production MPC ceremony for trusted setup
+8. 🔲 Security audit
 
 ## License
 

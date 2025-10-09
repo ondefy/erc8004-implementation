@@ -44,6 +44,15 @@ fi
 echo -e "${GREEN}✅ All dependencies installed${NC}"
 echo ""
 
+# Ensure Foundry is in PATH
+export PATH="$HOME/.foundry/bin:$PATH"
+
+# Check if forge-std is installed
+if [ ! -d "contracts/lib/forge-std" ]; then
+    echo -e "${YELLOW}📦 Installing forge-std library...${NC}"
+    npm run setup:forge
+fi
+
 # Check if ZK setup is complete
 if [ ! -f "build/rebalancing_final.zkey" ]; then
     echo -e "${YELLOW}📝 ZK setup not complete. Running setup...${NC}"
