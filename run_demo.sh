@@ -28,17 +28,21 @@ if ! curl -s http://localhost:8545 > /dev/null 2>&1; then
     read
 fi
 
-# Check if snarkjs is installed
-if ! command -v snarkjs &> /dev/null; then
-    echo -e "${RED}❌ snarkjs is not installed${NC}"
-    echo "Please install: npm install -g snarkjs"
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}❌ Node.js is not installed${NC}"
+    echo "Please install from: https://nodejs.org/"
     exit 1
 fi
 
-# Check if Python dependencies are installed
-if ! python3 -c "import web3" 2>/dev/null; then
-    echo -e "${YELLOW}⚠️  Installing Python dependencies...${NC}"
-    pip3 install web3 python-dotenv
+# Check if npm dependencies are installed
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}📦 Installing npm dependencies...${NC}"
+    npm install
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ npm install failed${NC}"
+        exit 1
+    fi
 fi
 
 echo -e "${GREEN}✅ All dependencies installed${NC}"
@@ -83,7 +87,7 @@ echo ""
 echo -e "${BLUE}🚀 Running ZK Rebalancing Demo...${NC}"
 echo ""
 
-python3 tests/e2e/test_zk_rebalancing_workflow.py
+npm run test:e2e
 
 if [ $? -eq 0 ]; then
     echo ""
@@ -106,18 +110,26 @@ if [ $? -eq 0 ]; then
     echo "  • Validator Agent: Verifies proofs cryptographically"
     echo "  • Client Agent: Evaluates service quality and provides feedback"
     echo ""
+    echo -e "${BLUE}Technology Stack:${NC}"
+    echo "  • TypeScript 5.x + viem 2.x (modern web3)"
+    echo "  • Circom + Groth16 (zero-knowledge proofs)"
+    echo "  • Solidity + Foundry (smart contracts)"
+    echo "  • ERC-8004 (trustless agent standard)"
+    echo ""
     echo -e "${BLUE}Key Files:${NC}"
     echo "  • circuits/rebalancing.circom - ZK circuit definition"
-    echo "  • agents/rebalancer_agent.py - Proof generation service"
-    echo "  • agents/validator_agent.py - Proof validation service"
-    echo "  • agents/client_agent.py - Feedback and reputation"
-    echo "  • docs/FILE_EXPLANATION.md - Detailed file documentation"
+    echo "  • agents/rebalancer-agent.ts - Proof generation service"
+    echo "  • agents/validator-agent.ts - Proof validation service"
+    echo "  • agents/client-agent.ts - Feedback and reputation"
+    echo "  • docs/GETTING_STARTED.md - Setup guide"
+    echo "  • docs/TECHNICAL_REFERENCE.md - Technical details"
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
+    echo "  • Read docs: docs/GETTING_STARTED.md"
+    echo "  • Explore agents: agents/*.ts"
     echo "  • Deploy to testnet: npm run forge:deploy:sepolia"
     echo "  • Integrate with frontend application"
     echo "  • Add more complex rebalancing strategies"
-    echo "  • Implement on-chain proof verification"
     echo ""
 else
     echo ""

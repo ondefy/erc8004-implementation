@@ -17,20 +17,11 @@ This project demonstrates privacy-preserving portfolio rebalancing validation us
 # Complete setup (first time)
 npm install
 
-# Run the complete demo with agentic orchestration
+# Run the complete demo
 ./run_demo.sh
-
-# Or run individual components:
-
-# 1. Setup ZK proof system
-npm run setup:zkp
-
-# 2. Deploy ERC-8004 contracts (in separate terminal with anvil running)
-npm run forge:deploy:local
-
-# 3. Run end-to-end test
-npm run test:e2e
 ```
+
+**For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 
 ## Technology Stack
 
@@ -370,13 +361,25 @@ This project implements a complete multi-agent system following ERC-8004:
 
 ## Documentation
 
-- **[FILE_EXPLANATION.md](docs/FILE_EXPLANATION.md)** - Detailed explanation of every file
-- **[AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md)** - Complete agent workflow guide
-- **[AGENTIC_CLARIFICATION.md](docs/AGENTIC_CLARIFICATION.md)** - Why "agentic" ≠ AI (important!)
-- **[INTEGRATION_SUMMARY.md](docs/INTEGRATION_SUMMARY.md)** - What was integrated
-- **[QUICK_START.md](docs/QUICK_START.md)** - 5-minute quick start
-- **[FOUNDRY_SETUP.md](docs/FOUNDRY_SETUP.md)** - Foundry contract setup
-- **[NPM_SCRIPTS.md](docs/NPM_SCRIPTS.md)** - Available npm scripts
+### 📚 Complete Guides
+
+1. **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup guide
+   - Prerequisites and installation
+   - Quick start (5 minutes)
+   - Running the demo
+   - Usage examples
+   - Common commands
+   - Troubleshooting
+
+2. **[TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md)** - Technical details
+   - System architecture
+   - Agentic workflow
+   - Zero-knowledge proof system
+   - File explanations
+   - Smart contracts
+   - TypeScript implementation
+   - Circuit design
+   - Security considerations
 
 ## Next Steps
 
