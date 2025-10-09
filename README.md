@@ -16,7 +16,6 @@ This project demonstrates privacy-preserving portfolio rebalancing validation us
 ```bash
 # Complete setup (first time)
 npm install
-pip install -r requirements.txt
 
 # Run the complete demo with agentic orchestration
 ./run_demo.sh
@@ -30,7 +29,7 @@ npm run setup:zkp
 npm run forge:deploy:local
 
 # 3. Run end-to-end test
-python3 tests/e2e/test_zk_rebalancing_workflow.py
+npm run test:e2e
 ```
 
 ## Technology Stack
@@ -46,18 +45,19 @@ python3 tests/e2e/test_zk_rebalancing_workflow.py
 
 - **Standard**: ERC-8004 Trustless Agents
 - **Smart Contracts**: Solidity (Foundry)
-- **Agent Framework**: Python + Web3.py
+- **Agent Framework**: TypeScript + Viem
 - **Blockchain**: Ethereum-compatible (Anvil for testing)
 
 ## Project Structure
 
 ```
 rebalancing-zkp/
-├── agents/                          # 🤖 Agentic Orchestration
-│   ├── base_agent.py               # ERC-8004 base functionality
-│   ├── rebalancer_agent.py         # ZK proof generation service
-│   ├── validator_agent.py          # ZK proof validation service
-│   └── client_agent.py             # Feedback and reputation
+├── agents/                          # 🤖 Agentic Orchestration (TypeScript)
+│   ├── base-agent.ts               # ERC-8004 base functionality
+│   ├── rebalancer-agent.ts         # ZK proof generation service
+│   ├── validator-agent.ts          # ZK proof validation service
+│   ├── client-agent.ts             # Feedback and reputation
+│   └── index.ts                    # Agent exports
 ├── circuits/
 │   └── rebalancing.circom          # Main ZK circuit
 ├── contracts/                       # 📜 Smart Contracts
@@ -70,7 +70,9 @@ rebalancing-zkp/
 │       └── Deploy.s.sol            # Deployment script
 ├── tests/
 │   └── e2e/
-│       └── test_zk_rebalancing_workflow.py  # Complete demo
+│       └── test-zk-rebalancing-workflow.ts  # Complete demo
+├── scripts/
+│   └── create-deployed-contracts.ts  # Contract address extraction
 ├── docs/
 │   ├── FILE_EXPLANATION.md         # Detailed file documentation
 │   └── AGENTIC_WORKFLOW.md         # Agent workflow guide
@@ -80,8 +82,9 @@ rebalancing-zkp/
 │   ├── rebalancing_final.zkey      # Proving key
 │   ├── verification_key.json       # Verification key
 │   └── ...
+├── tsconfig.json                    # TypeScript configuration
 ├── run_demo.sh                      # 🚀 Complete demo runner
-└── requirements.txt                 # Python dependencies
+└── package.json                     # npm dependencies
 ```
 
 ## Circuit Specification

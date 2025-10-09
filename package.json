@@ -14,14 +14,17 @@
     "verifier:export": "snarkjs zkey export solidityverifier build/rebalancing_final.zkey contracts/src/Verifier.sol",
     "forge:build": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge build",
     "forge:test": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge test -vvv",
-    "forge:deploy:local": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast && cd .. && python3 scripts/create_deployed_contracts.py",
-    "forge:deploy:sepolia": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_SEPOLIA --broadcast",
-    "forge:deploy:base-sepolia": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_BASE_SEPOLIA --broadcast",
+    "forge:deploy:local": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",
+    "forge:deploy:sepolia": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_SEPOLIA --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",
+    "forge:deploy:base-sepolia": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_BASE_SEPOLIA --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",
     "forge:clean": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge clean",
     "anvil": "export PATH=\"$HOME/.foundry/bin:$PATH\" && anvil",
+    "test:e2e": "ts-node tests/e2e/test-zk-rebalancing-workflow.ts",
     "test": "npm run forge:test",
+    "build": "tsc",
     "clean:zkp": "rm -rf build/*.r1cs build/*.wasm build/*.sym build/*.wtns build/*.zkey build/*.ptau build/proof.json build/public.json build/witness.json",
-    "clean": "npm run clean:zkp && npm run forge:clean"
+    "clean:ts": "rm -rf dist",
+    "clean": "npm run clean:zkp && npm run clean:ts && npm run forge:clean"
   },
   "keywords": [
     "zero-knowledge",
@@ -34,7 +37,10 @@
     "blockchain",
     "erc-8004",
     "foundry",
-    "solidity"
+    "solidity",
+    "typescript",
+    "viem",
+    "agents"
   ],
   "author": "",
   "license": "MIT",
@@ -43,9 +49,13 @@
     "url": "https://github.com/YOUR_USERNAME/rebalancing-zkp.git"
   },
   "dependencies": {
-    "snarkjs": "^0.7.5"
+    "@types/node": "^20.19.19",
+    "dotenv": "^16.6.1",
+    "snarkjs": "^0.7.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "viem": "^2.38.0"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=14.0.0"
   }
