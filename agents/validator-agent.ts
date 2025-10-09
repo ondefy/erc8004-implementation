@@ -50,7 +50,11 @@ export class ValidatorAgent extends ERC8004BaseAgent {
         .digest("hex");
     }
 
-    console.log("🔍 Validating proof...");
+    console.log("\n🔍 Validating proof...");
+    console.log("─".repeat(50));
+    console.log("📋 DataHash:");
+    console.log(`   0x${dataHash}`);
+    console.log("─".repeat(50));
 
     // Verify cryptographically
     const tempProof = "build/temp_proof.json";
@@ -60,6 +64,9 @@ export class ValidatorAgent extends ERC8004BaseAgent {
     writeFileSync(tempPublic, JSON.stringify(proof.publicInputs));
 
     try {
+      console.log("\n🔐 Running cryptographic verification...");
+      console.log("─".repeat(50));
+
       const result = execSync(
         `snarkjs groth16 verify build/verification_key.json ${tempPublic} ${tempProof}`,
         { encoding: "utf-8" }
@@ -68,7 +75,17 @@ export class ValidatorAgent extends ERC8004BaseAgent {
       const isValid = result.includes("OK");
       const score = isValid ? 100 : 0;
 
-      console.log(`✅ Validation complete: ${score}/100`);
+      console.log("📝 Verification Output:");
+      console.log(result.trim());
+      console.log("─".repeat(50));
+
+      console.log(`\n✅ Validation complete: ${score}/100`);
+      console.log("─".repeat(50));
+      console.log("📊 Validation Summary:");
+      console.log(`   Status: ${isValid ? "✅ VALID" : "❌ INVALID"}`);
+      console.log(`   Score: ${score}/100`);
+      console.log(`   DataHash: 0x${dataHash.slice(0, 16)}...`);
+      console.log("─".repeat(50));
 
       return { isValid, score, dataHash };
     } finally {
@@ -78,15 +95,22 @@ export class ValidatorAgent extends ERC8004BaseAgent {
   }
 
   async submitValidation(result: ValidationResult): Promise<Hash> {
-    console.log(`📤 Submitting validation: ${result.score}/100`);
+    console.log("\n📤 Submitting validation to registry...");
+    console.log("─".repeat(50));
+    console.log("📊 Validation Details:");
+    console.log(`   Score: ${result.score}/100`);
+    console.log(`   Valid: ${result.isValid ? "✅ Yes" : "❌ No"}`);
+    console.log(`   DataHash: 0x${result.dataHash}`);
 
     // Store validation
     if (!existsSync("validations"))
       mkdirSync("validations", { recursive: true });
-    writeFileSync(
-      `validations/${result.dataHash}.json`,
-      JSON.stringify(result, null, 2)
-    );
+
+    const validationPath = `validations/${result.dataHash}.json`;
+    writeFileSync(validationPath, JSON.stringify(result, null, 2));
+
+    console.log(`   Stored: ${validationPath}`);
+    console.log("─".repeat(50));
 
     return await this.submitValidationResponse(
       `0x${result.dataHash}` as `0x${string}`,

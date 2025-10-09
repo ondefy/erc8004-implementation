@@ -80,10 +80,12 @@ export class RebalancerAgent extends ERC8004BaseAgent {
 
     try {
       execSync(
-        "snarkjs wtns calculate build/rebalancing.wasm build/temp_input.json build/witness.wtns"
+        "snarkjs wtns calculate build/rebalancing.wasm build/temp_input.json build/witness.wtns",
+        { stdio: "inherit" }
       );
       execSync(
-        "snarkjs groth16 prove build/rebalancing_final.zkey build/witness.wtns build/proof.json build/public.json"
+        "snarkjs groth16 prove build/rebalancing_final.zkey build/witness.wtns build/proof.json build/public.json",
+        { stdio: "inherit" }
       );
 
       const proof = JSON.parse(readFileSync("build/proof.json", "utf-8"));
@@ -91,7 +93,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
         readFileSync("build/public.json", "utf-8")
       );
 
-      console.log("✅ ZK proof generated");
+      console.log("\n✅ ZK proof generated successfully");
 
       return { proof, publicInputs, rebalancingPlan: plan };
     } finally {
@@ -107,20 +109,21 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       .update(JSON.stringify(proof))
       .digest();
 
+    const dataHashHex = dataHash.toString("hex");
+
     // Store proof
     if (!existsSync("data")) mkdirSync("data", { recursive: true });
-    writeFileSync(
-      `data/${dataHash.toString("hex")}.json`,
-      JSON.stringify(proof, null, 2)
-    );
+    writeFileSync(`data/${dataHashHex}.json`, JSON.stringify(proof, null, 2));
 
-    console.log(
-      `📤 Submitting proof: ${dataHash.toString("hex").slice(0, 8)}...`
-    );
+    console.log("\n📤 Submitting proof for validation");
+    console.log("─".repeat(50));
+    console.log("📋 DataHash (SHA-256):");
+    console.log(`   Full: 0x${dataHashHex}`);
+    console.log("─".repeat(50));
 
     return await this.requestValidation(
       validatorId,
-      `0x${dataHash.toString("hex")}` as `0x${string}`
+      `0x${dataHashHex}` as `0x${string}`
     );
   }
 
