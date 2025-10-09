@@ -103,10 +103,10 @@ export class ERC8004BaseAgent {
         abi: this.identityRegistryAbi,
         functionName: "resolveByAddress",
         args: [this.address],
-      })) as [bigint, string, Address];
+      })) as { agentId: bigint; agentDomain: string; agentAddress: Address };
 
-      if (result[0] > 0n && result[1] === this.agentDomain) {
-        this.agentId = result[0];
+      if (result.agentId > 0n && result.agentDomain === this.agentDomain) {
+        this.agentId = result.agentId;
         console.log(`✅ Agent already registered with ID: ${this.agentId}`);
       }
     } catch {
@@ -129,30 +129,28 @@ export class ERC8004BaseAgent {
       value: parseEther("0.005"),
     });
 
-    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    await this.publicClient.waitForTransactionReceipt({ hash });
 
-    // Get agent ID from event logs
-    if (receipt.logs && receipt.logs.length > 0) {
-      const log = receipt.logs[0];
-      // AgentID is the first topic (after event signature)
-      if (log.topics && log.topics.length > 1 && log.topics[1]) {
-        this.agentId = BigInt(log.topics[1]);
-        console.log(`✅ Registered with ID: ${this.agentId}`);
-        return this.agentId;
-      }
+    // Wait a moment for state to be indexed
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Query agent ID by address
+    try {
+      const result = (await this.publicClient.readContract({
+        address: this.identityRegistryAddress,
+        abi: this.identityRegistryAbi,
+        functionName: "resolveByAddress",
+        args: [this.address],
+      })) as { agentId: bigint; agentDomain: string; agentAddress: Address };
+
+      this.agentId = result.agentId;
+      console.log(`✅ Registered with ID: ${this.agentId}`);
+      return this.agentId;
+    } catch (error) {
+      throw new Error(
+        `Failed to retrieve agent ID after registration: ${error}`
+      );
     }
-
-    // Fallback: query by address
-    const result = (await this.publicClient.readContract({
-      address: this.identityRegistryAddress,
-      abi: this.identityRegistryAbi,
-      functionName: "resolveByAddress",
-      args: [this.address],
-    })) as [bigint, string, Address];
-
-    this.agentId = result[0];
-    console.log(`✅ Registered with ID: ${this.agentId}`);
-    return this.agentId;
   }
 
   async requestValidation(
