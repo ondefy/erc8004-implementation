@@ -24,7 +24,13 @@
     "build": "tsc",
     "clean:zkp": "rm -rf build/*.r1cs build/*.wasm build/*.sym build/*.wtns build/*.zkey build/*.ptau build/proof.json build/public.json build/witness.json",
     "clean:ts": "rm -rf dist",
-    "clean": "npm run clean:zkp && npm run clean:ts && npm run forge:clean"
+    "clean": "npm run clean:zkp && npm run clean:ts && npm run forge:clean",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "frontend:start": "cd frontend && npm start",
+    "frontend:install": "cd frontend && npm install",
+    "demo:full": "./run_demo.sh",
+    "demo:frontend": "./start_frontend.sh"
   },
   "keywords": [
     "zero-knowledge",

@@ -19,9 +19,14 @@ npm install
 
 # Run the complete demo
 ./run_demo.sh
+
+# Or use the frontend UI
+npm run frontend:install
+npm run frontend:dev  # Visit http://localhost:3000
 ```
 
-**For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
+**For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)  
+**For frontend guide**, see [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)
 
 ## Technology Stack
 
@@ -59,20 +64,25 @@ rebalancing-zkp/
 │   │   └── Verifier.sol            # ZK proof verifier
 │   └── script/
 │       └── Deploy.s.sol            # Deployment script
+├── frontend/                        # 🎨 Next.js UI
+│   ├── app/                        # App router pages & API
+│   ├── components/                 # React components
+│   └── package.json                # Frontend dependencies
 ├── tests/
 │   └── e2e/
 │       └── test-zk-rebalancing-workflow.ts  # Complete demo
 ├── scripts/
 │   └── create-deployed-contracts.ts  # Contract address extraction
 ├── docs/
-│   ├── FILE_EXPLANATION.md         # Detailed file documentation
-│   └── AGENTIC_WORKFLOW.md         # Agent workflow guide
+│   ├── GETTING_STARTED.md          # Setup guide
+│   └── TECHNICAL_REFERENCE.md      # Technical details
 ├── build/                           # ZK proof artifacts
 │   ├── rebalancing.r1cs            # Compiled constraints
 │   ├── rebalancing.wasm            # Circuit WebAssembly
 │   ├── rebalancing_final.zkey      # Proving key
 │   ├── verification_key.json       # Verification key
 │   └── ...
+├── FRONTEND_GUIDE.md                # Frontend usage guide
 ├── tsconfig.json                    # TypeScript configuration
 ├── run_demo.sh                      # 🚀 Complete demo runner
 └── package.json                     # npm dependencies
@@ -364,6 +374,7 @@ This project implements a complete multi-agent system following ERC-8004:
 ### 📚 Complete Guides
 
 1. **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup guide
+
    - Prerequisites and installation
    - Quick start (5 minutes)
    - Running the demo
@@ -396,12 +407,12 @@ This project implements a complete multi-agent system following ERC-8004:
 
 ### Roadmap 🔲
 
-1. 🔲 Deploy to testnet (Sepolia/Base Sepolia)
-2. 🔲 Add on-chain proof verification
-3. 🔲 Implement TEE-based key management
-4. 🔲 Add range check circuits for allocation constraints
-5. 🔲 Upgrade to Circom 2.x
-6. 🔲 Build web UI for agent interaction
+1. ✅ Build web UI for agent interaction
+2. 🔲 Deploy to testnet (Sepolia/Base Sepolia)
+3. 🔲 Add on-chain proof verification
+4. 🔲 Implement TEE-based key management
+5. 🔲 Add range check circuits for allocation constraints
+6. 🔲 Upgrade to Circom 2.x
 7. 🔲 Production MPC ceremony for trusted setup
 8. 🔲 Security audit
 
