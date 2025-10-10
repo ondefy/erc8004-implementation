@@ -1,112 +1,123 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+// SPDX-License-Identifier: CC0-1.0
+pragma solidity 0.8.19;
+
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 
 /**
  * @title IIdentityRegistry
- * @dev Interface for the Identity Registry as defined in ERC-8004 Trustless Agents
- * @notice This contract serves as the central registry for all agent identities
+ * @dev Interface for ERC-8004 v1.0 Identity Registry
+ * @notice ERC-721 based agent registry with metadata storage
+ * 
+ * This interface extends ERC-721 to provide agent registration functionality
+ * with on-chain metadata storage. Each agent is represented as an NFT, making
+ * agents immediately browsable and transferable with NFT-compliant applications.
+ * 
+ * @author ChaosChain Labs
  */
-interface IIdentityRegistry {
+interface IIdentityRegistry is IERC721, IERC721Metadata {
+    
+    // ============ Structs ============
+    
+    /**
+     * @dev Metadata entry structure for batch metadata setting
+     * @param key The metadata key
+     * @param value The metadata value as bytes
+     */
+    struct MetadataEntry {
+        string key;
+        bytes value;
+    }
+
     // ============ Events ============
     
     /**
      * @dev Emitted when a new agent is registered
+     * @param agentId The newly assigned agent ID (tokenId)
+     * @param tokenURI The URI pointing to the agent's registration file
+     * @param owner The address that owns the agent NFT
      */
-    event AgentRegistered(uint256 indexed agentId, string agentDomain, address agentAddress);
+    event Registered(uint256 indexed agentId, string tokenURI, address indexed owner);
     
     /**
-     * @dev Emitted when an agent's information is updated
+     * @dev Emitted when metadata is set for an agent
+     * @param agentId The agent ID
+     * @param indexedKey Indexed version of the key for filtering
+     * @param key The metadata key
+     * @param value The metadata value
      */
-    event AgentUpdated(uint256 indexed agentId, string agentDomain, address agentAddress);
+    event MetadataSet(
+        uint256 indexed agentId, 
+        string indexed indexedKey, 
+        string key, 
+        bytes value
+    );
 
-    // ============ Structs ============
+    // ============ Registration Functions ============
     
     /**
-     * @dev Agent information structure
+     * @notice Register a new agent with tokenURI and metadata
+     * @param tokenURI_ The URI pointing to the agent's registration JSON file
+     * @param metadata Array of metadata entries to set for the agent
+     * @return agentId The newly assigned agent ID
      */
-    struct AgentInfo {
-        uint256 agentId;
-        string agentDomain;
-        address agentAddress;
-    }
+    function register(
+        string calldata tokenURI_, 
+        MetadataEntry[] calldata metadata
+    ) external returns (uint256 agentId);
+    
+    /**
+     * @notice Register a new agent with tokenURI only
+     * @param tokenURI_ The URI pointing to the agent's registration JSON file
+     * @return agentId The newly assigned agent ID
+     */
+    function register(string calldata tokenURI_) external returns (uint256 agentId);
+    
+    /**
+     * @notice Register a new agent without tokenURI (can be set later)
+     * @dev The tokenURI can be set later using _setTokenURI() by the owner
+     * @return agentId The newly assigned agent ID
+     */
+    function register() external returns (uint256 agentId);
 
-    // ============ Errors ============
-    
-    error AgentNotFound();
-    error UnauthorizedUpdate();
-    error InvalidDomain();
-    error InvalidAddress();
-    error InsufficientFee();
-    error DomainAlreadyRegistered();
-    error AddressAlreadyRegistered();
-
-    // ============ Write Functions ============
+    // ============ Metadata Functions ============
     
     /**
-     * @dev Register a new agent
-     * @param agentDomain The domain where the agent's AgentCard is hosted
-     * @param agentAddress The EVM address of the agent
-     * @return agentId The unique identifier assigned to the agent
-     * @notice Requires 0.005 ETH fee which is burned
+     * @notice Set metadata for an agent
+     * @dev Only the owner or approved operator can set metadata
+     * @param agentId The agent ID
+     * @param key The metadata key
+     * @param value The metadata value as bytes
      */
-    function newAgent(string calldata agentDomain, address agentAddress) external payable returns (uint256 agentId);
-    
-    /**
-     * @dev Update an existing agent's information
-     * @param agentId The agent's unique identifier
-     * @param newAgentDomain New domain (empty string to keep current)
-     * @param newAgentAddress New address (zero address to keep current)
-     * @return success True if update was successful
-     * @notice Only callable by the agent's current address or authorized delegate
-     */
-    function updateAgent(
+    function setMetadata(
         uint256 agentId, 
-        string calldata newAgentDomain, 
-        address newAgentAddress
-    ) external returns (bool success);
+        string calldata key, 
+        bytes calldata value
+    ) external;
+    
+    /**
+     * @notice Get metadata for an agent
+     * @param agentId The agent ID
+     * @param key The metadata key
+     * @return value The metadata value as bytes
+     */
+    function getMetadata(
+        uint256 agentId, 
+        string calldata key
+    ) external view returns (bytes memory value);
 
-    // ============ Read Functions ============
+    // ============ View Functions ============
     
     /**
-     * @dev Get agent information by ID
-     * @param agentId The agent's unique identifier
-     * @return agentInfo The agent's information
+     * @notice Get the total number of registered agents
+     * @return count The total number of agents
      */
-    function getAgent(uint256 agentId) external view returns (AgentInfo memory agentInfo);
+    function totalAgents() external view returns (uint256 count);
     
     /**
-     * @dev Resolve agent by domain
-     * @param agentDomain The agent's domain
-     * @return agentInfo The agent's information
-     */
-    function resolveByDomain(string calldata agentDomain) external view returns (AgentInfo memory agentInfo);
-    
-    /**
-     * @dev Resolve agent by address
-     * @param agentAddress The agent's address
-     * @return agentInfo The agent's information
-     */
-    function resolveByAddress(address agentAddress) external view returns (AgentInfo memory agentInfo);
-    
-    /**
-     * @dev Get the total number of registered agents
-     * @return count The total count of registered agents
-     */
-    function getAgentCount() external view returns (uint256 count);
-    
-    /**
-     * @dev Check if an agent ID exists
+     * @notice Check if an agent exists
      * @param agentId The agent ID to check
      * @return exists True if the agent exists
      */
     function agentExists(uint256 agentId) external view returns (bool exists);
-
-    // ============ Constants ============
-    
-    /**
-     * @dev Registration fee in wei (0.005 ETH)
-     * @return fee The registration fee
-     */
-    function REGISTRATION_FEE() external pure returns (uint256 fee);
 }
-
