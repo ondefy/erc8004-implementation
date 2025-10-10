@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount, useConnect, useDisconnect, useChainId } from "wagmi";
-import { baseSepolia } from "@/lib/wagmi-config";
+import { isSupportedNetwork, getNetworkInfo } from "@/lib/constants";
 
 export function WalletConnect() {
     const { address, isConnected } = useAccount();
@@ -9,14 +9,20 @@ export function WalletConnect() {
     const { disconnect } = useDisconnect();
     const chainId = useChainId();
 
-    const isCorrectNetwork = chainId === baseSepolia.id;
+    const isCorrectNetwork = isSupportedNetwork(chainId);
+    const networkInfo = getNetworkInfo(chainId);
 
     if (isConnected && address) {
         return (
             <div className="flex items-center gap-3">
                 {!isCorrectNetwork && (
                     <div className="px-3 py-1 bg-red-100 border border-red-300 rounded-lg text-xs font-medium text-red-800">
-                        ⚠️ Wrong Network - Switch to Base Sepolia
+                        ⚠️ Wrong Network - Switch to Base/ETH Sepolia
+                    </div>
+                )}
+                {isCorrectNetwork && networkInfo && (
+                    <div className="px-3 py-1 bg-blue-100 border border-blue-200 rounded-lg text-xs font-medium text-blue-800">
+                        {networkInfo.name}
                     </div>
                 )}
                 <div className="px-4 py-2 bg-green-50 border border-green-200 rounded-lg">

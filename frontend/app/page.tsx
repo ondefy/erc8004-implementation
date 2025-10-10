@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { InputDataPanel } from "@/components/input-data-panel";
 import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
-import { baseSepolia } from "@/lib/wagmi-config";
+import { isSupportedNetwork, getNetworkInfo, getContractsForNetwork } from "@/lib/constants";
 
 type StepStatus = "pending" | "in_progress" | "completed" | "error";
 
@@ -22,78 +22,66 @@ interface Step {
 const initialSteps: Step[] = [
   {
     id: 0,
-    title: "Deploy Contracts",
-    description: "Contracts already deployed on Base Sepolia",
+    title: "Register Agents",
+    description: "Register Rebalancer, Validator, and Client agents on-chain",
     status: "pending",
   },
   {
     id: 1,
-    title: "Initialize Agents",
-    description: "Create Rebalancer, Validator, and Client agents",
-    status: "pending",
-  },
-  {
-    id: 2,
-    title: "Fund Agents",
-    description: "Transfer ETH to agent wallets (requires testnet ETH)",
-    status: "pending",
-  },
-  {
-    id: 3,
-    title: "Register Agents",
-    description: "Register all agents on-chain",
-    status: "pending",
-  },
-  {
-    id: 4,
     title: "Load Input Data",
     description: "Load portfolio balances and constraints",
     status: "pending",
   },
   {
-    id: 5,
+    id: 2,
     title: "Create Rebalancing Plan",
     description: "Generate new allocation strategy",
     status: "pending",
   },
   {
-    id: 6,
+    id: 3,
     title: "Generate ZK Proof",
     description: "Create zero-knowledge proof of valid rebalancing",
     status: "pending",
   },
   {
-    id: 7,
+    id: 4,
     title: "Submit for Validation",
     description: "Send proof to validator agent",
     status: "pending",
   },
   {
-    id: 8,
+    id: 5,
     title: "Validate Proof",
     description: "Verify proof on-chain",
     status: "pending",
   },
   {
-    id: 9,
+    id: 6,
     title: "Submit Validation",
     description: "Record validation result",
     status: "pending",
   },
   {
-    id: 10,
-    title: "Authorize Feedback",
-    description: "Grant client permission to provide feedback",
+    id: 7,
+    title: "Select Client for Feedback",
+    description: "Rebalancer selects which client to authorize",
     status: "pending",
   },
   {
-    id: 11,
+    id: 8,
+    title: "Authorize Feedback",
+    description: "Grant selected client permission to provide feedback",
+    status: "pending",
+  },
+  {
+    id: 9,
     title: "Client Feedback",
     description: "Client evaluates and rates the service",
     status: "pending",
   },
   {
-    id: 12,
+    id: 10,
     title: "Check Reputation",
     description: "View rebalancer's updated reputation",
     status: "pending",
@@ -115,8 +103,11 @@ export default function Home() {
   const [inputData, setInputData] = useState<any>(null);
   const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
   const [showAgentSetup, setShowAgentSetup] = useState(true);
+  const [selectedClientAddress, setSelectedClientAddress] = useState<string | null>(null);
 
-  const isCorrectNetwork = chainId === baseSepolia.id;
+  const isCorrectNetwork = isSupportedNetwork(chainId);
+  const networkInfo = getNetworkInfo(chainId);
+  const contracts = getContractsForNetwork(chainId);
 
   const updateStepStatus = (stepId: number, status: StepStatus, details?: string) => {
     setSteps((prev) =>
@@ -132,6 +123,11 @@ export default function Home() {
       return;
     }
 
+    if (!contracts) {
+      alert("Unsupported network. Please switch to Base Sepolia or Ethereum Sepolia");
+      return;
+    }
+
     setIsRunning(true);
     setSteps(initialSteps);
 
@@ -140,12 +136,44 @@ export default function Home() {
         setCurrentStep(i);
         updateStepStatus(i, "in_progress");
 
-        const response = await fetch("/api/workflow/execute-step-sepolia", {
+        // Handle client selection step (step 7)
+        if (i === 7) {
+          // Prompt user to select which client to authorize
+          const clientChoice = await new Promise<string | null>((resolve) => {
+            const choice = confirm(
+              `Select client for feedback authorization:\n\n` +
+              `Click OK to use the default Client Agent\n` +
+              `Click Cancel to enter a different address`
+            );
+
+            if (choice) {
+              resolve(agentConfig.client.address);
+            } else {
+              const customAddress = prompt("Enter client address to authorize:");
+              resolve(customAddress);
+            }
+          });
+
+          if (!clientChoice) {
+            updateStepStatus(i, "error", "Client selection cancelled");
+            break;
+          }
+
+          setSelectedClientAddress(clientChoice);
+          updateStepStatus(i, "completed", `Selected client: ${clientChoice.slice(0, 10)}...`);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+
+        const response = await fetch("/api/workflow/execute-step", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             stepId: i,
             agents: agentConfig,
+            contracts,
+            chainId,
+            selectedClient: selectedClientAddress,
           }),
         });
 
@@ -189,7 +217,7 @@ export default function Home() {
   const completedSteps = steps.filter((s) => s.status === "completed").length;
   const progress = (completedSteps / steps.length) * 100;
 
-  // Show network warning if not on Base Sepolia
+  // Show network warning if not on a supported network
   if (isConnected && !isCorrectNetwork) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -197,18 +225,26 @@ export default function Home() {
           <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8 text-center">
             <div className="text-6xl mb-4">⚠️</div>
             <h1 className="text-2xl font-bold text-red-900 mb-2">
-              Wrong Network Detected
+              Unsupported Network
             </h1>
             <p className="text-red-700 mb-4">
-              Please switch to <strong>Base Sepolia</strong> network in your wallet
+              Please switch to one of the supported networks in your wallet
             </p>
-            <div className="bg-white rounded-lg p-4 text-left text-sm">
-              <p className="font-semibold text-slate-900 mb-2">Network Details:</p>
-              <ul className="space-y-1 text-slate-700">
-                <li>• <strong>Network Name:</strong> Base Sepolia</li>
-                <li>• <strong>Chain ID:</strong> {baseSepolia.id}</li>
-                <li>• <strong>RPC URL:</strong> {baseSepolia.rpcUrls.default.http[0]}</li>
-              </ul>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="bg-white rounded-lg p-4 text-left text-sm">
+                <p className="font-semibold text-slate-900 mb-2">Base Sepolia</p>
+                <ul className="space-y-1 text-slate-700 text-xs">
+                  <li>• <strong>Chain ID:</strong> 84532</li>
+                  <li>• <strong>RPC:</strong> sepolia.base.org</li>
+                </ul>
+              </div>
+              <div className="bg-white rounded-lg p-4 text-left text-sm">
+                <p className="font-semibold text-slate-900 mb-2">Ethereum Sepolia</p>
+                <ul className="space-y-1 text-slate-700 text-xs">
+                  <li>• <strong>Chain ID:</strong> 11155111</li>
+                  <li>• <strong>RPC:</strong> sepolia.infura.io</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -265,7 +301,7 @@ export default function Home() {
               ZK Rebalancing Workflow
             </h1>
             <p className="text-slate-600 text-lg">
-              Base Sepolia • Zero-Knowledge Portfolio Rebalancing
+              {networkInfo?.name || "Testnet"} • Zero-Knowledge Portfolio Rebalancing
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -311,7 +347,7 @@ export default function Home() {
               Overall Progress
             </span>
             <span className="text-sm font-medium text-slate-700">
-              {completedSteps} / {steps.length}
+              {completedSteps} / {steps.length} steps
             </span>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
@@ -320,6 +356,9 @@ export default function Home() {
               style={{ width: `${progress}%` }}
             />
           </div>
+          <p className="text-xs text-slate-500 mt-2">
+            {isRunning ? "Workflow in progress..." : completedSteps === steps.length ? "✓ Workflow completed!" : "Ready to start"}
+          </p>
         </div>
 
         {/* Control Buttons */}
@@ -395,12 +434,16 @@ export default function Home() {
                   🌐 Network
                 </h3>
                 <p className="text-sm text-blue-800 mb-2 font-medium">
-                  Base Sepolia Testnet
+                  {networkInfo?.name || "Testnet"}
                 </p>
-                <p className="text-xs text-blue-700 leading-relaxed">
-                  All transactions are executed on Base Sepolia. You'll need
-                  testnet ETH to fund the agents.
+                <p className="text-xs text-blue-700 leading-relaxed mb-2">
+                  Using pre-deployed contracts on {networkInfo?.name}
                 </p>
+                {contracts && (
+                  <div className="text-xs text-blue-600 font-mono">
+                    <div className="truncate">Identity: {contracts.identityRegistry.slice(0, 10)}...</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
