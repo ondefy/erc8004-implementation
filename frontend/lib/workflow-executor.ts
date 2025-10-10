@@ -196,12 +196,17 @@ async function registerAgents(
   // Check if agent is already registered
   if (publicClient) {
     try {
+      console.log("Checking registration status for:", currentAddress);
+      console.log("Contract address:", contractConfig.identityRegistry.address);
+
       const balance = await publicClient.readContract({
         address: contractConfig.identityRegistry.address,
         abi: contractConfig.identityRegistry.abi,
         functionName: "balanceOf",
         args: [currentAddress as `0x${string}`],
       });
+
+      console.log("Balance check result:", balance.toString());
 
       if (balance > BigInt(0)) {
         const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
@@ -222,12 +227,17 @@ async function registerAgents(
         };
       }
     } catch (error) {
-      console.warn("Could not check registration status:", error);
+      console.error("Error checking registration status:", error);
+      console.warn("Continuing with registration attempt...");
       // Continue with registration if check fails
     }
   }
 
   try {
+    console.log("Initiating registration transaction...");
+    console.log("Contract:", contractConfig.identityRegistry.address);
+    console.log("Current address:", currentAddress);
+
     const hash = await writeContract({
       address: contractConfig.identityRegistry.address,
       abi: contractConfig.identityRegistry.abi,
@@ -235,11 +245,34 @@ async function registerAgents(
       args: [""], // tokenURI (empty for now)
     });
 
-    // Wait for transaction and extract agentId from Transfer event (ERC721)
+    console.log("Transaction submitted:", hash);
+
+    const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
+
+    // Return immediately with transaction hash, don't wait for confirmation
+    // This prevents UI from hanging on slow block times
+    let details = `${roleCapitalized} agent registration transaction submitted!\n\nTransaction: ${hash}\n\nℹ️ Transaction is being processed on-chain...`;
+
+    // Try to wait for receipt with a timeout
     let agentId: number | undefined;
     if (publicClient) {
       try {
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        console.log("Waiting for transaction receipt...");
+
+        // Wait for transaction with timeout (30 seconds)
+        const receiptPromise = publicClient.waitForTransactionReceipt({
+          hash,
+          timeout: 30000,
+        });
+
+        const receipt = (await Promise.race([
+          receiptPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Receipt timeout")), 30000)
+          ),
+        ])) as any;
+
+        console.log("Transaction confirmed!");
 
         // Find Transfer event - Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
         const transferLog = receipt.logs.find(
@@ -251,20 +284,25 @@ async function registerAgents(
         if (transferLog && transferLog.topics[3]) {
           // tokenId is the 3rd indexed parameter
           agentId = parseInt(transferLog.topics[3], 16);
+          console.log("Extracted agentId:", agentId);
+          details = `${roleCapitalized} agent registered successfully!\n\nTransaction: ${hash.slice(
+            0,
+            10
+          )}...\nAgent ID: ${agentId}`;
+        } else {
+          details = `${roleCapitalized} agent registered successfully!\n\nTransaction: ${hash.slice(
+            0,
+            10
+          )}...\n\n✓ Transaction confirmed on-chain`;
         }
       } catch (e) {
-        console.warn("Could not extract agentId from receipt:", e);
+        console.warn("Could not wait for receipt or extract agentId:", e);
+        // Don't fail the step, just note that confirmation is pending
+        details = `${roleCapitalized} agent registration transaction submitted!\n\nTransaction: ${hash.slice(
+          0,
+          10
+        )}...\n\n✓ Transaction sent successfully\nℹ️ Check block explorer for confirmation status`;
       }
-    }
-
-    const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
-    let details = `${roleCapitalized} agent registered successfully!\n\nTransaction: ${hash.slice(
-      0,
-      10
-    )}...`;
-
-    if (agentId !== undefined) {
-      details += `\nAgent ID: ${agentId}`;
     }
 
     return {
@@ -373,7 +411,11 @@ async function submitForValidation(
     let requestHash: string | undefined;
     if (publicClient) {
       try {
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        console.log("Waiting for validation request receipt...");
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          timeout: 30000,
+        });
 
         // Find ValidationRequest event
         // event ValidationRequest(bytes32 indexed requestHash, address indexed requester, address indexed validator, uint256 agentId)
@@ -510,7 +552,11 @@ async function submitValidation(
     let responseHash: string | undefined;
     if (publicClient) {
       try {
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        console.log("Waiting for validation response receipt...");
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          timeout: 30000,
+        });
 
         // Find ValidationResponse event
         // event ValidationResponse(bytes32 indexed requestHash, bytes32 indexed responseHash, address indexed validator, uint8 response)

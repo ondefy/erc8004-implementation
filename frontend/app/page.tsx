@@ -109,11 +109,31 @@ export default function Home() {
   const [selectedClientAddress, setSelectedClientAddress] = useState<string | null>(null);
   const [workflowState, setWorkflowState] = useState<WorkflowState>({});
   const [mounted, setMounted] = useState(false);
+  const [waitingForWalletSwitch, setWaitingForWalletSwitch] = useState<{
+    stepId: number;
+    requiredAddress: string;
+    role: string;
+  } | null>(null);
 
   // Prevent hydration mismatch by only rendering after client mount
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Auto-resume workflow when wallet is switched to the correct one
+  useEffect(() => {
+    if (
+      waitingForWalletSwitch &&
+      connectedAddress &&
+      connectedAddress.toLowerCase() === waitingForWalletSwitch.requiredAddress.toLowerCase() &&
+      !isRunning
+    ) {
+      console.log("Correct wallet connected! Auto-resuming workflow...");
+      setWaitingForWalletSwitch(null);
+      // Auto-resume the workflow
+      setTimeout(() => runWorkflow(), 500);
+    }
+  }, [connectedAddress, waitingForWalletSwitch, isRunning]);
 
   const isCorrectNetwork = isSupportedNetwork(chainId);
   const networkInfo = getNetworkInfo(chainId);
@@ -221,6 +241,11 @@ export default function Home() {
         // Check if correct wallet is connected for this step
         const requiredWallet = getRequiredWallet(i);
         if (requiredWallet && connectedAddress.toLowerCase() !== requiredWallet.address.toLowerCase()) {
+          setWaitingForWalletSwitch({
+            stepId: i,
+            requiredAddress: requiredWallet.address,
+            role: requiredWallet.role,
+          });
           updateStepStatus(
             i,
             "error",
@@ -228,22 +253,32 @@ export default function Home() {
             `This step requires: ${requiredWallet.role} wallet\n` +
             `Expected: ${requiredWallet.address}\n` +
             `Current: ${connectedAddress}\n\n` +
-            `Please switch to the ${requiredWallet.role} wallet in MetaMask and click "Start Workflow" again to continue from this step.`
+            `Please switch to the ${requiredWallet.role} wallet in MetaMask.\n` +
+            `The workflow will auto-resume once the correct wallet is connected.`
           );
           break;
         }
 
         // Execute step with real blockchain transactions
-        const result = await executeWorkflowStep({
-          stepId: i,
-          agents: agentConfig,
-          chainId,
-          selectedClient: selectedClientAddress,
-          writeContract: writeContractAsync,
-          currentAddress: connectedAddress,
-          publicClient,
-          workflowState,
-        });
+        console.log(`Executing step ${i}...`);
+
+        let result;
+        try {
+          result = await executeWorkflowStep({
+            stepId: i,
+            agents: agentConfig,
+            chainId,
+            selectedClient: selectedClientAddress,
+            writeContract: writeContractAsync,
+            currentAddress: connectedAddress,
+            publicClient,
+            workflowState,
+          });
+        } catch (stepError: any) {
+          console.error(`Error in step ${i}:`, stepError);
+          updateStepStatus(i, "error", `Error: ${stepError.message || "Unknown error occurred"}`);
+          break;
+        }
 
         if (result.requiresWalletSwitch) {
           updateStepStatus(
@@ -516,7 +551,7 @@ export default function Home() {
           </div>
 
           {/* Wallet requirement notice */}
-          {agentConfig && connectedAddress && (
+          {agentConfig && connectedAddress && !waitingForWalletSwitch && (
             <div className="flex items-center gap-2 text-sm">
               {connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase() ? (
                 <div className="flex items-center gap-2 text-green-700">
@@ -531,6 +566,26 @@ export default function Home() {
                   </span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Waiting for wallet switch banner */}
+          {waitingForWalletSwitch && (
+            <div className="flex items-center gap-3 text-sm bg-blue-50 border-2 border-blue-300 rounded-lg px-4 py-3 animate-pulse">
+              <div className="flex-shrink-0">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-blue-900">
+                  Waiting for {waitingForWalletSwitch.role} wallet...
+                </p>
+                <p className="text-blue-700 text-xs mt-1">
+                  Please switch to: {waitingForWalletSwitch.requiredAddress.slice(0, 10)}...{waitingForWalletSwitch.requiredAddress.slice(-6)}
+                </p>
+                <p className="text-blue-600 text-xs mt-1">
+                  ✨ Workflow will auto-resume when correct wallet is connected
+                </p>
+              </div>
             </div>
           )}
         </div>
