@@ -20,13 +20,14 @@ npm install
 # Run the complete demo
 ./run_demo.sh
 
-# Or use the frontend UI
+# Or use the frontend UI (with Base Sepolia support!)
 npm run frontend:install
 npm run frontend:dev  # Visit http://localhost:3000
 ```
 
 **For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)  
-**For frontend guide**, see [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)
+**For frontend guide**, see [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)  
+**For Base Sepolia testnet**, see [BASE_SEPOLIA_SETUP.md](BASE_SEPOLIA_SETUP.md)
 
 ## Technology Stack
 
