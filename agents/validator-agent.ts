@@ -112,9 +112,15 @@ export class ValidatorAgent extends ERC8004BaseAgent {
     console.log(`   Stored: ${validationPath}`);
     console.log("─".repeat(50));
 
+    // Create responseUri pointing to the validation result
+    const responseUri = `file://validations/${result.dataHash}.json`;
+
     return await this.submitValidationResponse(
       `0x${result.dataHash}` as `0x${string}`,
-      result.score
+      result.score,
+      responseUri,
+      `0x${result.dataHash}` as `0x${string}`,
+      "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`
     );
   }
 }

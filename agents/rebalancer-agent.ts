@@ -103,7 +103,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
 
   async submitProofForValidation(
     proof: ProofPackage,
-    validatorId: bigint
+    validatorAddress: string
   ): Promise<Hash> {
     const dataHash = createHash("sha256")
       .update(JSON.stringify(proof))
@@ -121,25 +121,95 @@ export class RebalancerAgent extends ERC8004BaseAgent {
     console.log(`   Full: 0x${dataHashHex}`);
     console.log("─".repeat(50));
 
+    // Create a requestUri pointing to the stored proof
+    const requestUri = `file://data/${dataHashHex}.json`;
+
     return await this.requestValidation(
-      validatorId,
+      validatorAddress as `0x${string}`,
+      requestUri,
       `0x${dataHashHex}` as `0x${string}`
     );
   }
 
-  async authorizeClientFeedback(clientId: bigint): Promise<Hash> {
-    console.log(`🔐 Authorizing client ${clientId}`);
+  async generateFeedbackAuthorization(
+    clientAddress: string,
+    indexLimit: bigint = 10n,
+    expiryDays: number = 30
+  ): Promise<{
+    feedbackAuth: `0x${string}`;
+    authData: {
+      agentId: bigint;
+      clientAddress: string;
+      indexLimit: bigint;
+      expiry: bigint;
+      chainId: bigint;
+      identityRegistry: string;
+      signerAddress: string;
+    };
+  }> {
+    console.log(`🔐 Generating feedback authorization for ${clientAddress}`);
 
-    const hash = await (this.walletClient as any).writeContract({
-      address: this.reputationRegistryAddress,
-      abi: this.reputationRegistryAbi,
-      functionName: "acceptFeedback",
-      args: [clientId, this.agentId],
+    if (!this.agentId) {
+      throw new Error("Agent must be registered first");
+    }
+
+    const expiry = BigInt(
+      Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60
+    );
+    const chainId = BigInt(31337); // Foundry/Anvil chain ID
+
+    const authData = {
+      agentId: this.agentId,
+      clientAddress: clientAddress,
+      indexLimit: indexLimit,
+      expiry: expiry,
+      chainId: chainId,
+      identityRegistry: this.identityRegistryAddress,
+      signerAddress: this.address,
+    };
+
+    // Use ABI encoding for the struct as per contract's abi.decode
+    const { encodeAbiParameters, parseAbiParameters, keccak256 } = await import(
+      "viem"
+    );
+
+    const structEncoded = encodeAbiParameters(
+      parseAbiParameters(
+        "uint256, address, uint64, uint256, uint256, address, address"
+      ),
+      [
+        authData.agentId,
+        authData.clientAddress as `0x${string}`,
+        authData.indexLimit,
+        authData.expiry,
+        authData.chainId,
+        authData.identityRegistry as `0x${string}`,
+        authData.signerAddress as `0x${string}`,
+      ]
+    );
+
+    // Hash the struct
+    const structHash = keccak256(structEncoded);
+
+    // Sign with EIP-191 personal sign (the contract expects this)
+    const signature = await this.account.signMessage({
+      message: { raw: structHash },
     });
 
-    await this.publicClient.waitForTransactionReceipt({ hash });
-    console.log("✅ Client authorized");
-    return hash;
+    // Encode the authorization data as the contract expects:
+    // First 224 bytes: ABI-encoded struct fields
+    // Last 65 bytes: signature (r, s, v)
+    const feedbackAuth = `${structEncoded}${signature.slice(
+      2
+    )}` as `0x${string}`;
+
+    console.log(
+      `✅ Authorization generated (expires: ${new Date(
+        Number(expiry) * 1000
+      ).toISOString()})`
+    );
+
+    return { feedbackAuth, authData };
   }
 }
 
