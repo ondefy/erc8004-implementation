@@ -7,101 +7,52 @@ export type AgentRole = "rebalancer" | "validator" | "client";
 interface AgentWallet {
     role: AgentRole;
     address: string | null;
-    privateKey: string | null;
-    isConnected: boolean;
 }
 
 interface AgentWalletManagerProps {
     onAgentsReady: (agents: {
-        rebalancer: { address: string; privateKey: string };
-        validator: { address: string; privateKey: string };
-        client: { address: string; privateKey: string };
+        rebalancer: string;
+        validator: string;
+        client: string;
     }) => void;
+    connectedAddress: string;
 }
 
-export function AgentWalletManager({ onAgentsReady }: AgentWalletManagerProps) {
+export function AgentWalletManager({ onAgentsReady, connectedAddress }: AgentWalletManagerProps) {
     const [agents, setAgents] = useState<Record<AgentRole, AgentWallet>>({
-        rebalancer: { role: "rebalancer", address: null, privateKey: null, isConnected: false },
-        validator: { role: "validator", address: null, privateKey: null, isConnected: false },
-        client: { role: "client", address: null, privateKey: null, isConnected: false },
+        rebalancer: { role: "rebalancer", address: null },
+        validator: { role: "validator", address: null },
+        client: { role: "client", address: null },
     });
 
-    const [showPrivateKey, setShowPrivateKey] = useState<Record<AgentRole, boolean>>({
-        rebalancer: false,
-        validator: false,
-        client: false,
-    });
-
-    const handlePrivateKeyInput = (role: AgentRole, privateKey: string) => {
-        try {
-            // Validate private key format
-            if (!privateKey.startsWith("0x")) {
-                privateKey = "0x" + privateKey;
-            }
-
-            if (privateKey.length !== 66) {
-                return;
-            }
-
-            // In a real implementation, derive the address from the private key
-            // For now, we'll use a placeholder
-            const address = "0x" + privateKey.slice(2, 42);
-
-            setAgents((prev) => ({
-                ...prev,
-                [role]: {
-                    ...prev[role],
-                    address,
-                    privateKey,
-                    isConnected: true,
-                },
-            }));
-        } catch (error) {
-            console.error("Invalid private key", error);
-        }
+    const handleSetAgent = (role: AgentRole) => {
+        setAgents((prev) => ({
+            ...prev,
+            [role]: {
+                ...prev[role],
+                address: connectedAddress,
+            },
+        }));
     };
 
-    const handleGenerateWallet = async (role: AgentRole) => {
-        try {
-            // Call API to generate a new wallet
-            const response = await fetch("/api/wallet/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-            });
-
-            const { address, privateKey } = await response.json();
-
-            setAgents((prev) => ({
-                ...prev,
-                [role]: {
-                    ...prev[role],
-                    address,
-                    privateKey,
-                    isConnected: true,
-                },
-            }));
-        } catch (error) {
-            console.error("Failed to generate wallet", error);
-        }
+    const handleClearAgent = (role: AgentRole) => {
+        setAgents((prev) => ({
+            ...prev,
+            [role]: {
+                ...prev[role],
+                address: null,
+            },
+        }));
     };
 
-    const allAgentsConnected = Object.values(agents).every((agent) => agent.isConnected);
+    const allAgentsSet = Object.values(agents).every((agent) => agent.address !== null);
 
     const handleContinue = () => {
-        if (allAgentsConnected) {
+        if (allAgentsSet) {
             onAgentsReady({
-                rebalancer: {
-                    address: agents.rebalancer.address!,
-                    privateKey: agents.rebalancer.privateKey!,
-                },
-                validator: {
-                    address: agents.validator.address!,
-                    privateKey: agents.validator.privateKey!,
-                },
-                client: {
-                    address: agents.client.address!,
-                    privateKey: agents.client.privateKey!,
-                },
+                rebalancer: agents.rebalancer.address!,
+                validator: agents.validator.address!,
+                client: agents.client.address!,
             });
         }
     };
@@ -109,7 +60,7 @@ export function AgentWalletManager({ onAgentsReady }: AgentWalletManagerProps) {
     const getAgentIcon = (role: AgentRole) => {
         switch (role) {
             case "rebalancer":
-                return "🤖";
+                return "🔄";
             case "validator":
                 return "✅";
             case "client":
@@ -128,103 +79,118 @@ export function AgentWalletManager({ onAgentsReady }: AgentWalletManagerProps) {
         }
     };
 
+    const getButtonColors = (role: AgentRole) => {
+        switch (role) {
+            case "rebalancer":
+                return "bg-blue-600 hover:bg-blue-700";
+            case "validator":
+                return "bg-green-600 hover:bg-green-700";
+            case "client":
+                return "bg-purple-600 hover:bg-purple-700";
+        }
+    };
+
+    const isCurrentlyConnected = (role: AgentRole) => {
+        return agents[role].address === connectedAddress;
+    };
+
+    const assignedCount = Object.values(agents).filter(a => a.address).length;
+
     return (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
             <div className="mb-6">
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">
                     Agent Wallet Configuration
                 </h2>
-                <p className="text-slate-600">
-                    Set up wallets for the three agents. You can either import existing wallets
-                    or generate new ones.
+                <p className="text-slate-600 mb-3">
+                    Assign wallet addresses to each agent role. Switch wallets in MetaMask to set different agents.
                 </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-900 font-medium">
+                        💡 Currently connected: <span className="font-mono">{connectedAddress.slice(0, 10)}...{connectedAddress.slice(-8)}</span>
+                    </p>
+                </div>
             </div>
 
             <div className="space-y-4 mb-6">
                 {(Object.keys(agents) as AgentRole[]).map((role) => {
                     const agent = agents[role];
                     const color = getAgentColor(role);
+                    const isSet = agent.address !== null;
+                    const isCurrent = isCurrentlyConnected(role);
 
                     return (
                         <div
                             key={role}
-                            className={`p-4 rounded-lg border-2 ${agent.isConnected
-                                    ? `border-${color}-200 bg-${color}-50`
-                                    : "border-slate-200 bg-slate-50"
-                                }`}
+                            className={`p-4 rounded-lg border-2 transition-all ${isSet
+                                ? color === "blue" ? "border-blue-200 bg-blue-50" :
+                                    color === "green" ? "border-green-200 bg-green-50" :
+                                        "border-purple-200 bg-purple-50"
+                                : "border-slate-200 bg-slate-50"
+                                } ${isCurrent ? "ring-2 ring-blue-400" : ""}`}
                         >
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
                                     <span className="text-2xl">{getAgentIcon(role)}</span>
-                                    <div>
+                                    <div className="flex-1">
                                         <h3 className="font-semibold text-slate-900 capitalize">
                                             {role} Agent
                                         </h3>
-                                        {agent.address && (
+                                        {agent.address ? (
                                             <p className="text-xs text-slate-600 font-mono">
                                                 {agent.address.slice(0, 10)}...{agent.address.slice(-8)}
                                             </p>
+                                        ) : (
+                                            <p className="text-xs text-slate-500">Not assigned</p>
                                         )}
                                     </div>
                                 </div>
-                                {agent.isConnected && (
-                                    <div className={`px-3 py-1 rounded-full text-xs font-semibold bg-${color}-100 text-${color}-800`}>
-                                        Connected
-                                    </div>
-                                )}
-                            </div>
-
-                            {!agent.isConnected && (
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                                            Private Key
-                                        </label>
-                                        <input
-                                            type={showPrivateKey[role] ? "text" : "password"}
-                                            placeholder="0x..."
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            onChange={(e) => handlePrivateKeyInput(role, e.target.value)}
-                                        />
+                                <div className="flex items-center gap-2">
+                                    {isSet && (
+                                        <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${color === "blue" ? "bg-blue-100 text-blue-800 border-blue-200" :
+                                            color === "green" ? "bg-green-100 text-green-800 border-green-200" :
+                                                "bg-purple-100 text-purple-800 border-purple-200"
+                                            }`}>
+                                            ✓ Set
+                                        </div>
+                                    )}
+                                    {isSet ? (
                                         <button
-                                            onClick={() =>
-                                                setShowPrivateKey((prev) => ({ ...prev, [role]: !prev[role] }))
-                                            }
-                                            className="text-xs text-blue-600 hover:text-blue-700 mt-1"
+                                            onClick={() => handleClearAgent(role)}
+                                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors"
                                         >
-                                            {showPrivateKey[role] ? "Hide" : "Show"}
+                                            Clear
                                         </button>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-px bg-slate-300" />
-                                        <span className="text-xs text-slate-500">OR</span>
-                                        <div className="flex-1 h-px bg-slate-300" />
-                                    </div>
-
-                                    <button
-                                        onClick={() => handleGenerateWallet(role)}
-                                        className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors"
-                                    >
-                                        Generate New Wallet
-                                    </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleSetAgent(role)}
+                                            className={`px-4 py-2 ${getButtonColors(role)} text-white text-sm font-semibold rounded-lg transition-all shadow-sm hover:shadow-md`}
+                                        >
+                                            Set as {role}
+                                        </button>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     );
                 })}
             </div>
 
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-amber-900">
+                    <strong>💡 Tip:</strong> You can use the same wallet for multiple roles, or switch wallets in MetaMask to assign different addresses.
+                </p>
+            </div>
+
             <div className="pt-4 border-t border-slate-200">
                 <button
                     onClick={handleContinue}
-                    disabled={!allAgentsConnected}
+                    disabled={!allAgentsSet}
                     className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                    {allAgentsConnected ? "Continue to Workflow ➜" : "Connect All Agents to Continue"}
+                    {allAgentsSet ? "Continue to Workflow ➜" : `Assign All Agents to Continue (${assignedCount}/3)`}
                 </button>
             </div>
         </div>
     );
 }
-

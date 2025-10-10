@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
         try {
           // Check if agents need registration
           const rebalancerBalance = await publicClient.getBalance({
-            address: agents.rebalancer.address as `0x${string}`,
+            address: agents.rebalancer as `0x${string}`,
           });
           const validatorBalance = await publicClient.getBalance({
-            address: agents.validator.address as `0x${string}`,
+            address: agents.validator as `0x${string}`,
           });
           const clientBalance = await publicClient.getBalance({
-            address: agents.client.address as `0x${string}`,
+            address: agents.client as `0x${string}`,
           });
 
           const formatBalance = (balance: bigint) => {
@@ -108,7 +108,7 @@ Portfolio Overview:
         break;
 
       case 2: // Create Rebalancing Plan
-        details = `Rebalancing plan created by Rebalancer agent (${agents.rebalancer.address.slice(
+        details = `Rebalancing plan created by Rebalancer agent (${agents.rebalancer.slice(
           0,
           10
         )}...)
@@ -127,7 +127,7 @@ Proof Details:
         break;
 
       case 4: // Submit for Validation
-        details = `Proof submitted to Validator (${agents.validator.address.slice(
+        details = `Proof submitted to Validator (${agents.validator.slice(
           0,
           10
         )}...)
@@ -151,15 +151,15 @@ Status: ✓ Validation permanently recorded on-chain`;
         break;
 
       case 8: // Authorize Feedback (step 7 is handled in frontend)
-        const clientToAuthorize = selectedClient || agents.client.address;
+        const clientToAuthorize = selectedClient || agents.client;
         details = `Client authorized for feedback
 
 Authorized Client: ${clientToAuthorize.slice(0, 10)}...
-Rebalancer: ${agents.rebalancer.address.slice(0, 10)}...`;
+Rebalancer: ${agents.rebalancer.slice(0, 10)}...`;
         break;
 
       case 9: // Client Feedback
-        const feedbackClient = selectedClient || agents.client.address;
+        const feedbackClient = selectedClient || agents.client;
         details = `Client evaluated rebalancing quality
 
 Client: ${feedbackClient.slice(0, 10)}...
@@ -175,7 +175,7 @@ Recorded on ReputationRegistry: ${contracts.reputationRegistry.slice(
       case 10: // Check Reputation
         details = `Reputation updated successfully
 
-Rebalancer: ${agents.rebalancer.address.slice(0, 10)}...
+Rebalancer: ${agents.rebalancer.slice(0, 10)}...
 ReputationRegistry: ${contracts.reputationRegistry.slice(0, 10)}...
 
 Stats:

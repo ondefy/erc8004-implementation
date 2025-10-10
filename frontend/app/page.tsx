@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount, useChainId } from "wagmi";
+import { useState, useEffect } from "react";
+import { useAccount, useChainId, useWriteContract, usePublicClient } from "wagmi";
 import { StepCard } from "@/components/step-card";
 import { StatusBadge } from "@/components/status-badge";
 import { InputDataPanel } from "@/components/input-data-panel";
 import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
 import { isSupportedNetwork, getNetworkInfo, getContractsForNetwork } from "@/lib/constants";
+import { executeWorkflowStep, WorkflowState } from "@/lib/workflow-executor";
 
 type StepStatus = "pending" | "in_progress" | "completed" | "error";
 
@@ -89,14 +90,16 @@ const initialSteps: Step[] = [
 ];
 
 interface AgentConfig {
-  rebalancer: { address: string; privateKey: string };
-  validator: { address: string; privateKey: string };
-  client: { address: string; privateKey: string };
+  rebalancer: string;
+  validator: string;
+  client: string;
 }
 
 export default function Home() {
   const { address: connectedAddress, isConnected } = useAccount();
   const chainId = useChainId();
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const [steps, setSteps] = useState<Step[]>(initialSteps);
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState<number | null>(null);
@@ -104,10 +107,29 @@ export default function Home() {
   const [agentConfig, setAgentConfig] = useState<AgentConfig | null>(null);
   const [showAgentSetup, setShowAgentSetup] = useState(true);
   const [selectedClientAddress, setSelectedClientAddress] = useState<string | null>(null);
+  const [workflowState, setWorkflowState] = useState<WorkflowState>({});
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering after client mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isCorrectNetwork = isSupportedNetwork(chainId);
   const networkInfo = getNetworkInfo(chainId);
   const contracts = getContractsForNetwork(chainId);
+
+  // Prevent hydration mismatch - show loading until mounted
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </main>
+    );
+  }
 
   const updateStepStatus = (stepId: number, status: StepStatus, details?: string) => {
     setSteps((prev) =>
@@ -117,14 +139,46 @@ export default function Home() {
     );
   };
 
+  // Helper function to get required wallet for each step
+  const getRequiredWallet = (stepId: number): { address: string; role: string } | null => {
+    if (!agentConfig) return null;
+
+    switch (stepId) {
+      case 0: // Register Agents - can be any of the three agents
+        return null; // Will check dynamically
+      case 2: // Create Rebalancing Plan
+      case 4: // Submit for Validation
+      case 8: // Authorize Feedback
+        return { address: agentConfig.rebalancer, role: "Rebalancer" };
+      case 5: // Validate Proof
+      case 6: // Submit Validation
+        return { address: agentConfig.validator, role: "Validator" };
+      case 9: // Client Feedback
+        return { address: agentConfig.client, role: "Client" };
+      default:
+        return null; // No wallet required (simulated steps)
+    }
+  };
+
   const runWorkflow = async () => {
     if (!agentConfig) {
       alert("Please configure agent wallets first");
       return;
     }
 
-    if (!contracts) {
-      alert("Unsupported network. Please switch to Base Sepolia or Ethereum Sepolia");
+    if (!contracts || !connectedAddress) {
+      alert("Unsupported network or wallet not connected");
+      return;
+    }
+
+    // Check if the user is connected with the Rebalancer wallet to start
+    if (connectedAddress.toLowerCase() !== agentConfig.rebalancer.toLowerCase()) {
+      alert(
+        `⚠️ Please connect with the Rebalancer wallet to start the workflow\n\n` +
+        `Expected: ${agentConfig.rebalancer}\n` +
+        `Current: ${connectedAddress}\n\n` +
+        `Switch wallets in MetaMask and try again.`
+      );
       return;
     }
 
@@ -138,7 +192,6 @@ export default function Home() {
 
         // Handle client selection step (step 7)
         if (i === 7) {
-          // Prompt user to select which client to authorize
           const clientChoice = await new Promise<string | null>((resolve) => {
             const choice = confirm(
               `Select client for feedback authorization:\n\n` +
@@ -147,7 +200,7 @@ export default function Home() {
             );
 
             if (choice) {
-              resolve(agentConfig.client.address);
+              resolve(agentConfig.client);
             } else {
               const customAddress = prompt("Enter client address to authorize:");
               resolve(customAddress);
@@ -165,37 +218,79 @@ export default function Home() {
           continue;
         }
 
-        const response = await fetch("/api/workflow/execute-step", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            stepId: i,
-            agents: agentConfig,
-            contracts,
-            chainId,
-            selectedClient: selectedClientAddress,
-          }),
+        // Check if correct wallet is connected for this step
+        const requiredWallet = getRequiredWallet(i);
+        if (requiredWallet && connectedAddress.toLowerCase() !== requiredWallet.address.toLowerCase()) {
+          updateStepStatus(
+            i,
+            "error",
+            `⚠️ Wrong wallet connected!\n\n` +
+            `This step requires: ${requiredWallet.role} wallet\n` +
+            `Expected: ${requiredWallet.address}\n` +
+            `Current: ${connectedAddress}\n\n` +
+            `Please switch to the ${requiredWallet.role} wallet in MetaMask and click "Start Workflow" again to continue from this step.`
+          );
+          break;
+        }
+
+        // Execute step with real blockchain transactions
+        const result = await executeWorkflowStep({
+          stepId: i,
+          agents: agentConfig,
+          chainId,
+          selectedClient: selectedClientAddress,
+          writeContract: writeContractAsync,
+          currentAddress: connectedAddress,
+          publicClient,
+          workflowState,
         });
 
-        const result = await response.json();
+        if (result.requiresWalletSwitch) {
+          updateStepStatus(
+            i,
+            "error",
+            `⚠️ Please switch to ${result.requiresWalletSwitch.role} wallet\n\nCurrent: ${result.requiresWalletSwitch.from.slice(0, 10)}...\nRequired: ${result.requiresWalletSwitch.to.slice(0, 10)}...\n\nSwitch wallets in MetaMask and click "Start Workflow" again`
+          );
+          break;
+        }
 
         if (result.success) {
           updateStepStatus(i, "completed", result.details);
           if (result.data) {
             setInputData(result.data);
           }
+          // Update workflow state if there are state changes
+          if (result.stateUpdate) {
+            setWorkflowState((prev) => {
+              const update = result.stateUpdate!;
+              return {
+                ...prev,
+                ...update,
+                // Deep merge for nested objects like agentIds
+                ...(update.agentIds && {
+                  agentIds: {
+                    ...prev.agentIds,
+                    ...update.agentIds,
+                  },
+                }),
+              };
+            });
+          }
+          // Small delay for better UX
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         } else {
-          updateStepStatus(i, "error", result.error);
+          updateStepStatus(i, "error", result.error || "Step failed");
           break;
         }
-
-        // Small delay for better UX
-        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (error) {
       console.error("Workflow error:", error);
       if (currentStep !== null) {
-        updateStepStatus(currentStep, "error", "Failed to execute step");
+        updateStepStatus(
+          currentStep,
+          "error",
+          error instanceof Error ? error.message : "Failed to execute step"
+        );
       }
     } finally {
       setIsRunning(false);
@@ -272,7 +367,7 @@ export default function Home() {
 
           {!isConnected ? (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
-              <div className="text-6xl mb-4">👛</div>
+              {/* <div className="text-6xl mb-4">👛</div> */}
               <h2 className="text-2xl font-bold text-slate-900 mb-2">
                 Connect Your Wallet
               </h2>
@@ -284,7 +379,10 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <AgentWalletManager onAgentsReady={handleAgentsReady} />
+            <AgentWalletManager
+              onAgentsReady={handleAgentsReady}
+              connectedAddress={connectedAddress as string}
+            />
           )}
         </div>
       </main>
@@ -317,27 +415,64 @@ export default function Home() {
 
         {/* Agent Info Banner */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-slate-200">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="text-sm text-slate-700">
               <strong>Active Agents:</strong>
             </div>
-            {agentConfig && (
+            {agentConfig && connectedAddress && (
               <>
-                <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded text-xs font-mono">
-                  🤖 {agentConfig.rebalancer.address.slice(0, 6)}...
-                  {agentConfig.rebalancer.address.slice(-4)}
+                <div className={`px-3 py-1 rounded text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase()
+                  ? 'bg-blue-100 border-2 border-blue-500 text-blue-900 font-semibold'
+                  : 'bg-blue-50 border border-blue-200'
+                  }`}>
+                  🔄 Rebalancer: {agentConfig.rebalancer.slice(0, 6)}...
+                  {agentConfig.rebalancer.slice(-4)}
+                  {connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase() && (
+                    <span className="ml-2 text-blue-600">✓ Connected</span>
+                  )}
                 </div>
-                <div className="px-3 py-1 bg-green-50 border border-green-200 rounded text-xs font-mono">
-                  ✅ {agentConfig.validator.address.slice(0, 6)}...
-                  {agentConfig.validator.address.slice(-4)}
+                <div className={`px-3 py-1 rounded text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.validator.toLowerCase()
+                  ? 'bg-green-100 border-2 border-green-500 text-green-900 font-semibold'
+                  : 'bg-green-50 border border-green-200'
+                  }`}>
+                  ✅ Validator: {agentConfig.validator.slice(0, 6)}...
+                  {agentConfig.validator.slice(-4)}
+                  {connectedAddress.toLowerCase() === agentConfig.validator.toLowerCase() && (
+                    <span className="ml-2 text-green-600">✓ Connected</span>
+                  )}
                 </div>
-                <div className="px-3 py-1 bg-purple-50 border border-purple-200 rounded text-xs font-mono">
-                  👤 {agentConfig.client.address.slice(0, 6)}...
-                  {agentConfig.client.address.slice(-4)}
+                <div className={`px-3 py-1 rounded text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.client.toLowerCase()
+                  ? 'bg-purple-100 border-2 border-purple-500 text-purple-900 font-semibold'
+                  : 'bg-purple-50 border border-purple-200'
+                  }`}>
+                  👤 Client: {agentConfig.client.slice(0, 6)}...
+                  {agentConfig.client.slice(-4)}
+                  {connectedAddress.toLowerCase() === agentConfig.client.toLowerCase() && (
+                    <span className="ml-2 text-purple-600">✓ Connected</span>
+                  )}
                 </div>
               </>
             )}
           </div>
+
+          {/* Current wallet indicator */}
+          {connectedAddress && agentConfig && (
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-600">Currently connected:</span>
+                <span className="font-mono font-semibold text-slate-900">
+                  {connectedAddress.slice(0, 6)}...{connectedAddress.slice(-4)}
+                </span>
+                {connectedAddress.toLowerCase() !== agentConfig.rebalancer.toLowerCase() &&
+                  connectedAddress.toLowerCase() !== agentConfig.validator.toLowerCase() &&
+                  connectedAddress.toLowerCase() !== agentConfig.client.toLowerCase() && (
+                    <span className="px-2 py-0.5 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded text-xs font-medium">
+                      ⚠️ Not a designated agent
+                    </span>
+                  )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Progress Bar */}
@@ -362,21 +497,42 @@ export default function Home() {
         </div>
 
         {/* Control Buttons */}
-        <div className="flex gap-4 mb-8">
-          <button
-            onClick={runWorkflow}
-            disabled={isRunning}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
-          >
-            {isRunning ? "Running..." : "▶ Start Workflow"}
-          </button>
-          <button
-            onClick={resetWorkflow}
-            disabled={isRunning}
-            className="px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-slate-200"
-          >
-            ↻ Reset
-          </button>
+        <div className="mb-8">
+          <div className="flex gap-4 mb-3">
+            <button
+              onClick={runWorkflow}
+              disabled={isRunning}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+            >
+              {isRunning ? "Running..." : "▶ Start Workflow"}
+            </button>
+            <button
+              onClick={resetWorkflow}
+              disabled={isRunning}
+              className="px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-slate-200"
+            >
+              ↻ Reset
+            </button>
+          </div>
+
+          {/* Wallet requirement notice */}
+          {agentConfig && connectedAddress && (
+            <div className="flex items-center gap-2 text-sm">
+              {connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase() ? (
+                <div className="flex items-center gap-2 text-green-700">
+                  <span className="text-lg">✓</span>
+                  <span>Ready to start! Rebalancer wallet is connected.</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <span className="text-lg">⚠️</span>
+                  <span>
+                    To start the workflow, please connect with the <strong>Rebalancer</strong> wallet ({agentConfig.rebalancer.slice(0, 6)}...{agentConfig.rebalancer.slice(-4)})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
