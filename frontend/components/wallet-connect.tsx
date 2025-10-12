@@ -43,19 +43,32 @@ export function WalletConnect() {
         );
     }
 
+    // Find injected connector (MetaMask, etc.)
+    const injectedConnector = connectors.find((c) => c.id === "injected");
+
     return (
         <div className="flex items-center gap-3">
-            {connectors
-                .filter((connector) => connector.id === "injected")
-                .map((connector) => (
-                    <button
-                        key={connector.id}
-                        onClick={() => connect({ connector })}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
-                    >
-                        Connect Wallet
-                    </button>
-                ))}
+            {injectedConnector ? (
+                <button
+                    onClick={() => connect({ connector: injectedConnector })}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                >
+                    Connect Wallet
+                </button>
+            ) : (
+                <button
+                    onClick={() => {
+                        if (connectors.length > 0) {
+                            connect({ connector: connectors[0] });
+                        } else {
+                            alert("No wallet detected. Please install MetaMask or another Web3 wallet.");
+                        }
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm hover:shadow-md"
+                >
+                    Connect Wallet
+                </button>
+            )}
         </div>
     );
 }

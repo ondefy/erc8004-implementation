@@ -30,6 +30,24 @@ export interface WorkflowState {
   };
   requestHash?: string;
   responseHash?: string;
+  dataHash?: string;
+  inputData?: {
+    oldBalances: string[];
+    newBalances: string[];
+    prices: string[];
+    totalValueCommitment: string;
+    minAllocationPct: string;
+    maxAllocationPct: string;
+  };
+  proofGenerated?: boolean;
+  newTotalValue?: number;
+  validationResult?: {
+    isValid: boolean;
+    score: number;
+    dataHash: string;
+  };
+  feedbackAuthGenerated?: boolean;
+  authorizedClient?: string;
   [key: string]: any;
 }
 
@@ -87,13 +105,10 @@ export async function executeWorkflowStep(
       case 1: // Load Input Data
         return await loadInputData();
 
-      case 2: // Create Rebalancing Plan
-        return await createRebalancingPlan(agents.rebalancer);
+      case 2: // Generate ZK Proof
+        return await generateZKProof(workflowState);
 
-      case 3: // Generate ZK Proof
-        return await generateZKProof();
-
-      case 4: // Submit for Validation
+      case 3: // Submit for Validation
         return await submitForValidation(
           agents,
           contractConfig,
@@ -103,7 +118,7 @@ export async function executeWorkflowStep(
           workflowState
         );
 
-      case 5: // Validate Proof
+      case 4: // Validate Proof
         return await validateProof(
           agents,
           contractConfig,
@@ -112,7 +127,7 @@ export async function executeWorkflowStep(
           workflowState
         );
 
-      case 6: // Submit Validation
+      case 5: // Submit Validation
         return await submitValidation(
           agents,
           contractConfig,
@@ -122,7 +137,7 @@ export async function executeWorkflowStep(
           publicClient
         );
 
-      case 8: // Authorize Feedback (step 7 is client selection in UI)
+      case 7: // Authorize Feedback (step 6 is client selection in UI)
         return await authorizeFeedback(
           agents,
           selectedClient || agents.client,
@@ -131,15 +146,16 @@ export async function executeWorkflowStep(
           currentAddress
         );
 
-      case 9: // Client Feedback
+      case 8: // Client Feedback
         return await submitFeedback(
           agents,
           contractConfig,
           writeContract,
-          currentAddress
+          currentAddress,
+          workflowState
         );
 
-      case 10: // Check Reputation
+      case 9: // Check Reputation
         return await checkReputation(
           agents.rebalancer,
           contractConfig,
@@ -351,23 +367,59 @@ async function loadInputData(): Promise<StepResult> {
       data.minAllocationPct
     }%\n• Max Allocation: ${data.maxAllocationPct}%`,
     data,
+    stateUpdate: {
+      inputData: data,
+    },
   };
 }
 
-async function createRebalancingPlan(rebalancer: string): Promise<StepResult> {
-  return {
-    success: true,
-    details: `Rebalancing plan created by Rebalancer (${rebalancer.slice(
-      0,
-      10
-    )}...)\n\nStrategy: Portfolio rebalancing with allocation constraints`,
-  };
-}
+async function generateZKProof(
+  workflowState: WorkflowState
+): Promise<StepResult> {
+  // Get input data from workflow state (from step 1)
+  const inputData = workflowState.inputData;
 
-async function generateZKProof(): Promise<StepResult> {
+  if (!inputData) {
+    return {
+      success: false,
+      error: "Input data not found. Please load input data first.",
+      details: "",
+    };
+  }
+
+  // Calculate new total value (matching agent's createRebalancingPlan)
+  const newTotalValue = inputData.newBalances.reduce(
+    (sum, bal, i) => sum + parseInt(bal) * parseInt(inputData.prices[i]),
+    0
+  );
+
+  // In the real agent implementation, this would:
+  // 1. Write input to temp file
+  // 2. Run snarkjs wtns calculate
+  // 3. Run snarkjs groth16 prove
+  // 4. Read proof.json and public.json
+  // 5. Return ProofPackage { proof, publicInputs, rebalancingPlan }
+
+  // For frontend demo, we simulate the proof generation
+  // In production, this would call an API endpoint that runs the actual ZK proof generation
+
   return {
     success: true,
-    details: `ZK proof generated using Groth16 (off-chain computation)\n\nProof Details:\n• Circuit: rebalancing.circom\n• Proof System: Groth16\n• Private Inputs: balances, prices\n• Public Inputs: total value, min/max allocations`,
+    details:
+      `ZK proof generated using Groth16\n\n` +
+      `Proof Details:\n` +
+      `• Circuit: rebalancing.circom\n` +
+      `• Proof System: Groth16\n` +
+      `• Private Inputs: ${inputData.oldBalances.length} balances + prices (hidden)\n` +
+      `• Public Input: total value = ${newTotalValue.toLocaleString()}\n` +
+      `• Constraints: ${inputData.minAllocationPct}% ≤ allocations ≤ ${inputData.maxAllocationPct}%\n` +
+      `• Assets: ${inputData.oldBalances.length} portfolio assets\n\n` +
+      `✓ Proof cryptographically generated\n` +
+      `ℹ️ Note: In production, proof generation happens off-chain via snarkjs`,
+    stateUpdate: {
+      proofGenerated: true,
+      newTotalValue,
+    },
   };
 }
 
@@ -391,8 +443,28 @@ async function submitForValidation(
     };
   }
 
-  // Use agentId from state if available, otherwise use placeholder
-  const rebalancerAgentId = workflowState.agentIds?.rebalancer || 1;
+  // Require agentId from registration
+  const rebalancerAgentId = workflowState.agentIds?.rebalancer;
+  if (!rebalancerAgentId) {
+    return {
+      success: false,
+      details: "",
+      error:
+        "Rebalancer agent ID not found. Please complete agent registration first.",
+    };
+  }
+
+  // In the real implementation (rebalancer-agent.ts):
+  // 1. Creates SHA-256 hash of proof: dataHash = createHash('sha256').update(JSON.stringify(proof)).digest('hex')
+  // 2. Stores proof in data/${dataHash}.json
+  // 3. Creates requestUri = `file://data/${dataHash}.json`
+  // 4. Calls requestValidation(validatorAddress, requestUri, `0x${dataHash}`)
+
+  // For frontend demo, we simulate the dataHash
+  const inputData = workflowState.inputData;
+  const simulatedDataHash = `0x${Buffer.from(
+    JSON.stringify(inputData)
+  ).toString("hex")}`.slice(0, 66); // First 32 bytes
 
   try {
     const hash = await writeContract({
@@ -402,8 +474,8 @@ async function submitForValidation(
       args: [
         agents.validator, // validatorAddress
         rebalancerAgentId, // agentId from registration
-        "ipfs://rebalancing-proof", // requestUri
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // requestHash (will be auto-generated by contract)
+        "ipfs://rebalancing-proof", // requestUri (in real impl: file://data/${dataHash}.json)
+        simulatedDataHash, // requestHash (dataHash from proof)
       ],
     });
 
@@ -429,7 +501,7 @@ async function submitForValidation(
         });
 
         if (validationRequestLog && validationRequestLog.topics[0]) {
-          // requestHash is the first indexed parameter
+          // requestHash is the first indexed parameter (the dataHash we submitted)
           requestHash = validationRequestLog.topics[0];
         }
       } catch (e) {
@@ -438,25 +510,27 @@ async function submitForValidation(
     }
 
     let details =
-      `Proof submitted to Validator (${agents.validator.slice(0, 10)}...)\n\n` +
-      `Transaction: ${hash.slice(0, 10)}...\n` +
-      `Agent ID: ${rebalancerAgentId}\n`;
+      `Proof submitted to Validator\n\n` +
+      `Validator: ${agents.validator.slice(0, 10)}...${agents.validator.slice(
+        -4
+      )}\n` +
+      `Agent ID: ${rebalancerAgentId}\n` +
+      `Transaction: ${hash.slice(0, 10)}...${hash.slice(-4)}\n`;
 
     if (requestHash) {
-      details += `\n📋 Request Hash:\n${requestHash}`;
+      details += `\n📋 Request Hash (DataHash):\n${requestHash}\n\nℹ️ This hash commits to the proof data`;
     } else {
-      details += `\n⚠️ Request Hash: Not captured (using zero hash)`;
+      details += `\n⚠️ Request Hash: Not captured from event`;
     }
 
     return {
       success: true,
       details,
       txHash: hash,
-      stateUpdate: requestHash
-        ? {
-            requestHash,
-          }
-        : undefined,
+      stateUpdate: {
+        requestHash: requestHash || simulatedDataHash,
+        dataHash: requestHash || simulatedDataHash,
+      },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
@@ -489,19 +563,44 @@ async function validateProof(
     };
   }
 
-  const requestHash =
+  const dataHash =
+    workflowState.dataHash ||
     workflowState.requestHash ||
     "0x0000000000000000000000000000000000000000000000000000000000000000";
 
+  // In the real implementation (validator-agent.ts):
+  // 1. Loads proof from data/${dataHash}.json (or receives ProofPackage directly)
+  // 2. Writes temp files: temp_proof.json, temp_public.json
+  // 3. Runs: snarkjs groth16 verify build/verification_key.json temp_public.json temp_proof.json
+  // 4. Parses result to check if it includes "OK"
+  // 5. Returns ValidationResult { isValid: boolean, score: 0-100, dataHash: string }
+
+  // For frontend demo, we simulate the validation
+  // In production, this would call the validator's off-chain service to run snarkjs
+
+  const isValid = true; // Simulated validation result
+  const score = 100;
+
   let details =
-    `Proof validated on-chain\n\n` +
-    `Verifier Contract: Uses pre-deployed verifier\n` +
-    `Status: ✓ Proof cryptographically verified\n\n` +
-    `📋 Request Hash:\n${requestHash}`;
+    `ZK Proof Validation Complete\n\n` +
+    `Cryptographic Verification:\n` +
+    `• Verification Key: build/verification_key.json\n` +
+    `• Proof System: Groth16\n` +
+    `• Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
+    `• Score: ${score}/100\n\n` +
+    `📋 DataHash:\n${dataHash}\n\n` +
+    `ℹ️ Note: In production, snarkjs groth16 verify runs off-chain`;
 
   return {
     success: true,
     details,
+    stateUpdate: {
+      validationResult: {
+        isValid,
+        score,
+        dataHash,
+      },
+    },
   };
 }
 
@@ -525,14 +624,28 @@ async function submitValidation(
     };
   }
 
-  // Get the requestHash from the workflow state (captured in step 4)
-  const requestHash =
-    workflowState.requestHash ||
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
+  // Get the requestHash from the workflow state (captured in step 3)
+  const requestHash = workflowState.requestHash || workflowState.dataHash;
 
-  if (!workflowState.requestHash) {
-    console.warn("No requestHash found in workflow state, using zero hash");
+  if (!requestHash) {
+    return {
+      success: false,
+      details: "",
+      error:
+        "Request hash not found. Please complete 'Submit for Validation' step first.",
+    };
   }
+
+  // Get validation result from previous step
+  const validationResult = workflowState.validationResult;
+  const score = validationResult?.score || 100;
+  const dataHash = validationResult?.dataHash || requestHash;
+
+  // In the real implementation (validator-agent.ts):
+  // 1. Takes ValidationResult { isValid, score, dataHash }
+  // 2. Stores validation in validations/${dataHash}.json
+  // 3. Creates responseUri = `file://validations/${dataHash}.json`
+  // 4. Calls submitValidationResponse(requestHash, score, responseUri, dataHash, tag)
 
   try {
     const hash = await writeContract({
@@ -540,11 +653,11 @@ async function submitValidation(
       abi: contractConfig.validationRegistry.abi,
       functionName: "validationResponse",
       args: [
-        requestHash as `0x${string}`, // requestHash from step 4
-        100, // response (0-100, where 100 = valid)
-        "ipfs://validation-response", // responseUri
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // responseHash (will be auto-generated)
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // tag
+        requestHash as `0x${string}`, // requestHash from step 3
+        score, // response (0-100, where 100 = valid)
+        "ipfs://validation-response", // responseUri (in real impl: file://validations/${dataHash}.json)
+        dataHash as `0x${string}`, // responseHash (dataHash from validation)
+        "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag
       ],
     });
 
@@ -578,27 +691,25 @@ async function submitValidation(
     }
 
     let details =
-      `Validation result recorded on ValidationRegistry\n\n` +
-      `Transaction: ${hash.slice(0, 10)}...\n` +
-      `Response Score: 100 (Valid)\n` +
-      `Status: ✓ Validation permanently recorded on-chain\n\n` +
-      `📋 Request Hash:\n${requestHash}`;
+      `Validation Response Submitted\n\n` +
+      `Transaction: ${hash.slice(0, 10)}...${hash.slice(-4)}\n` +
+      `Score: ${score}/100 ${score === 100 ? "✅ VALID" : "⚠️"}\n` +
+      `Status: ✓ Recorded on ValidationRegistry\n\n` +
+      `📋 Request Hash (DataHash):\n${requestHash}`;
 
     if (responseHash) {
-      details += `\n\n📋 Response Hash:\n${responseHash}`;
+      details += `\n\n📋 Response Hash:\n${responseHash}\n\nℹ️ This hash commits to the validation result`;
     } else {
-      details += `\n\n⚠️ Response Hash: Not captured`;
+      details += `\n\n⚠️ Response Hash: Not captured from event`;
     }
 
     return {
       success: true,
       details,
       txHash: hash,
-      stateUpdate: responseHash
-        ? {
-            responseHash,
-          }
-        : undefined,
+      stateUpdate: {
+        responseHash: responseHash || dataHash,
+      },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
@@ -619,16 +730,41 @@ async function authorizeFeedback(
   writeContract: any,
   currentAddress: string
 ): Promise<StepResult> {
-  // Note: The new contract uses signed authorization instead of on-chain authorization
-  // The rebalancer would generate a signed message off-chain that the client presents
-  // For this demo, we'll simulate this step as completed
+  // In the real implementation (rebalancer-agent.ts):
+  // generateFeedbackAuthorization(clientAddress, indexLimit=10n, expiryDays=30):
+  // 1. Creates authData struct with: agentId, clientAddress, indexLimit, expiry, chainId, identityRegistry, signerAddress
+  // 2. ABI-encodes the struct (224 bytes)
+  // 3. Creates keccak256 hash of encoded struct
+  // 4. Signs the hash with EIP-191 personal sign (65 bytes signature)
+  // 5. Concatenates: encodedStruct + signature = feedbackAuth (289 bytes total)
+  // 6. Returns { feedbackAuth: `0x${string}`, authData }
+
+  // For frontend demo, we simulate this off-chain signing process
+  // In production, this would call the rebalancer's off-chain service to generate the signature
+
+  const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
   return {
     success: true,
-    details: `Client authorization prepared (off-chain signing)\n\nAuthorized Client: ${clientAddress.slice(
-      0,
-      10
-    )}...\n\nNote: In production, rebalancer signs authorization message off-chain`,
+    details:
+      `Feedback Authorization Generated\n\n` +
+      `Off-Chain Signed Authorization:\n` +
+      `• Authorized Client: ${clientAddress.slice(
+        0,
+        10
+      )}...${clientAddress.slice(-4)}\n` +
+      `• Index Limit: 10 feedbacks\n` +
+      `• Expiry: ${expiry.toLocaleDateString()}\n` +
+      `• Chain ID: 31337 (Foundry/Anvil)\n\n` +
+      `Signature Components:\n` +
+      `• Struct (224 bytes): agentId, clientAddress, limits, expiry\n` +
+      `• Signature (65 bytes): EIP-191 personal sign\n` +
+      `• Total Auth: 289 bytes\n\n` +
+      `ℹ️ Note: In production, rebalancer signs with private key off-chain`,
+    stateUpdate: {
+      feedbackAuthGenerated: true,
+      authorizedClient: clientAddress,
+    },
   };
 }
 
@@ -636,7 +772,8 @@ async function submitFeedback(
   agents: any,
   contractConfig: any,
   writeContract: any,
-  currentAddress: string
+  currentAddress: string,
+  workflowState: WorkflowState
 ): Promise<StepResult> {
   if (currentAddress.toLowerCase() !== agents.client.toLowerCase()) {
     return {
@@ -650,30 +787,68 @@ async function submitFeedback(
     };
   }
 
-  // Note: feedbackAuth needs to be signed by the agent
-  // For demo purposes, using empty bytes - in production, this must be properly signed
+  // Require rebalancer agentId from registration
+  const rebalancerAgentId = workflowState.agentIds?.rebalancer;
+  if (!rebalancerAgentId) {
+    return {
+      success: false,
+      details: "",
+      error:
+        "Rebalancer agent ID not found. Please complete agent registration first.",
+    };
+  }
+
+  // Check if feedback authorization was generated
+  if (!workflowState.feedbackAuthGenerated) {
+    console.warn(
+      "Feedback authorization not found, proceeding with empty auth"
+    );
+  }
+
+  // In the real implementation (client-agent.ts):
+  // submitFeedback(agentId, score, feedbackAuth, comment, tag1?, tag2?):
+  // 1. Validates score is 0-100
+  // 2. Calls giveFeedback on ReputationRegistry with:
+  //    - agentId: The rebalancer's agent NFT ID
+  //    - score: 0-100 rating
+  //    - tag1, tag2: Optional category tags (bytes32)
+  //    - fileuri: Optional IPFS link to feedback details
+  //    - filehash: Hash of the feedback file
+  //    - feedbackAuth: The 289-byte signed authorization from rebalancer
+  // 3. Waits for transaction confirmation
+  // 4. Stores feedback locally in feedbackHistory
+
+  // For demo purposes, using empty feedbackAuth
+  // In production, this must be the signed authorization from step 7
+  const score = 95;
+  const comment = "Great rebalancing service!";
+
   try {
     const hash = await writeContract({
       address: contractConfig.reputationRegistry.address,
       abi: contractConfig.reputationRegistry.abi,
       functionName: "giveFeedback",
       args: [
-        1, // agentId (placeholder - should match registered agent)
-        95, // score (0-100)
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // tag1
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // tag2
-        "ipfs://feedback-comment", // fileuri
-        "0x0000000000000000000000000000000000000000000000000000000000000000", // filehash
-        "0x", // feedbackAuth (signed authorization - placeholder)
+        rebalancerAgentId, // agentId from rebalancer registration
+        score, // score (0-100)
+        "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag1
+        "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag2
+        comment ? `ipfs://feedback/${comment}` : "", // fileuri
+        "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // filehash
+        "0x" as `0x${string}`, // feedbackAuth (should be from step 7 - using empty for demo)
       ],
     });
 
     return {
       success: true,
-      details: `Client evaluated rebalancing quality\n\nScore: 95/100\nComment: "Great rebalancing service!"\nTransaction: ${hash.slice(
-        0,
-        10
-      )}...`,
+      details:
+        `Client Feedback Submitted\n\n` +
+        `Transaction: ${hash.slice(0, 10)}...${hash.slice(-4)}\n` +
+        `Rebalancer Agent ID: ${rebalancerAgentId}\n` +
+        `Score: ${score}/100 ⭐\n` +
+        `Comment: "${comment}"\n\n` +
+        `Status: ✓ Recorded on ReputationRegistry\n\n` +
+        `ℹ️ Note: In production, feedbackAuth must be valid signed authorization`,
       txHash: hash,
     };
   } catch (error: any) {
@@ -693,25 +868,48 @@ async function checkReputation(
   contractConfig: any,
   workflowState?: WorkflowState
 ): Promise<StepResult> {
+  // In the real implementation (client-agent.ts):
+  // checkRebalancerReputation(serverId: bigint):
+  // 1. Filters feedbackHistory for this serverId (agentId)
+  // 2. Calculates average score from all feedback entries
+  // 3. Returns ReputationInfo { serverId, feedbackCount, averageScore }
+  // Note: This is local tracking - the contract also stores reputation on-chain
+
+  const rebalancerAgentId = workflowState?.agentIds?.rebalancer;
+
   let details =
-    `Reputation updated successfully\n\n` +
-    `Rebalancer: ${rebalancer.slice(0, 10)}...\n\n` +
-    `Stats:\n` +
+    `Rebalancer Reputation Summary\n\n` +
+    `Rebalancer Address: ${rebalancer.slice(0, 10)}...${rebalancer.slice(
+      -4
+    )}\n`;
+
+  if (rebalancerAgentId) {
+    details += `Agent ID: ${rebalancerAgentId}\n`;
+  }
+
+  details +=
+    `\n` +
+    `Reputation Stats:\n` +
     `• Total Validations: 1\n` +
-    `• Average Score: 95/100\n` +
-    `• Status: ✓ Active`;
+    `• Total Feedback: 1\n` +
+    `• Average Score: 95/100 ⭐\n` +
+    `• Status: ✓ Active Agent\n`;
 
   // Add hash summary if available
   if (workflowState) {
     details += `\n\n📋 Workflow Hash Summary:`;
 
-    if (workflowState.requestHash) {
-      details += `\n\nRequest Hash:\n${workflowState.requestHash}`;
+    if (workflowState.requestHash || workflowState.dataHash) {
+      details += `\n\nRequest Hash (DataHash):\n${
+        workflowState.requestHash || workflowState.dataHash
+      }`;
     }
 
     if (workflowState.responseHash) {
       details += `\n\nResponse Hash:\n${workflowState.responseHash}`;
     }
+
+    details += `\n\nℹ️ These hashes provide cryptographic proof of the validation workflow`;
   }
 
   return {

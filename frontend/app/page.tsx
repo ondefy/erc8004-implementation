@@ -35,54 +35,48 @@ const initialSteps: Step[] = [
   },
   {
     id: 2,
-    title: "Create Rebalancing Plan",
-    description: "Generate new allocation strategy",
-    status: "pending",
-  },
-  {
-    id: 3,
     title: "Generate ZK Proof",
     description: "Create zero-knowledge proof of valid rebalancing",
     status: "pending",
   },
   {
-    id: 4,
+    id: 3,
     title: "Submit for Validation",
     description: "Send proof to validator agent",
     status: "pending",
   },
   {
-    id: 5,
+    id: 4,
     title: "Validate Proof",
     description: "Verify proof on-chain",
     status: "pending",
   },
   {
-    id: 6,
+    id: 5,
     title: "Submit Validation",
     description: "Record validation result",
     status: "pending",
   },
   {
-    id: 7,
+    id: 6,
     title: "Select Client for Feedback",
     description: "Rebalancer selects which client to authorize",
     status: "pending",
   },
   {
-    id: 8,
+    id: 7,
     title: "Authorize Feedback",
     description: "Grant selected client permission to provide feedback",
     status: "pending",
   },
   {
-    id: 9,
+    id: 8,
     title: "Client Feedback",
     description: "Client evaluates and rates the service",
     status: "pending",
   },
   {
-    id: 10,
+    id: 9,
     title: "Check Reputation",
     description: "View rebalancer's updated reputation",
     status: "pending",
@@ -128,10 +122,11 @@ export default function Home() {
       connectedAddress.toLowerCase() === waitingForWalletSwitch.requiredAddress.toLowerCase() &&
       !isRunning
     ) {
-      console.log("Correct wallet connected! Auto-resuming workflow...");
+      console.log("Correct wallet connected! Auto-resuming workflow from step", waitingForWalletSwitch.stepId);
+      const resumeFromStep = waitingForWalletSwitch.stepId;
       setWaitingForWalletSwitch(null);
-      // Auto-resume the workflow
-      setTimeout(() => runWorkflow(), 500);
+      // Auto-resume the workflow from the specific step
+      setTimeout(() => resumeWorkflowFromStep(resumeFromStep), 500);
     }
   }, [connectedAddress, waitingForWalletSwitch, isRunning]);
 
@@ -166,17 +161,149 @@ export default function Home() {
     switch (stepId) {
       case 0: // Register Agents - can be any of the three agents
         return null; // Will check dynamically
-      case 2: // Create Rebalancing Plan
-      case 4: // Submit for Validation
-      case 8: // Authorize Feedback
+      case 3: // Submit for Validation
+      case 7: // Authorize Feedback
         return { address: agentConfig.rebalancer, role: "Rebalancer" };
-      case 5: // Validate Proof
-      case 6: // Submit Validation
+      case 4: // Validate Proof
+      case 5: // Submit Validation
         return { address: agentConfig.validator, role: "Validator" };
-      case 9: // Client Feedback
+      case 8: // Client Feedback
         return { address: agentConfig.client, role: "Client" };
       default:
         return null; // No wallet required (simulated steps)
+    }
+  };
+
+  const resumeWorkflowFromStep = async (startFromStep: number) => {
+    if (!agentConfig || !contracts || !connectedAddress) {
+      return;
+    }
+
+    setIsRunning(true);
+    console.log(`Resuming workflow from step ${startFromStep}`);
+
+    try {
+      for (let i = startFromStep; i < steps.length; i++) {
+        await executeStep(i);
+      }
+    } catch (error) {
+      console.error("Workflow error during resume:", error);
+    } finally {
+      setIsRunning(false);
+      setCurrentStep(null);
+    }
+  };
+
+  const executeStep = async (i: number) => {
+    setCurrentStep(i);
+    updateStepStatus(i, "in_progress");
+
+    // Handle client selection step (step 6)
+    if (i === 6) {
+      const clientChoice = await new Promise<string | null>((resolve) => {
+        const choice = confirm(
+          `Select client for feedback authorization:\n\n` +
+          `Click OK to use the default Client Agent\n` +
+          `Click Cancel to enter a different address`
+        );
+
+        if (choice) {
+          resolve(agentConfig!.client);
+        } else {
+          const customAddress = prompt("Enter client address to authorize:");
+          resolve(customAddress);
+        }
+      });
+
+      if (!clientChoice) {
+        updateStepStatus(i, "error", "Client selection cancelled");
+        throw new Error("Client selection cancelled");
+      }
+
+      setSelectedClientAddress(clientChoice);
+      updateStepStatus(i, "completed", `Selected client: ${clientChoice.slice(0, 10)}...`);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return;
+    }
+
+    // Check if correct wallet is connected for this step
+    const requiredWallet = getRequiredWallet(i);
+    if (requiredWallet && connectedAddress!.toLowerCase() !== requiredWallet.address.toLowerCase()) {
+      setWaitingForWalletSwitch({
+        stepId: i,
+        requiredAddress: requiredWallet.address,
+        role: requiredWallet.role,
+      });
+      updateStepStatus(
+        i,
+        "error",
+        `⚠️ Wrong wallet connected!\n\n` +
+        `This step requires: ${requiredWallet.role} wallet\n` +
+        `Expected: ${requiredWallet.address}\n` +
+        `Current: ${connectedAddress}\n\n` +
+        `Please switch to the ${requiredWallet.role} wallet in MetaMask.\n` +
+        `The workflow will auto-resume once the correct wallet is connected.`
+      );
+      throw new Error("Wrong wallet - waiting for switch");
+    }
+
+    // Execute step with real blockchain transactions
+    console.log(`Executing step ${i}...`);
+
+    let result;
+    try {
+      result = await executeWorkflowStep({
+        stepId: i,
+        agents: agentConfig!,
+        chainId,
+        selectedClient: selectedClientAddress,
+        writeContract: writeContractAsync,
+        currentAddress: connectedAddress!,
+        publicClient,
+        workflowState,
+      });
+    } catch (stepError: any) {
+      console.error(`Error in step ${i}:`, stepError);
+      updateStepStatus(i, "error", `Error: ${stepError.message || "Unknown error occurred"}`);
+      throw stepError;
+    }
+
+    if (result.requiresWalletSwitch) {
+      updateStepStatus(
+        i,
+        "error",
+        `⚠️ Please switch to ${result.requiresWalletSwitch.role} wallet\n\nCurrent: ${result.requiresWalletSwitch.from.slice(0, 10)}...\nRequired: ${result.requiresWalletSwitch.to.slice(0, 10)}...\n\nSwitch wallets in MetaMask and click "Start Workflow" again`
+      );
+      throw new Error("Wallet switch required");
+    }
+
+    if (result.success) {
+      updateStepStatus(i, "completed", result.details);
+      if (result.data) {
+        setInputData(result.data);
+      }
+      // Update workflow state if there are state changes
+      if (result.stateUpdate) {
+        setWorkflowState((prev) => {
+          const update = result.stateUpdate!;
+          return {
+            ...prev,
+            ...update,
+            // Deep merge for nested objects like agentIds
+            ...(update.agentIds && {
+              agentIds: {
+                ...prev.agentIds,
+                ...update.agentIds,
+              },
+            }),
+          };
+        });
+      }
+      // Small delay for better UX
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } else {
+      updateStepStatus(i, "error", result.error || "Step failed");
+      throw new Error(result.error || "Step failed");
     }
   };
 
@@ -207,126 +334,10 @@ export default function Home() {
 
     try {
       for (let i = 0; i < steps.length; i++) {
-        setCurrentStep(i);
-        updateStepStatus(i, "in_progress");
-
-        // Handle client selection step (step 7)
-        if (i === 7) {
-          const clientChoice = await new Promise<string | null>((resolve) => {
-            const choice = confirm(
-              `Select client for feedback authorization:\n\n` +
-              `Click OK to use the default Client Agent\n` +
-              `Click Cancel to enter a different address`
-            );
-
-            if (choice) {
-              resolve(agentConfig.client);
-            } else {
-              const customAddress = prompt("Enter client address to authorize:");
-              resolve(customAddress);
-            }
-          });
-
-          if (!clientChoice) {
-            updateStepStatus(i, "error", "Client selection cancelled");
-            break;
-          }
-
-          setSelectedClientAddress(clientChoice);
-          updateStepStatus(i, "completed", `Selected client: ${clientChoice.slice(0, 10)}...`);
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          continue;
-        }
-
-        // Check if correct wallet is connected for this step
-        const requiredWallet = getRequiredWallet(i);
-        if (requiredWallet && connectedAddress.toLowerCase() !== requiredWallet.address.toLowerCase()) {
-          setWaitingForWalletSwitch({
-            stepId: i,
-            requiredAddress: requiredWallet.address,
-            role: requiredWallet.role,
-          });
-          updateStepStatus(
-            i,
-            "error",
-            `⚠️ Wrong wallet connected!\n\n` +
-            `This step requires: ${requiredWallet.role} wallet\n` +
-            `Expected: ${requiredWallet.address}\n` +
-            `Current: ${connectedAddress}\n\n` +
-            `Please switch to the ${requiredWallet.role} wallet in MetaMask.\n` +
-            `The workflow will auto-resume once the correct wallet is connected.`
-          );
-          break;
-        }
-
-        // Execute step with real blockchain transactions
-        console.log(`Executing step ${i}...`);
-
-        let result;
-        try {
-          result = await executeWorkflowStep({
-            stepId: i,
-            agents: agentConfig,
-            chainId,
-            selectedClient: selectedClientAddress,
-            writeContract: writeContractAsync,
-            currentAddress: connectedAddress,
-            publicClient,
-            workflowState,
-          });
-        } catch (stepError: any) {
-          console.error(`Error in step ${i}:`, stepError);
-          updateStepStatus(i, "error", `Error: ${stepError.message || "Unknown error occurred"}`);
-          break;
-        }
-
-        if (result.requiresWalletSwitch) {
-          updateStepStatus(
-            i,
-            "error",
-            `⚠️ Please switch to ${result.requiresWalletSwitch.role} wallet\n\nCurrent: ${result.requiresWalletSwitch.from.slice(0, 10)}...\nRequired: ${result.requiresWalletSwitch.to.slice(0, 10)}...\n\nSwitch wallets in MetaMask and click "Start Workflow" again`
-          );
-          break;
-        }
-
-        if (result.success) {
-          updateStepStatus(i, "completed", result.details);
-          if (result.data) {
-            setInputData(result.data);
-          }
-          // Update workflow state if there are state changes
-          if (result.stateUpdate) {
-            setWorkflowState((prev) => {
-              const update = result.stateUpdate!;
-              return {
-                ...prev,
-                ...update,
-                // Deep merge for nested objects like agentIds
-                ...(update.agentIds && {
-                  agentIds: {
-                    ...prev.agentIds,
-                    ...update.agentIds,
-                  },
-                }),
-              };
-            });
-          }
-          // Small delay for better UX
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        } else {
-          updateStepStatus(i, "error", result.error || "Step failed");
-          break;
-        }
+        await executeStep(i);
       }
     } catch (error) {
       console.error("Workflow error:", error);
-      if (currentStep !== null) {
-        updateStepStatus(
-          currentStep,
-          "error",
-          error instanceof Error ? error.message : "Failed to execute step"
-        );
-      }
     } finally {
       setIsRunning(false);
       setCurrentStep(null);
