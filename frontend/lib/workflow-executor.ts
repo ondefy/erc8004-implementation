@@ -377,9 +377,12 @@ async function generateZKProof(
   workflowState: WorkflowState
 ): Promise<StepResult> {
   // Get input data from workflow state (from step 1)
+  console.log("generateZKProof - workflowState:", workflowState);
   const inputData = workflowState.inputData;
+  console.log("generateZKProof - inputData:", inputData);
 
   if (!inputData) {
+    console.error("Input data not found in workflow state!");
     return {
       success: false,
       error: "Input data not found. Please load input data first.",
@@ -490,19 +493,27 @@ async function submitForValidation(
         });
 
         // Find ValidationRequest event
-        // event ValidationRequest(bytes32 indexed requestHash, address indexed requester, address indexed validator, uint256 agentId)
+        // event ValidationRequest(address indexed validatorAddress, uint256 indexed agentId, string requestUri, bytes32 indexed requestHash)
+        // topics[0] = event signature
+        // topics[1] = validatorAddress
+        // topics[2] = agentId
+        // topics[3] = requestHash
         const validationRequestLog = receipt.logs.find((log: any) => {
           // Check if this is from ValidationRegistry
           return (
             log.address.toLowerCase() ===
               contractConfig.validationRegistry.address.toLowerCase() &&
-            log.topics.length >= 3
-          ); // requestHash, requester, validator are indexed
+            log.topics.length >= 4 // Need at least 4 topics (signature + 3 indexed params)
+          );
         });
 
-        if (validationRequestLog && validationRequestLog.topics[0]) {
-          // requestHash is the first indexed parameter (the dataHash we submitted)
-          requestHash = validationRequestLog.topics[0];
+        if (validationRequestLog && validationRequestLog.topics[3]) {
+          // requestHash is the 4th topic (topics[3])
+          requestHash = validationRequestLog.topics[3];
+          console.log("Extracted requestHash from event:", requestHash);
+        } else {
+          console.warn("ValidationRequest event not found or incomplete");
+          console.log("Available logs:", receipt.logs);
         }
       } catch (e) {
         console.warn("Could not extract requestHash from receipt:", e);
@@ -672,18 +683,33 @@ async function submitValidation(
         });
 
         // Find ValidationResponse event
-        // event ValidationResponse(bytes32 indexed requestHash, bytes32 indexed responseHash, address indexed validator, uint8 response)
+        // event ValidationResponse(address indexed validatorAddress, uint256 indexed agentId, bytes32 indexed requestHash, uint8 response, string responseUri, bytes32 responseHash, bytes32 tag)
+        // topics[0] = event signature
+        // topics[1] = validatorAddress
+        // topics[2] = agentId
+        // topics[3] = requestHash (the one we're responding to)
+        // Note: responseHash is NOT indexed, it's in the data field
         const validationResponseLog = receipt.logs.find((log: any) => {
           return (
             log.address.toLowerCase() ===
               contractConfig.validationRegistry.address.toLowerCase() &&
-            log.topics.length >= 3
+            log.topics.length >= 4 && // Need at least 4 topics (signature + 3 indexed params)
+            log.topics[3] === requestHash // Verify this is responding to our request
           );
         });
 
-        if (validationResponseLog && validationResponseLog.topics[1]) {
-          // responseHash is the second indexed parameter
-          responseHash = validationResponseLog.topics[1];
+        if (validationResponseLog) {
+          // For now, we'll use the dataHash we submitted as the responseHash
+          // In the real implementation, we'd decode the event data to extract responseHash
+          responseHash = dataHash;
+          console.log(
+            "Found ValidationResponse event for requestHash:",
+            requestHash
+          );
+          console.log("Using dataHash as responseHash:", responseHash);
+        } else {
+          console.warn("ValidationResponse event not found");
+          console.log("Available logs:", receipt.logs);
         }
       } catch (e) {
         console.warn("Could not extract responseHash from receipt:", e);

@@ -182,9 +182,12 @@ export default function Home() {
     setIsRunning(true);
     console.log(`Resuming workflow from step ${startFromStep}`);
 
+    // Use local state that accumulates across steps
+    let currentWorkflowState = { ...workflowState };
+
     try {
       for (let i = startFromStep; i < steps.length; i++) {
-        await executeStep(i);
+        currentWorkflowState = await executeStep(i, currentWorkflowState);
       }
     } catch (error) {
       console.error("Workflow error during resume:", error);
@@ -194,7 +197,7 @@ export default function Home() {
     }
   };
 
-  const executeStep = async (i: number) => {
+  const executeStep = async (i: number, currentState: WorkflowState): Promise<WorkflowState> => {
     setCurrentStep(i);
     updateStepStatus(i, "in_progress");
 
@@ -223,7 +226,7 @@ export default function Home() {
       setSelectedClientAddress(clientChoice);
       updateStepStatus(i, "completed", `Selected client: ${clientChoice.slice(0, 10)}...`);
       await new Promise((resolve) => setTimeout(resolve, 500));
-      return;
+      return currentState; // Return unchanged state
     }
 
     // Check if correct wallet is connected for this step
@@ -248,7 +251,7 @@ export default function Home() {
     }
 
     // Execute step with real blockchain transactions
-    console.log(`Executing step ${i}...`);
+    console.log(`Executing step ${i} with state:`, currentState);
 
     let result;
     try {
@@ -260,7 +263,7 @@ export default function Home() {
         writeContract: writeContractAsync,
         currentAddress: connectedAddress!,
         publicClient,
-        workflowState,
+        workflowState: currentState, // Use the current accumulated state
       });
     } catch (stepError: any) {
       console.error(`Error in step ${i}:`, stepError);
@@ -282,25 +285,44 @@ export default function Home() {
       if (result.data) {
         setInputData(result.data);
       }
+
       // Update workflow state if there are state changes
+      let updatedState = currentState;
       if (result.stateUpdate) {
-        setWorkflowState((prev) => {
-          const update = result.stateUpdate!;
-          return {
-            ...prev,
-            ...update,
-            // Deep merge for nested objects like agentIds
-            ...(update.agentIds && {
-              agentIds: {
-                ...prev.agentIds,
-                ...update.agentIds,
-              },
-            }),
+        const update = result.stateUpdate!;
+        // Deep merge for nested objects
+        updatedState = {
+          ...currentState,
+          ...update,
+        };
+
+        // Handle nested agentIds
+        if (update.agentIds) {
+          updatedState.agentIds = {
+            ...currentState.agentIds,
+            ...update.agentIds,
           };
-        });
+        }
+
+        // Handle nested validationResult
+        if (update.validationResult) {
+          updatedState.validationResult = {
+            ...currentState.validationResult,
+            ...update.validationResult,
+          };
+        }
+
+        console.log(`Step ${i} state update:`, update);
+        console.log(`Updated workflow state:`, updatedState);
+
+        // Also update React state for UI
+        setWorkflowState(updatedState);
       }
+
       // Small delay for better UX
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      return updatedState; // Return updated state for next step
     } else {
       updateStepStatus(i, "error", result.error || "Step failed");
       throw new Error(result.error || "Step failed");
@@ -332,9 +354,12 @@ export default function Home() {
     setIsRunning(true);
     setSteps(initialSteps);
 
+    // Use local state that accumulates across steps
+    let currentWorkflowState: WorkflowState = {};
+
     try {
       for (let i = 0; i < steps.length; i++) {
-        await executeStep(i);
+        currentWorkflowState = await executeStep(i, currentWorkflowState);
       }
     } catch (error) {
       console.error("Workflow error:", error);
