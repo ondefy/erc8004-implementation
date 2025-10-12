@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "../src/IdentityRegistry.sol";
 import "../src/ValidationRegistry.sol";
 import "../src/ReputationRegistry.sol";
+import "../src/Verifier.sol";
 
 /**
  * @title Deploy Script for ERC-8004 Registries
@@ -39,6 +40,10 @@ contract Deploy is Script {
         ReputationRegistry reputationRegistry = new ReputationRegistry(address(identityRegistry));
         console.log("ReputationRegistry deployed at:", address(reputationRegistry));
 
+        // 4. Deploy Groth16 Verifier (used for on-chain ZK verification)
+        Groth16Verifier verifier = new Groth16Verifier();
+        console.log("Groth16Verifier deployed at:", address(verifier));
+
         vm.stopBroadcast();
 
         // Log deployment info
@@ -49,5 +54,6 @@ contract Deploy is Script {
         console.log("- IdentityRegistry:", address(identityRegistry));
         console.log("- ValidationRegistry:", address(validationRegistry));
         console.log("- ReputationRegistry:", address(reputationRegistry));
+        console.log("- Groth16Verifier:", address(verifier));
     }
 }
