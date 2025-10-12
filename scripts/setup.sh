@@ -25,6 +25,23 @@ if ! command -v circom &> /dev/null; then
 fi
 echo -e "${GREEN}✅ circom found:${NC} $(circom --version 2>&1 | head -1)"
 
+# Require Circom 2.x for {public [...]} syntax and privacy control
+CIRCOM_VERSION_RAW=$(circom --version 2>&1 | head -1)
+CIRCOM_VERSION=$(echo "$CIRCOM_VERSION_RAW" | grep -Eo '[0-9]+(\.[0-9]+)*' | head -1)
+CIRCOM_MAJOR=${CIRCOM_VERSION%%.*}
+if [ -z "$CIRCOM_MAJOR" ]; then
+  echo -e "${RED}❌ Unable to determine circom version from: $CIRCOM_VERSION_RAW${NC}"
+  echo "Please install Circom 2.x: npm install -g circom@latest"
+  exit 1
+fi
+if [ "$CIRCOM_MAJOR" -lt 2 ]; then
+  echo -e "${RED}❌ Circom 2.x required, found $CIRCOM_VERSION${NC}"
+  echo "This project now uses Circom 2 syntax (pragma + {public [...]}) to keep inputs private."
+  echo "Upgrade with: npm install -g circom@latest"
+  echo "Verify with:  circom --version   (should be >= 2.0.0)"
+  exit 1
+fi
+
 if ! command -v snarkjs &> /dev/null; then
     echo -e "${RED}❌ snarkjs not found${NC}"
     echo "Install with: npm install -g snarkjs"
@@ -74,15 +91,12 @@ fi
 
 echo ""
 
-# Step 4: Generate proving key
+# Step 4: Generate proving key (always refresh for circuit changes)
 echo "4️⃣  Generating proving key..."
-if [ -f "rebalancing_final.zkey" ]; then
-    echo -e "${YELLOW}⚠️  rebalancing_final.zkey already exists, skipping${NC}"
-else
-    snarkjs groth16 setup rebalancing.r1cs pot8_final.ptau rebalancing_0000.zkey > /dev/null
-    snarkjs zkey contribute rebalancing_0000.zkey rebalancing_final.zkey --name="Final contribution" -e="$(date +%s)" > /dev/null
-    echo -e "${GREEN}✅ Proving key generated${NC}"
-fi
+rm -f rebalancing_0000.zkey rebalancing_final.zkey verification_key.json
+snarkjs groth16 setup rebalancing.r1cs pot8_final.ptau rebalancing_0000.zkey > /dev/null
+snarkjs zkey contribute rebalancing_0000.zkey rebalancing_final.zkey --name="Final contribution" -e="$(date +%s)" > /dev/null
+echo -e "${GREEN}✅ Proving key generated${NC}"
 echo ""
 
 # Step 5: Export verification key
@@ -100,7 +114,20 @@ echo ""
 
 # Step 7: Test with example input
 echo "7️⃣  Testing with example input..."
-snarkjs wtns calculate build/rebalancing.wasm input/input.json build/witness.wtns 2>/dev/null
+
+# Compute dataHashPublic to satisfy public commitment
+node -e '
+const fs = require("fs");
+const inp = JSON.parse(fs.readFileSync("input/input.json", "utf8"));
+const nb = inp.newBalances.map(Number);
+const pr = inp.prices.map(Number);
+let dh = 0; for (let i = 0; i < nb.length; i++) dh += nb[i] + pr[i];
+const out = { ...inp, dataHashPublic: String(dh) };
+fs.writeFileSync("build/test_input.json", JSON.stringify(out));
+'
+
+# Generate witness using Circom 2 witness generator
+node build/rebalancing_js/generate_witness.js build/rebalancing_js/rebalancing.wasm build/test_input.json build/witness.wtns
 
 if snarkjs wtns check build/rebalancing.r1cs build/witness.wtns 2>&1 | grep -q "WITNESS IS CORRECT"; then
     echo -e "${GREEN}✅ Test witness is valid${NC}"

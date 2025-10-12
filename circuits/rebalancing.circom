@@ -1,3 +1,5 @@
+pragma circom 2.0.0;
+
 // RebalancingProof Circuit (Simplified - No External Dependencies)
 // 
 // Proves that a portfolio rebalancing operation satisfies constraints
@@ -25,6 +27,8 @@ template RebalancingProof(n) {
     signal input totalValueCommitment;
     signal input minAllocationPct;
     signal input maxAllocationPct;
+    // Public commitment mirror of the computed dataHash (must match)
+    signal input dataHashPublic;
     
     // Intermediate signals
     signal oldValues[n];
@@ -55,10 +59,11 @@ template RebalancingProof(n) {
         newSums[i] <== newSums[i-1] + newValues[i];
     }
     
-    // Check that total values are equal
+    // Check that total values are equal and match the commitment
     signal valueDiff;
     valueDiff <== oldSums[n-1] - newSums[n-1];
     valueDiff === 0;
+    newSums[n-1] === totalValueCommitment;
     
     // Constraint 2: Check allocation limits for each asset
     // Instead of division, we verify: newValue[i] * 100 >= minAllocationPct * totalValue
@@ -89,7 +94,9 @@ template RebalancingProof(n) {
     }
     signal output dataHash;
     dataHash <== dataHashInputs[n-1];
+    // Bind public commitment to computed hash
+    dataHash === dataHashPublic;
 }
 
-// Instantiate for a 4-asset portfolio
-component main = RebalancingProof(4);
+// Instantiate for a 4-asset portfolio, exposing only commitments and parameters as public
+component main {public [totalValueCommitment, minAllocationPct, maxAllocationPct, dataHashPublic]} = RebalancingProof(4);

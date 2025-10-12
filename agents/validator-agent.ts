@@ -91,9 +91,11 @@ export class ValidatorAgent extends ERC8004BaseAgent {
     const pr = proof.proof as SnarkProof;
 
     const pA: [bigint, bigint] = [BigInt(pr.pi_a[0]), BigInt(pr.pi_a[1])];
+    // Note: Solidity verifier expects FQ2 elements in swapped order vs snarkjs output
+    // i.e., [[b00,b01],[b10,b11]] -> [[b01,b00],[b11,b10]]
     const pB: [[bigint, bigint], [bigint, bigint]] = [
-      [BigInt(pr.pi_b[0][0]), BigInt(pr.pi_b[0][1])],
-      [BigInt(pr.pi_b[1][0]), BigInt(pr.pi_b[1][1])],
+      [BigInt(pr.pi_b[0][1]), BigInt(pr.pi_b[0][0])],
+      [BigInt(pr.pi_b[1][1]), BigInt(pr.pi_b[1][0])],
     ];
     const pC: [bigint, bigint] = [BigInt(pr.pi_c[0]), BigInt(pr.pi_c[1])];
 
@@ -102,9 +104,26 @@ export class ValidatorAgent extends ERC8004BaseAgent {
       BigInt(v)
     );
 
-    // Optional guard: Verifier expects 16 pubSignals
-    if (pubSignals.length !== 16) {
-      throw new Error(`Expected 16 public signals, got ${pubSignals.length}`);
+    // Check expected pubSignals length from verifier ABI (handles legacy 16 vs new 4)
+    let expectedLen: number | undefined;
+    try {
+      const verifyItem = (verifierAbi as any[]).find(
+        (i) => i?.type === "function" && i?.name === "verifyProof"
+      );
+      const lastInput = verifyItem?.inputs?.[3];
+      const typeStr: string | undefined = lastInput?.type;
+      const match = typeStr ? /\[(\d+)\]$/.exec(typeStr) : null;
+      expectedLen = match ? Number(match[1]) : undefined;
+    } catch {}
+
+    if (expectedLen !== undefined && pubSignals.length !== expectedLen) {
+      throw new Error(
+        `Verifier expects ${expectedLen} public signals, but proof contains ${pubSignals.length}.\n` +
+          `Please regenerate zk artifacts and redeploy the verifier so they align:\n` +
+          `  1) npm run setup:zkp\n` +
+          `  2) npm run forge:build\n` +
+          `  3) npm run forge:deploy:local`
+      );
     }
 
     // Perform eth_call to verifyProof

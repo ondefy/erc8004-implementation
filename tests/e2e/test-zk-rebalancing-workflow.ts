@@ -19,6 +19,13 @@ async function deployContracts(): Promise<void> {
   console.log("─".repeat(70));
 
   try {
+    // Ensure zk artifacts and Verifier match the latest circuit (4 pub signals)
+    execSync("npm run setup:zkp", {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    console.log("✅ ZK artifacts regenerated\n");
+
     execSync("npm run forge:deploy:local", {
       stdio: "inherit",
       cwd: process.cwd(),
