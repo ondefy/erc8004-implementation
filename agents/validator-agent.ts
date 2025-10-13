@@ -103,8 +103,9 @@ export class ValidatorAgent extends ERC8004BaseAgent {
     const pubSignals = (proof.publicInputs as (string | number)[]).map((v) =>
       BigInt(v)
     );
+    console.log("pubSignals", pubSignals);
 
-    // Check expected pubSignals length from verifier ABI (handles legacy 16 vs new 4)
+    // Check expected pubSignals length from verifier ABI
     let expectedLen: number | undefined;
     try {
       const verifyItem = (verifierAbi as any[]).find(

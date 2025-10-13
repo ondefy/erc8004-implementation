@@ -13,6 +13,7 @@ import {
   unlinkSync,
 } from "fs";
 import { execSync } from "child_process";
+import { encodeAbiParameters, parseAbiParameters, keccak256 } from "viem";
 
 // ============ Types ============
 
@@ -174,11 +175,6 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       identityRegistry: this.identityRegistryAddress,
       signerAddress: this.address,
     };
-
-    // Use ABI encoding for the struct as per contract's abi.decode
-    const { encodeAbiParameters, parseAbiParameters, keccak256 } = await import(
-      "viem"
-    );
 
     const structEncoded = encodeAbiParameters(
       parseAbiParameters(
