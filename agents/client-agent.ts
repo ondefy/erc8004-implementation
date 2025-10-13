@@ -35,9 +35,8 @@ export class ClientAgent extends ERC8004BaseAgent {
     console.log("🎯 Evaluating quality...");
 
     let score = 50;
-    if (proof.proof) score += 15;
-    if (proof.publicInputs) score += 10;
-    if (proof.rebalancingPlan) score += 25;
+    if (proof.proof) score += 25;
+    if (proof.publicInputs) score += 25;
 
     console.log(`   Quality score: ${score}/100`);
     return score;

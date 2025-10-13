@@ -2,9 +2,9 @@
   "network": "anvil",
   "chainId": 31337,
   "contracts": {
-    "IdentityRegistry": "0x1f10F3Ba7ACB61b2F50B9d6DdCf91a6f787C0E82",
-    "ValidationRegistry": "0x457cCf29090fe5A24c19c1bc95F492168C0EaFdb",
-    "ReputationRegistry": "0x525C7063E7C20997BaaE9bDa922159152D0e8417",
-    "Groth16Verifier": "0x38a024C0b412B9d1db8BC398140D00F5Af3093D4"
+    "IdentityRegistry": "0x927b167526bAbB9be047421db732C663a0b77B11",
+    "ValidationRegistry": "0x32EEce76C2C2e8758584A83Ee2F522D4788feA0f",
+    "ReputationRegistry": "0x01c1DeF3b91672704716159C9041Aeca392DdFfb",
+    "Groth16Verifier": "0x02b0B4EFd909240FCB2Eb5FAe060dC60D112E3a4"
   }
 }
