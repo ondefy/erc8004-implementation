@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { InputDataPanel } from "@/components/input-data-panel";
 import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
+import { DeployedContractsPanel } from "@/components/deployed-contracts-panel";
 import { isSupportedNetwork, getNetworkInfo, getContractsForNetwork } from "@/lib/constants";
 import { executeWorkflowStep, WorkflowState } from "@/lib/workflow-executor";
 
@@ -675,23 +676,8 @@ export default function Home() {
               {/* Input Data Panel */}
               {inputData && <InputDataPanel data={inputData} />}
 
-              {/* Network Info Panel */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-sm p-6 border border-blue-100">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2">
-                  🌐 Network
-                </h3>
-                <p className="text-sm text-blue-800 mb-2 font-medium">
-                  {networkInfo?.name || "Testnet"}
-                </p>
-                <p className="text-xs text-blue-700 leading-relaxed mb-2">
-                  Using pre-deployed contracts on {networkInfo?.name}
-                </p>
-                {contracts && (
-                  <div className="text-xs text-blue-600 font-mono">
-                    <div className="truncate">Identity: {contracts.identityRegistry.slice(0, 10)}...</div>
-                  </div>
-                )}
-              </div>
+              {/* Deployed Contracts Panel */}
+              <DeployedContractsPanel />
             </div>
           </div>
         </div>

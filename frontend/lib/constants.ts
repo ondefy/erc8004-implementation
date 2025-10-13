@@ -23,6 +23,8 @@ export const DEPLOYED_CONTRACTS = {
       "0xB5048e3ef1DA4E04deB6f7d0423D06F63869e322" as `0x${string}`,
     validationRegistry:
       "0x662b40A526cb4017d947e71eAF6753BF3eeE66d8" as `0x${string}`,
+    groth16Verifier:
+      "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",
@@ -34,6 +36,8 @@ export const DEPLOYED_CONTRACTS = {
       "0xB5048e3ef1DA4E04deB6f7d0423D06F63869e322" as `0x${string}`,
     validationRegistry:
       "0x662b40A526cb4017d947e71eAF6753BF3eeE66d8" as `0x${string}`,
+    groth16Verifier:
+      "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
     name: "Ethereum Sepolia",
@@ -116,4 +120,39 @@ export function getFaucetLinks(chainId: number) {
     default:
       return [];
   }
+}
+
+/**
+ * Get all deployed contracts with their explorer links
+ */
+export function getAllContracts(chainId: number) {
+  const contracts = getContractsForNetwork(chainId);
+  if (!contracts) return null;
+
+  return [
+    {
+      name: "IdentityRegistry",
+      address: contracts.identityRegistry,
+      explorerUrl: `${contracts.explorer}/address/${contracts.identityRegistry}`,
+      description: "ERC-721 NFT for agent identity",
+    },
+    {
+      name: "ValidationRegistry",
+      address: contracts.validationRegistry,
+      explorerUrl: `${contracts.explorer}/address/${contracts.validationRegistry}`,
+      description: "Validation request/response registry",
+    },
+    {
+      name: "ReputationRegistry",
+      address: contracts.reputationRegistry,
+      explorerUrl: `${contracts.explorer}/address/${contracts.reputationRegistry}`,
+      description: "Agent reputation & feedback system",
+    },
+    {
+      name: "Groth16Verifier",
+      address: contracts.groth16Verifier,
+      explorerUrl: `${contracts.explorer}/address/${contracts.groth16Verifier}`,
+      description: "ZK proof verifier (on-chain verification)",
+    },
+  ];
 }

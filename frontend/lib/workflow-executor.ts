@@ -41,6 +41,8 @@ export interface WorkflowState {
   };
   proofGenerated?: boolean;
   newTotalValue?: number;
+  proof?: any; // The actual ZK proof object from snarkjs
+  publicInputs?: string[]; // The public signals array
   validationResult?: {
     isValid: boolean;
     score: number;
@@ -347,30 +349,36 @@ async function registerAgents(
 }
 
 async function loadInputData(): Promise<StepResult> {
-  // Simulated for now - could fetch from IPFS or API
-  const data = {
-    oldBalances: ["1000", "500", "2000", "750"],
-    newBalances: ["800", "600", "1800", "900"],
-    prices: ["100", "200", "50", "150"],
-    totalValueCommitment: "375000",
-    minAllocationPct: "10",
-    maxAllocationPct: "40",
-  };
+  // Load actual input data from input/input.json (same as E2E test)
+  try {
+    const response = await fetch("/api/load-input");
+    if (!response.ok) {
+      throw new Error("Failed to load input data");
+    }
+    const data = await response.json();
 
-  return {
-    success: true,
-    details: `Loaded ${
-      data.oldBalances.length
-    } assets\n\nPortfolio Overview:\n• Total Value: ${parseInt(
-      data.totalValueCommitment
-    ).toLocaleString()}\n• Min Allocation: ${
-      data.minAllocationPct
-    }%\n• Max Allocation: ${data.maxAllocationPct}%`,
-    data,
-    stateUpdate: {
-      inputData: data,
-    },
-  };
+    return {
+      success: true,
+      details: `Loaded ${
+        data.oldBalances.length
+      } assets\n\nPortfolio Overview:\n• Total Value: ${parseInt(
+        data.totalValueCommitment
+      ).toLocaleString()}\n• Min Allocation: ${
+        data.minAllocationPct
+      }%\n• Max Allocation: ${data.maxAllocationPct}%`,
+      data,
+      stateUpdate: {
+        inputData: data,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      details: "",
+      error:
+        error instanceof Error ? error.message : "Failed to load input data",
+    };
+  }
 }
 
 async function generateZKProof(
@@ -396,34 +404,57 @@ async function generateZKProof(
     0
   );
 
-  // In the real agent implementation, this would:
-  // 1. Write input to temp file
-  // 2. Run snarkjs wtns calculate
-  // 3. Run snarkjs groth16 prove
-  // 4. Read proof.json and public.json
-  // 5. Return ProofPackage { proof, publicInputs, rebalancingPlan }
+  // Call backend API to generate actual ZK proof
+  try {
+    const response = await fetch("/api/generate-proof", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        oldBalances: inputData.oldBalances,
+        newBalances: inputData.newBalances,
+        prices: inputData.prices,
+        minAllocationPct: inputData.minAllocationPct,
+        maxAllocationPct: inputData.maxAllocationPct,
+      }),
+    });
 
-  // For frontend demo, we simulate the proof generation
-  // In production, this would call an API endpoint that runs the actual ZK proof generation
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to generate proof");
+    }
 
-  return {
-    success: true,
-    details:
-      `ZK proof generated using Groth16\n\n` +
-      `Proof Details:\n` +
-      `• Circuit: rebalancing.circom\n` +
-      `• Proof System: Groth16\n` +
-      `• Private Inputs: ${inputData.oldBalances.length} balances + prices (hidden)\n` +
-      `• Public Input: total value = ${newTotalValue.toLocaleString()}\n` +
-      `• Constraints: ${inputData.minAllocationPct}% ≤ allocations ≤ ${inputData.maxAllocationPct}%\n` +
-      `• Assets: ${inputData.oldBalances.length} portfolio assets\n\n` +
-      `✓ Proof cryptographically generated\n` +
-      `ℹ️ Note: In production, proof generation happens off-chain via snarkjs`,
-    stateUpdate: {
-      proofGenerated: true,
-      newTotalValue,
-    },
-  };
+    const result = await response.json();
+
+    return {
+      success: true,
+      details:
+        `ZK proof generated using Groth16\n\n` +
+        `Proof Details:\n` +
+        `• Circuit: rebalancing.circom\n` +
+        `• Proof System: Groth16\n` +
+        `• Private Inputs: ${inputData.oldBalances.length} balances + prices (hidden)\n` +
+        `• Public Signals: [${result.publicInputs.join(", ")}]\n` +
+        `• Constraints: ${inputData.minAllocationPct}% ≤ allocations ≤ ${inputData.maxAllocationPct}%\n` +
+        `• Assets: ${inputData.oldBalances.length} portfolio assets\n\n` +
+        `✓ Proof cryptographically generated\n` +
+        `✓ Public inputs: totalValueCommitment, minAllocationPct, maxAllocationPct`,
+      stateUpdate: {
+        proofGenerated: true,
+        newTotalValue,
+        proof: result.proof,
+        publicInputs: result.publicInputs,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      details: "",
+      error:
+        error instanceof Error ? error.message : "Failed to generate ZK proof",
+    };
+  }
 }
 
 async function submitForValidation(
@@ -457,19 +488,49 @@ async function submitForValidation(
     };
   }
 
-  // In the real implementation (rebalancer-agent.ts):
-  // 1. Creates SHA-256 hash of proof: dataHash = createHash('sha256').update(JSON.stringify(proof)).digest('hex')
-  // 2. Stores proof in data/${dataHash}.json
-  // 3. Creates requestUri = `file://data/${dataHash}.json`
-  // 4. Calls requestValidation(validatorAddress, requestUri, `0x${dataHash}`)
+  // Get the actual proof from workflow state
+  const proof = workflowState.proof;
+  if (!proof) {
+    return {
+      success: false,
+      details: "",
+      error: "Proof not found. Please generate ZK proof first.",
+    };
+  }
 
-  // For frontend demo, we simulate the dataHash
-  const inputData = workflowState.inputData;
-  const simulatedDataHash = `0x${Buffer.from(
-    JSON.stringify(inputData)
-  ).toString("hex")}`.slice(0, 66); // First 32 bytes
+  // Generate SHA-256 hash of the proof (matching rebalancer-agent.ts)
+  // Call backend API to compute dataHash and store proof
+  let dataHash: string;
+  try {
+    const response = await fetch("/api/store-proof", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        proof: proof,
+        publicInputs: workflowState.publicInputs,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to store proof");
+    }
+
+    const result = await response.json();
+    dataHash = result.dataHash;
+  } catch (error) {
+    console.error("Failed to store proof:", error);
+    return {
+      success: false,
+      details: "",
+      error: "Failed to prepare proof for validation",
+    };
+  }
 
   try {
+    const requestUri = `file://data/${dataHash.slice(2)}.json`; // Remove '0x' prefix for filename
+
     const hash = await writeContract({
       address: contractConfig.validationRegistry.address,
       abi: contractConfig.validationRegistry.abi,
@@ -477,8 +538,8 @@ async function submitForValidation(
       args: [
         agents.validator, // validatorAddress
         rebalancerAgentId, // agentId from registration
-        "ipfs://rebalancing-proof", // requestUri (in real impl: file://data/${dataHash}.json)
-        simulatedDataHash, // requestHash (dataHash from proof)
+        requestUri, // requestUri: file://data/${dataHash}.json
+        dataHash as `0x${string}`, // requestHash (dataHash from proof)
       ],
     });
 
@@ -579,40 +640,72 @@ async function validateProof(
     workflowState.requestHash ||
     "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-  // In the real implementation (validator-agent.ts):
-  // 1. Loads proof from data/${dataHash}.json (or receives ProofPackage directly)
-  // 2. Writes temp files: temp_proof.json, temp_public.json
-  // 3. Runs: snarkjs groth16 verify build/verification_key.json temp_public.json temp_proof.json
-  // 4. Parses result to check if it includes "OK"
-  // 5. Returns ValidationResult { isValid: boolean, score: 0-100, dataHash: string }
+  // Get the actual proof from workflow state
+  const proof = workflowState.proof;
+  const publicInputs = workflowState.publicInputs;
 
-  // For frontend demo, we simulate the validation
-  // In production, this would call the validator's off-chain service to run snarkjs
+  if (!proof || !publicInputs) {
+    return {
+      success: false,
+      details: "",
+      error:
+        "Proof or public inputs not found. Please generate ZK proof first.",
+    };
+  }
 
-  const isValid = true; // Simulated validation result
-  const score = 100;
-
-  let details =
-    `ZK Proof Validation Complete\n\n` +
-    `Cryptographic Verification:\n` +
-    `• Verification Key: build/verification_key.json\n` +
-    `• Proof System: Groth16\n` +
-    `• Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
-    `• Score: ${score}/100\n\n` +
-    `📋 DataHash:\n${dataHash}\n\n` +
-    `ℹ️ Note: In production, snarkjs groth16 verify runs off-chain`;
-
-  return {
-    success: true,
-    details,
-    stateUpdate: {
-      validationResult: {
-        isValid,
-        score,
-        dataHash,
+  // Call backend API to validate the proof using on-chain Verifier contract
+  try {
+    const response = await fetch("/api/validate-proof", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    },
-  };
+      body: JSON.stringify({
+        proof: proof,
+        publicInputs: publicInputs,
+        chainId: contractConfig.chainId,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to validate proof");
+    }
+
+    const result = await response.json();
+    const isValid = result.isValid;
+    const score = isValid ? 100 : 0;
+
+    let details =
+      `ZK Proof Validation Complete\n\n` +
+      `On-Chain Cryptographic Verification:\n` +
+      `• Verifier Contract: Groth16Verifier\n` +
+      `• Proof System: Groth16\n` +
+      `• Public Signals: [${publicInputs.join(", ")}]\n` +
+      `• Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
+      `• Score: ${score}/100\n\n` +
+      `📋 DataHash:\n${dataHash}\n\n` +
+      `✓ Verified via eth_call to Groth16Verifier.verifyProof()`;
+
+    return {
+      success: true,
+      details,
+      stateUpdate: {
+        validationResult: {
+          isValid,
+          score,
+          dataHash,
+        },
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      details: "",
+      error:
+        error instanceof Error ? error.message : "Failed to validate proof",
+    };
+  }
 }
 
 async function submitValidation(
@@ -649,14 +742,39 @@ async function submitValidation(
 
   // Get validation result from previous step
   const validationResult = workflowState.validationResult;
-  const score = validationResult?.score || 100;
-  const dataHash = validationResult?.dataHash || requestHash;
+  if (!validationResult) {
+    return {
+      success: false,
+      details: "",
+      error: "Validation result not found. Please validate the proof first.",
+    };
+  }
 
-  // In the real implementation (validator-agent.ts):
-  // 1. Takes ValidationResult { isValid, score, dataHash }
-  // 2. Stores validation in validations/${dataHash}.json
-  // 3. Creates responseUri = `file://validations/${dataHash}.json`
-  // 4. Calls submitValidationResponse(requestHash, score, responseUri, dataHash, tag)
+  const score = validationResult.score;
+  const dataHash = validationResult.dataHash;
+
+  // Store validation result via backend API (matching validator-agent.ts)
+  try {
+    const response = await fetch("/api/store-validation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        validationResult: validationResult,
+        dataHash: dataHash,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to store validation result");
+    }
+  } catch (error) {
+    console.error("Failed to store validation:", error);
+    // Continue anyway, validation is already done
+  }
+
+  const responseUri = `file://validations/${dataHash.slice(2)}.json`; // Remove '0x' prefix for filename
 
   try {
     const hash = await writeContract({
@@ -666,7 +784,7 @@ async function submitValidation(
       args: [
         requestHash as `0x${string}`, // requestHash from step 3
         score, // response (0-100, where 100 = valid)
-        "ipfs://validation-response", // responseUri (in real impl: file://validations/${dataHash}.json)
+        responseUri, // responseUri: file://validations/${dataHash}.json
         dataHash as `0x${string}`, // responseHash (dataHash from validation)
         "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag
       ],
