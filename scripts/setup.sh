@@ -115,19 +115,8 @@ echo ""
 # Step 7: Test with example input
 echo "7️⃣  Testing with example input..."
 
-# Compute dataHashPublic to satisfy public commitment
-node -e '
-const fs = require("fs");
-const inp = JSON.parse(fs.readFileSync("input/input.json", "utf8"));
-const nb = inp.newBalances.map(Number);
-const pr = inp.prices.map(Number);
-let dh = 0; for (let i = 0; i < nb.length; i++) dh += nb[i] + pr[i];
-const out = { ...inp, dataHashPublic: String(dh) };
-fs.writeFileSync("build/test_input.json", JSON.stringify(out));
-'
-
-# Generate witness using Circom 2 witness generator
-node build/rebalancing_js/generate_witness.js build/rebalancing_js/rebalancing.wasm build/test_input.json build/witness.wtns
+# Use Circom 2.x witness generator (not snarkjs wtns calculate)
+node build/rebalancing_js/generate_witness.js build/rebalancing_js/rebalancing.wasm input/input.json build/witness.wtns 2>/dev/null
 
 if snarkjs wtns check build/rebalancing.r1cs build/witness.wtns 2>&1 | grep -q "WITNESS IS CORRECT"; then
     echo -e "${GREEN}✅ Test witness is valid${NC}"

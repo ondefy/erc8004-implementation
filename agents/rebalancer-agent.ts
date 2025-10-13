@@ -67,12 +67,6 @@ export class RebalancerAgent extends ERC8004BaseAgent {
   generateZkProof(plan: RebalancingPlan): ProofPackage {
     console.log("🔐 Generating ZK proof...");
 
-    // Compute public commitment required by the circuit (sum of newBalances[i] + prices[i])
-    const dataHashPublic = plan.newBalances.reduce(
-      (sum, bal, i) => sum + parseInt(bal) + parseInt(plan.prices[i]),
-      0
-    );
-
     const input = {
       oldBalances: plan.oldBalances,
       newBalances: plan.newBalances,
@@ -80,17 +74,18 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       totalValueCommitment: String(plan.newTotalValue),
       minAllocationPct: plan.minAllocationPct,
       maxAllocationPct: plan.maxAllocationPct,
-      dataHashPublic: String(dataHashPublic),
     };
 
     const tempPath = "build/temp_input.json";
     writeFileSync(tempPath, JSON.stringify(input, null, 2));
 
     try {
+      // Use Circom 2.x witness generator
       execSync(
         "node build/rebalancing_js/generate_witness.js build/rebalancing_js/rebalancing.wasm build/temp_input.json build/witness.wtns",
         { stdio: "inherit" }
       );
+
       execSync(
         "snarkjs groth16 prove build/rebalancing_final.zkey build/witness.wtns build/proof.json build/public.json",
         { stdio: "inherit" }

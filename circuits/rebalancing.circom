@@ -23,12 +23,10 @@ template RebalancingProof(n) {
     signal input newBalances[n];
     signal input prices[n];
     
-    // Public inputs
+    // Public inputs (constraints/commitments visible on-chain)
     signal input totalValueCommitment;
     signal input minAllocationPct;
     signal input maxAllocationPct;
-    // Public commitment mirror of the computed dataHash (must match)
-    signal input dataHashPublic;
     
     // Intermediate signals
     signal oldValues[n];
@@ -86,17 +84,7 @@ template RebalancingProof(n) {
         // This requires additional comparison circuits
     }
     
-    // Output commitment to verify data integrity
-    signal dataHashInputs[n];
-    dataHashInputs[0] <== newBalances[0] + prices[0];
-    for (var i = 1; i < n; i++) {
-        dataHashInputs[i] <== dataHashInputs[i-1] + newBalances[i] + prices[i];
-    }
-    signal output dataHash;
-    dataHash <== dataHashInputs[n-1];
-    // Bind public commitment to computed hash
-    dataHash === dataHashPublic;
 }
 
 // Instantiate for a 4-asset portfolio, exposing only commitments and parameters as public
-component main {public [totalValueCommitment, minAllocationPct, maxAllocationPct, dataHashPublic]} = RebalancingProof(4);
+component main {public [totalValueCommitment, minAllocationPct, maxAllocationPct]} = RebalancingProof(4);

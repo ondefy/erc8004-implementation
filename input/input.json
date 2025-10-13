@@ -1,6 +1,6 @@
 {
   "oldBalances": ["1000", "1000", "1000", "750"],
-  "newBalances": ["800", "800", "1200", "950"],
+  "newBalances": ["1350", "1300", "725", "375"],
   "prices": ["100", "100", "100", "100"],
   "totalValueCommitment": "375000",
   "minAllocationPct": "10",
