@@ -19,12 +19,9 @@ async function deployContracts(): Promise<void> {
   console.log("─".repeat(70));
 
   try {
-    // Ensure zk artifacts and Verifier match the latest circuit (4 pub signals)
-    execSync("npm run setup:zkp", {
-      stdio: "inherit",
-      cwd: process.cwd(),
-    });
-    console.log("✅ ZK artifacts regenerated\n");
+    // Note: Run `npm run setup:zkp` manually once when circuit changes.
+    // For normal E2E testing with different inputs, setup is NOT needed.
+    // The Verifier.sol remains constant for the same circuit.
 
     execSync("npm run forge:deploy:local", {
       stdio: "inherit",
