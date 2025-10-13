@@ -108,7 +108,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
     }
   }
 
-  async submitProofForValidation(
+  async requestValidationFromValidator(
     proof: ProofPackage,
     validatorAddress: string
   ): Promise<Hash> {

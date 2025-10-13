@@ -152,7 +152,7 @@ async function testZkRebalancingE2E(): Promise<void> {
   console.log("STEP 7: Submit for Validation");
   console.log("─".repeat(70));
 
-  await rebalancer.submitProofForValidation(proof, validator.address);
+  await rebalancer.requestValidationFromValidator(proof, validator.address);
 
   // Validate
   console.log("\n" + "─".repeat(70));
