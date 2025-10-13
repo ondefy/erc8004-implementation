@@ -50,26 +50,27 @@
                     ┌──────────▼──────────┐
                     │  ZK Proof System    │
                     │                     │
-                    │ • Circom Circuit    │
+                    │ • Circom 2.x Circuit│
                     │ • Groth16 Prover    │
-                    │ • SnarkJS Verifier  │
+                    │ • On-chain Verifier │
+                    │   (Solidity)        │
                     └─────────────────────┘
 ```
 
 ### Component Interaction Flow
 
 ```
-1. Rebalancer creates plan and generates ZK proof
+1. Rebalancer creates plan and generates ZK proof (private witness)
    ↓
 2. Rebalancer submits proof hash to ValidationRegistry
    ↓
-3. Validator retrieves proof, validates cryptographically
+3. Validator retrieves proof and calls Groth16Verifier.verifyProof() on-chain
    ↓
-4. Validator submits validation response on-chain
+4. Validator submits validation response (score 0-100) on-chain
    ↓
 5. Client evaluates service quality
    ↓
-6. Client submits feedback to ReputationRegistry
+6. Client submits feedback to ReputationRegistry with signed authorization
 ```
 
 ---
@@ -142,28 +143,30 @@ class ValidatorAgent extends ERC8004BaseAgent {
 
 **Validation Process**:
 
-1. **Structure Verification** (20% weight)
+1. **Load Proof Package**
 
-   - Check Groth16 format
-   - Verify proof points (pi_a, pi_b, pi_c)
-   - Validate public inputs
+   - Parse proof JSON (pi_a, pi_b, pi_c)
+   - Extract public signals (5 elements)
+   - Generate data hash for tracking
 
-2. **Cryptographic Verification** (50% weight)
+2. **On-Chain Cryptographic Verification** (100% weight)
 
-   - Run `snarkjs groth16 verify`
-   - Check pairing equations
-   - Validate against verification key
+   - Call `Groth16Verifier.verifyProof()` via eth_call
+   - Pass proof points with FQ2 coordinate swapping for Solidity
+   - Verify against deployed verification key
+   - Returns: boolean (true/false)
 
-3. **Logic Verification** (30% weight)
-   - Verify value preservation
-   - Check allocation bounds
-   - Validate constraints
+3. **Scoring**:
+   ```typescript
+   score = isValid ? 100 : 0;
+   ```
 
-**Scoring**:
+**Key Implementation Details**:
 
-```typescript
-overallScore = structureScore * 0.2 + cryptoScore * 0.5 + logicScore * 0.3;
-```
+- No off-chain snarkjs verification
+- All verification happens on-chain via deployed Verifier contract
+- Validator reads Verifier address from `deployed_contracts.json`
+- Public signals automatically validated by Verifier contract
 
 #### 3. Client Agent
 
@@ -214,7 +217,9 @@ input.json    witness.wtns           proof.json      On-chain
 
 **Purpose**: Prove portfolio rebalancing satisfies constraints without revealing positions.
 
-**Private Inputs** (hidden):
+**Circom Version**: 2.0.0+ (requires `pragma circom 2.0.0` and `{public [...]}` syntax)
+
+**Private Inputs** (witness-only, never on-chain):
 
 ```circom
 signal input oldBalances[4];  // Current token balances
@@ -222,12 +227,25 @@ signal input newBalances[4];  // Proposed balances after rebalancing
 signal input prices[4];       // Current token prices
 ```
 
-**Public Inputs** (visible on-chain):
+**Public Inputs** (visible on-chain during verification):
 
 ```circom
 signal input totalValueCommitment;  // Total portfolio value
 signal input minAllocationPct;      // Minimum allocation per asset (%)
 signal input maxAllocationPct;      // Maximum allocation per asset (%)
+signal input dataHashPublic;        // Data integrity commitment (computed off-chain)
+```
+
+**Public List Declaration** (Circom 2.x):
+
+```circom
+component main {public [totalValueCommitment, minAllocationPct, maxAllocationPct, dataHashPublic]} = RebalancingProof(4);
+```
+
+**Output Signal** (also exposed):
+
+```circom
+signal output dataHash;  // Computed hash, constrained to match dataHashPublic
 ```
 
 **Constraints Proven**:
@@ -235,18 +253,30 @@ signal input maxAllocationPct;      // Maximum allocation per asset (%)
 1. **Value Preservation**:
 
    ```circom
-   oldTotal === newTotal
+   oldTotal === newTotal === totalValueCommitment
    where:
      oldTotal = Σ(oldBalances[i] * prices[i])
      newTotal = Σ(newBalances[i] * prices[i])
    ```
 
-2. **Allocation Bounds**:
+2. **Data Integrity**:
+
+   ```circom
+   dataHash === dataHashPublic
+   where:
+     dataHash = Σ(newBalances[i] + prices[i])  // Simplified commitment
+   ```
+
+3. **Allocation Bounds** (calculated, not range-checked yet):
+
    ```circom
    For each asset i:
-     allocation[i] = (newBalances[i] * prices[i]) / newTotal * 100
-     minAllocationPct ≤ allocation[i] ≤ maxAllocationPct
+     scaledValue[i] = newBalances[i] * prices[i] * 100
+     minBound[i] = minAllocationPct * newTotal
+     maxBound[i] = maxAllocationPct * newTotal
    ```
+
+   **Note**: Full range checks require additional LessThan/GreaterThan circuits from circomlib (production TODO).
 
 ### Proof System (Groth16)
 
@@ -284,16 +314,19 @@ signal input maxAllocationPct;      // Maximum allocation per asset (%)
 **Key sections**:
 
 ```circom
-template Rebalancing(n) {
-    // Private inputs
+pragma circom 2.0.0;
+
+template RebalancingProof(n) {
+    // Private inputs (witness-only)
     signal input oldBalances[n];
     signal input newBalances[n];
     signal input prices[n];
 
-    // Public inputs
+    // Public inputs (visible on-chain)
     signal input totalValueCommitment;
     signal input minAllocationPct;
     signal input maxAllocationPct;
+    signal input dataHashPublic;
 
     // Constraints...
 }
