@@ -600,8 +600,8 @@ async function submitForValidation(
       details,
       txHash: hash,
       stateUpdate: {
-        requestHash: requestHash || simulatedDataHash,
-        dataHash: requestHash || simulatedDataHash,
+        requestHash: requestHash,
+        dataHash: requestHash,
       },
     };
   } catch (error: any) {
