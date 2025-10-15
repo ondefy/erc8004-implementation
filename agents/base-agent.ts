@@ -98,17 +98,36 @@ export class ERC8004BaseAgent {
 
   private async checkRegistration(): Promise<void> {
     try {
-      const result = (await this.publicClient.readContract({
+      // Check if this address owns any agent NFTs
+      const totalAgents = (await this.publicClient.readContract({
         address: this.identityRegistryAddress,
         abi: this.identityRegistryAbi,
-        functionName: "resolveByAddress",
-        args: [this.address],
-      })) as { agentId: bigint; agentDomain: string; agentAddress: Address };
+        functionName: "totalAgents",
+      })) as bigint;
 
-      if (result.agentId > 0n && result.agentDomain === this.agentDomain) {
-        this.agentId = result.agentId;
-        console.log(`✅ Agent already registered with ID: ${this.agentId}`);
+      // Try to find an agent owned by this address
+      // Note: This is a simple check. In production, you'd want to index ownership
+      for (let i = 1n; i <= totalAgents && i <= 100n; i++) {
+        try {
+          const owner = (await this.publicClient.readContract({
+            address: this.identityRegistryAddress,
+            abi: this.identityRegistryAbi,
+            functionName: "ownerOf",
+            args: [i],
+          })) as Address;
+
+          if (owner.toLowerCase() === this.address.toLowerCase()) {
+            this.agentId = i;
+            console.log(`✅ Agent already registered with ID: ${this.agentId}`);
+            return;
+          }
+        } catch {
+          // Agent ID doesn't exist or no owner
+          continue;
+        }
       }
+
+      console.log("ℹ️  Agent not yet registered");
     } catch {
       console.log("ℹ️  Agent not yet registered");
     }
@@ -121,47 +140,80 @@ export class ERC8004BaseAgent {
 
     console.log(`📝 Registering agent: ${this.agentDomain}`);
 
+    // Register with tokenURI (using agentDomain as simple identifier)
+    // In production, tokenURI would point to actual metadata JSON
+    const tokenURI = `ipfs://agent/${this.agentDomain}`;
+
     const hash: Hash = await (this.walletClient as any).writeContract({
       address: this.identityRegistryAddress,
       abi: this.identityRegistryAbi,
-      functionName: "newAgent",
-      args: [this.agentDomain, this.address],
-      value: parseEther("0.005"),
+      functionName: "register",
+      args: [tokenURI],
     });
 
-    await this.publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
-    // Wait a moment for state to be indexed
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Parse the Registered event to get the agentId
+    // Event signature: Registered(uint256 indexed agentId, string tokenURI, address indexed owner)
+    // This creates a keccak256 hash of: keccak256("Registered(uint256,string,address)")
+    const registeredEventSig =
+      "0x4fdc8ad5e7b44eac5c54d8b9c1e7a890f8f3c9e5a2d3f3e2d1c0b0a09fef1234"; // Placeholder - will search for actual event
 
-    // Query agent ID by address
-    try {
-      const result = (await this.publicClient.readContract({
-        address: this.identityRegistryAddress,
-        abi: this.identityRegistryAbi,
-        functionName: "resolveByAddress",
-        args: [this.address],
-      })) as { agentId: bigint; agentDomain: string; agentAddress: Address };
+    // Find the Registered event (not the Transfer event from ERC-721)
+    // The Transfer event signature is 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+    const transferEventSig =
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-      this.agentId = result.agentId;
-      console.log(`✅ Registered with ID: ${this.agentId}`);
-      return this.agentId;
-    } catch (error) {
+    // The Transfer event for ERC-721 minting has: [eventSig, from (0x0), to, tokenId]
+    // We can extract the tokenId from topics[3] of the Transfer event
+    const transferEvent = receipt.logs.find((log) => {
+      try {
+        return (
+          log.address.toLowerCase() ===
+            this.identityRegistryAddress.toLowerCase() &&
+          log.topics[0] === transferEventSig &&
+          log.topics[1] ===
+            "0x0000000000000000000000000000000000000000000000000000000000000000" // from address is 0x0 (minting)
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    if (!transferEvent || !transferEvent.topics[3]) {
+      console.error(
+        "All logs:",
+        JSON.stringify(
+          receipt.logs.map((l) => ({
+            address: l.address,
+            topics: l.topics,
+          })),
+          null,
+          2
+        )
+      );
       throw new Error(
-        `Failed to retrieve agent ID after registration: ${error}`
+        "Failed to find Transfer (minting) event in transaction receipt"
       );
     }
+
+    // The tokenId (agentId) is in topics[3] of the Transfer event
+    this.agentId = BigInt(transferEvent.topics[3]);
+
+    console.log(`✅ Registered with ID: ${this.agentId}`);
+    return this.agentId;
   }
 
   async requestValidation(
-    validatorId: bigint,
-    dataHash: `0x${string}`
+    validatorAddress: Address,
+    requestUri: string,
+    requestHash: `0x${string}`
   ): Promise<Hash> {
     const hash = await (this.walletClient as any).writeContract({
       address: this.validationRegistryAddress,
       abi: this.validationRegistryAbi,
       functionName: "validationRequest",
-      args: [validatorId, this.agentId, dataHash],
+      args: [validatorAddress, this.agentId, requestUri, requestHash],
     });
 
     await this.publicClient.waitForTransactionReceipt({ hash });
@@ -170,14 +222,17 @@ export class ERC8004BaseAgent {
   }
 
   async submitValidationResponse(
-    dataHash: `0x${string}`,
-    score: number
+    requestHash: `0x${string}`,
+    response: number,
+    responseUri: string = "",
+    responseHash: `0x${string}` = "0x0000000000000000000000000000000000000000000000000000000000000000",
+    tag: `0x${string}` = "0x0000000000000000000000000000000000000000000000000000000000000000"
   ): Promise<Hash> {
     const hash = await (this.walletClient as any).writeContract({
       address: this.validationRegistryAddress,
       abi: this.validationRegistryAbi,
       functionName: "validationResponse",
-      args: [dataHash, BigInt(score)],
+      args: [requestHash, response, responseUri, responseHash, tag],
     });
 
     await this.publicClient.waitForTransactionReceipt({ hash });

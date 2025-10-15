@@ -34,10 +34,11 @@ Build a **privacy-preserving portfolio rebalancing system** with:
 
 - **Language**: TypeScript 5.x
 - **Web3 Library**: viem 2.x
-- **ZK Framework**: Circom + SnarkJS (Groth16)
+- **ZK Framework**: Circom 2.2.2+ + SnarkJS 0.7.5 (Groth16)
 - **Smart Contracts**: Solidity (Foundry)
 - **Blockchain**: Ethereum-compatible (Anvil for testing)
 - **Standard**: ERC-8004 Trustless Agents
+- **Privacy**: Witness-only inputs (balances/prices hidden from chain)
 
 ---
 
@@ -91,13 +92,15 @@ This installs:
 - SnarkJS (ZK proof generation)
 - All other required packages
 
-### Step 3: Install Global Tools (Optional)
+### Step 3: Install Global Tools (Required for ZK)
 
 ```bash
-# Install Circom globally (optional, for circuit development)
-npm install -g circom
+# Install Circom 2.x globally (REQUIRED)
+npm install -g circom@latest
+circom --version  # Must be >= 2.0.0
 
-# Or use the project's local version
+# Install SnarkJS globally
+npm install -g snarkjs
 ```
 
 ---
@@ -131,22 +134,31 @@ npm run anvil
 
 Keep this running.
 
-#### Terminal 2: Setup & Deploy
+#### Terminal 2: One-Time Setup
 
 ```bash
-# Setup ZK proof system (first time only)
+# Setup ZK proof system (run ONCE when circuit changes)
 npm run setup:zkp
-
-# Deploy contracts
-npm run forge:deploy:local
 ```
 
-#### Terminal 3: Run Tests
+This generates:
+
+- Circuit compilation (R1CS + WASM)
+- Powers of Tau ceremony
+- Proving/verification keys
+- **Verifier.sol** (stays constant for same circuit)
+
+#### Terminal 3: Deploy & Test
 
 ```bash
-# Run end-to-end test
+# Deploy contracts (can run multiple times)
+npm run forge:deploy:local
+
+# Run end-to-end test (can run with different inputs)
 npm run test:e2e
 ```
+
+**Important**: After initial `setup:zkp`, the `Verifier.sol` remains unchanged. Only regenerate when you modify the circuit.
 
 ---
 
@@ -208,10 +220,10 @@ STEP 6: Submit Proof for Validation
 ✅ Validation request successful
 
 STEP 7: Validate ZK Proof
-🔍 Starting validation for proof data
-✅ Proof is cryptographically valid
-✅ Rebalancing logic is sound
-✅ Validation completed with overall score: 100/100
+🔍 Validating proof...
+🔐 Verifying on-chain using Groth16Verifier (eth_call)...
+   Result: ✅ VALID
+✅ Validation complete: 100/100
 
 STEP 8: Submit Validation Response
 📤 Submitting validation response
@@ -249,12 +261,12 @@ rebalancing-poc-main/
 │   └── rebalancing.circom     # ZK circuit definition
 ├── contracts/
 │   ├── src/
-│   │   ├── IdentityRegistry.sol
-│   │   ├── ValidationRegistry.sol
-│   │   ├── ReputationRegistry.sol
-│   │   └── Verifier.sol
+│   │   ├── IdentityRegistry.sol     # Agent NFT registry
+│   │   ├── ValidationRegistry.sol   # Validation requests/responses
+│   │   ├── ReputationRegistry.sol   # Feedback system
+│   │   └── Verifier.sol             # Groth16Verifier (generated)
 │   └── script/
-│       └── Deploy.s.sol
+│       └── Deploy.s.sol              # Deploys all 4 contracts
 ├── tests/
 │   └── e2e/
 │       └── test-zk-rebalancing-workflow.ts
@@ -304,17 +316,19 @@ console.log("Plan created:", plan.newTotalValue);
 ```typescript
 import { RebalancerAgent, ValidatorAgent } from "./agents";
 
-// Generate proof
+// Generate proof (balances/prices stay private)
 const rebalancer = new RebalancerAgent(...);
 const plan = await rebalancer.createRebalancingPlan(...);
 const proof = rebalancer.generateZkProof(plan);
+// Proof includes: pi_a, pi_b, pi_c + 5 public signals
 
-// Validate proof
+// Validate proof ON-CHAIN via Groth16Verifier contract
 const validator = new ValidatorAgent(...);
 const result = await validator.validateProof(proof);
+// Calls: verifierContract.verifyProof(pA, pB, pC, pubSignals)
 
-console.log("Proof valid:", result.isValid);
-console.log("Score:", result.score);
+console.log("Proof valid:", result.isValid);  // true if verified on-chain
+console.log("Score:", result.score);          // 100 if valid, 0 if invalid
 ```
 
 ### Example 3: Submit Feedback
@@ -360,11 +374,12 @@ npm run anvil
 ### ZK Proof System
 
 ```bash
-# Setup (first time only)
+# Complete setup (run once, or when circuit changes)
 npm run setup:zkp
+# This generates Verifier.sol which stays constant
 
-# Compile circuit
-npm run circuit:compile
+# Individual steps (if needed)
+npm run circuit:compile    # Compile circuit to R1CS + WASM
 
 # Generate proof (with input.json)
 npm run proof:generate

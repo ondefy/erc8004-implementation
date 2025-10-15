@@ -19,6 +19,10 @@ async function deployContracts(): Promise<void> {
   console.log("─".repeat(70));
 
   try {
+    // Note: Run `npm run setup:zkp` manually once when circuit changes.
+    // For normal E2E testing with different inputs, setup is NOT needed.
+    // The Verifier.sol remains constant for the same circuit.
+
     execSync("npm run forge:deploy:local", {
       stdio: "inherit",
       cwd: process.cwd(),
@@ -114,7 +118,11 @@ async function testZkRebalancingE2E(): Promise<void> {
 
   console.log(`📂 Loaded from: input/input.json`);
   console.log(`   Assets: ${inputData.oldBalances.length}`);
-  console.log(`   Total Value: ${parseInt(inputData.totalValueCommitment).toLocaleString()}`);
+  console.log(
+    `   Total Value: ${parseInt(
+      inputData.totalValueCommitment
+    ).toLocaleString()}`
+  );
 
   // Create plan
   console.log("\n" + "─".repeat(70));
@@ -141,7 +149,7 @@ async function testZkRebalancingE2E(): Promise<void> {
   console.log("STEP 7: Submit for Validation");
   console.log("─".repeat(70));
 
-  await rebalancer.submitProofForValidation(proof, validator.agentId!);
+  await rebalancer.requestValidationFromValidator(proof, validator.address);
 
   // Validate
   console.log("\n" + "─".repeat(70));
@@ -157,12 +165,16 @@ async function testZkRebalancingE2E(): Promise<void> {
 
   await validator.submitValidation(validationResult);
 
-  // Authorize feedback
+  // Generate feedback authorization
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 10: Authorize Feedback");
+  console.log("STEP 10: Generate Feedback Authorization");
   console.log("─".repeat(70));
 
-  await rebalancer.authorizeClientFeedback(client.agentId!);
+  const { feedbackAuth } = await rebalancer.generateFeedbackAuthorization(
+    client.address,
+    10n,
+    30
+  );
 
   // Evaluate and feedback
   console.log("\n" + "─".repeat(70));
@@ -170,7 +182,12 @@ async function testZkRebalancingE2E(): Promise<void> {
   console.log("─".repeat(70));
 
   const score = client.evaluateRebalancingQuality(proof);
-  client.submitFeedback(rebalancer.agentId!, score, "Great service!");
+  await client.submitFeedback(
+    rebalancer.agentId!,
+    score,
+    feedbackAuth,
+    "Great service!"
+  );
 
   // Check reputation
   console.log("\n" + "─".repeat(70));

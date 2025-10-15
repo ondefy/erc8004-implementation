@@ -2,62 +2,155 @@
 
 ## Project Overview
 
-Building a Zero-Knowledge proof system for portfolio rebalancing validation using ERC-8004 standard.
+Building a Zero-Knowledge proof system for portfolio rebalancing validation using ERC-8004 standard with multi-agent orchestration and a Next.js frontend.
 
 ### Goal
 
-Create a PoC that proves portfolio rebalancing satisfies constraints (min/max allocation limits) without revealing actual positions, using ZK proofs verified on-chain.
+Create a PoC that proves portfolio rebalancing satisfies constraints (min/max allocation limits) without revealing actual positions, using ZK proofs verified on-chain. The system includes a web interface for interactive agent workflows.
 
 ## Technology Stack
 
-- **ZK Framework**: Circom 2.0.0 + SnarkJS
+- **ZK Framework**: Circom 2.2.2+ (Circom 2.x) + SnarkJS 0.7.5
 - **Proof System**: Groth16 (efficient on-chain verification)
-- **Smart Contracts**: Solidity ^0.8.0
+- **Smart Contracts**: Solidity ^0.8.19 (Foundry)
 - **Standard**: ERC-8004 Agent Validation Registry
+- **Frontend**: Next.js 15.1+ (App Router) + React 19+ + TailwindCSS
+- **Wallet**: Reown AppKit (formerly WalletConnect)
+- **Blockchain Library**: Viem + Wagmi
 
 ## Key Architecture Components
 
 ### 1. Circom Circuit (`circuits/rebalancing.circom`)
 
 - **Purpose**: ZK circuit that proves rebalancing validity
-- **Private Inputs**: oldBalances, newBalances, prices (hidden from chain)
-- **Public Inputs**: totalValueCommitment, minAllocationPct, maxAllocationPct
+- **Private Inputs**: oldBalances, newBalances, prices (hidden from chain - witness only)
+- **Public Inputs**: totalValueCommitment, minAllocationPct, maxAllocationPct, dataHashPublic
 - **Constraints**:
   - Total portfolio value preservation
-  - Each asset allocation within min/max bounds
-- **Output**: dataHash commitment
+  - Data integrity (computed dataHash matches public input)
+  - Allocation bounds calculation
+- **Output**: dataHash commitment (matched to public input)
 
-### 2. Verifier Contract (AgentValidatorID)
+### 2. Smart Contracts (`contracts/src/`)
 
-- Auto-generated Solidity contract from circuit
-- Verifies Groth16 proofs on-chain
-- Acts as the AgentValidatorID in ERC-8004
-- Can emit ValidationResponse events directly
+- **IdentityRegistry.sol**: ERC-721 based agent registration (NFT identity)
+- **ValidationRegistry.sol**: Validation request/response workflow
+- **ReputationRegistry.sol**: Feedback and reputation tracking
+- **Verifier.sol**: Auto-generated Groth16 verifier (on-chain proof verification)
 
 ### 3. ERC-8004 Integration
 
 - **AgentValidatorID**: The deployed Verifier contract address
 - **AgentServerID**: Off-chain service generating proofs
-- **DataHash**: Commitment to computation (from circuit output)
+- **DataHash**: Commitment to computation (SHA-256 of proof data)
+
+### 4. Agents (`agents/`)
+
+TypeScript classes implementing ERC-8004 agent workflows:
+- **base-agent.ts**: ERC8004BaseAgent with common functionality
+- **rebalancer-agent.ts**: Generates ZK proofs, submits for validation
+- **validator-agent.ts**: Validates proofs on-chain using Verifier contract
+- **client-agent.ts**: Provides feedback and checks reputation
+
+### 5. Frontend (`frontend/`)
+
+Next.js application with:
+- **App Router**: Modern Next.js routing (`app/` directory)
+- **API Routes**: Backend endpoints for proof generation, validation, storage
+- **Components**: React components for agent workflows
+- **Wallet Integration**: Reown AppKit for multi-wallet support
+- **Networks**: Anvil (local), Base Sepolia (testnet)
 
 ## Project Structure
 
 ```
-rebalancing-zkp/
+rebalancing-poc-main/
+├── agents/                          # TypeScript agent implementations
+│   ├── base-agent.ts               # ERC-8004 base functionality
+│   ├── rebalancer-agent.ts         # ZK proof generation
+│   ├── validator-agent.ts          # On-chain proof validation
+│   ├── client-agent.ts             # Feedback system
+│   └── index.ts                    # Agent exports
 ├── circuits/
 │   └── rebalancing.circom          # Main ZK circuit
-├── circomlib/                       # Helper libraries (cloned)
 ├── input/
 │   └── input.json                   # Test inputs
-├── build/                           # Compiled artifacts
+├── build/                           # Compiled ZK artifacts (r1cs, wasm, zkey)
+├── contracts/                       # Solidity smart contracts (Foundry)
+│   ├── src/
+│   │   ├── IdentityRegistry.sol    # Agent registration (ERC-721)
+│   │   ├── ValidationRegistry.sol  # Validation workflows
+│   │   ├── ReputationRegistry.sol  # Feedback system
+│   │   ├── Verifier.sol            # Groth16 verifier
+│   │   └── interfaces/             # Contract interfaces
+│   ├── script/
+│   │   └── Deploy.s.sol            # Deployment script
+│   └── test/                       # Foundry tests
+├── frontend/                        # Next.js web application
+│   ├── app/                        # App Router pages & layouts
+│   │   ├── api/                    # API routes (proof gen, validation)
+│   │   │   ├── generate-proof/
+│   │   │   ├── validate-proof/
+│   │   │   ├── store-proof/
+│   │   │   └── load-input/
+│   │   ├── page.tsx                # Main workflow page
+│   │   └── layout.tsx              # Root layout
+│   ├── components/                 # React components
+│   │   ├── agent-wallet-manager.tsx
+│   │   ├── workflow-steps.tsx
+│   │   └── providers.tsx           # Context providers
+│   ├── lib/                        # Utilities
+│   │   ├── workflow-executor.ts    # Step execution logic
+│   │   ├── contracts.ts            # Contract configs
+│   │   ├── constants.ts            # Network configs
+│   │   └── abis/                   # Contract ABIs
+│   └── public/                     # Static assets
+├── tests/
+│   └── e2e/
+│       └── test-zk-rebalancing-workflow.ts  # Complete E2E test
 ├── scripts/
-│   └── test.js                      # Proof generation script
-├── contracts/
-│   └── Verifier.sol                 # Generated verifier
-└── .cursorrules                     # This file
+│   ├── setup-zkp.sh                # ZK proof setup
+│   └── create-deployed-contracts.ts
+├── docs/                           # Documentation
+├── data/                           # Proof storage (runtime)
+├── validations/                    # Validation storage (runtime)
+├── package.json                    # Root dependencies
+├── tsconfig.json                   # TypeScript config
+├── .cursorrules                    # This file
+└── README.md                       # Project documentation
 ```
 
 ## Common Commands
+
+### Project Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Setup ZK proof system (one-time after circuit changes)
+npm run setup:zkp
+
+# Install frontend dependencies
+npm run frontend:install
+```
+
+### Development
+
+```bash
+# Start local blockchain (terminal 1)
+npm run anvil
+
+# Run E2E test (terminal 2)
+npm run test:e2e
+
+# Start frontend dev server (terminal 3)
+npm run frontend:dev
+# Visit http://localhost:3000
+
+# Deploy contracts
+cd contracts && forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
+```
 
 ### Circuit Compilation
 
@@ -201,18 +294,178 @@ circom --version
 - Check verifier contract deployed correctly
 - Verify proof/verification key compatibility
 
+## Workflow Execution (Frontend)
+
+The frontend (`frontend/lib/workflow-executor.ts`) implements a step-by-step workflow:
+
+1. **Step 0 - Register Agents**: Register rebalancer, validator, client on IdentityRegistry
+   - Extracts agentId from Registered event or Transfer event (minting)
+   - Stores agentIds in workflow state for later steps
+   - Checks if agent already registered by querying balanceOf and past events
+
+2. **Step 1 - Load Input Data**: Load portfolio data from `/api/load-input`
+   - Reads from `input/input.json`
+   - Stores inputData in workflow state
+
+3. **Step 2 - Generate ZK Proof**: Call `/api/generate-proof`
+   - Uses snarkjs to generate Groth16 proof
+   - Stores proof and publicInputs in workflow state
+
+4. **Step 3 - Submit for Validation**: Rebalancer calls validationRequest
+   - Requires rebalancer agentId from step 0
+   - Stores proof data via `/api/store-proof` (generates SHA-256 dataHash)
+   - Submits to ValidationRegistry
+   - Extracts requestHash from ValidationRequest event
+
+5. **Step 4 - Validate Proof**: Validator validates via on-chain Verifier
+   - Calls `/api/validate-proof` which uses eth_call to Verifier.verifyProof()
+   - Stores validation result in workflow state
+
+6. **Step 5 - Submit Validation**: Validator calls validationResponse
+   - Submits validation score (0-100) to ValidationRegistry
+   - Stores validation result via `/api/store-validation`
+   - Extracts responseHash from ValidationResponse event
+
+7. **Step 7 - Authorize Feedback**: Rebalancer generates signed authorization
+   - Off-chain EIP-191 signature (simulated in frontend)
+   - In production, rebalancer signs with private key
+
+8. **Step 8 - Client Feedback**: Client calls giveFeedback
+   - Requires rebalancer agentId
+   - Submits to ReputationRegistry
+
+9. **Step 9 - Check Reputation**: Display reputation summary
+
+### Key State Management
+
+- `workflowState.agentIds`: Tracks registered agent IDs for each role
+- `workflowState.inputData`: Portfolio data from step 1
+- `workflowState.proof` & `publicInputs`: ZK proof from step 2
+- `workflowState.requestHash` / `dataHash`: Proof commitment from step 3
+- `workflowState.validationResult`: Validation outcome from step 4
+- `workflowState.responseHash`: Validation response hash from step 5
+
+## Frontend Architecture
+
+### API Routes (`frontend/app/api/`)
+
+- **generate-proof/route.ts**: Generates ZK proof using snarkjs (witness + prove)
+- **validate-proof/route.ts**: Validates proof via Verifier contract (eth_call)
+- **store-proof/route.ts**: Stores proof to `data/${dataHash}.json`, returns dataHash
+- **store-validation/route.ts**: Stores validation to `validations/${dataHash}.json`
+- **load-input/route.ts**: Loads `input/input.json`
+
+### Components
+
+- **agent-wallet-manager.tsx**: Wallet connection and agent address management
+- **workflow-steps.tsx**: Step-by-step workflow UI
+- **providers.tsx**: Wagmi + Reown AppKit providers
+
+### Libraries
+
+- **workflow-executor.ts**: Core step execution logic with proper state updates
+- **contracts.ts**: Contract ABI and address configuration
+- **constants.ts**: Network configurations (Anvil, Base Sepolia)
+
+## Important Implementation Details
+
+### Agent Registration
+
+- IdentityRegistry extends ERC721URIStorage (NOT ERC721Enumerable)
+- No `tokenOfOwnerByIndex` function available
+- Must query past `Registered` events to get agentId for existing agents
+- Extract agentId from receipt logs:
+  - `Registered(uint256 indexed agentId, string tokenURI, address indexed owner)`
+  - Or `Transfer(address indexed from, address indexed to, uint256 indexed tokenId)` with from=0x0
+
+### Event Extraction
+
+When extracting indexed parameters from events:
+- `topics[0]` = event signature hash
+- `topics[1]` = first indexed parameter
+- `topics[2]` = second indexed parameter
+- `topics[3]` = third indexed parameter
+- Non-indexed parameters are in `data` field (requires ABI decoding)
+
+### DataHash vs RequestHash
+
+- `dataHash`: SHA-256 hash of proof data (generated in `/api/store-proof`)
+- `requestHash`: Hash submitted to validationRequest (same as dataHash)
+- `responseHash`: Hash from validationResponse (from validator)
+
 ## Assistant Instructions
 
 When helping with this project:
 
-1. Always reference circomlib for common operations
-2. Use Circom 2.0.0 syntax
-3. Ensure all file paths are relative to project root
-4. Include error handling in scripts
-5. Follow the established project structure
-6. Prioritize security and constraint efficiency
-7. Test changes incrementally
-8. Provide complete, working code (no placeholders)
+1. **Circuit Development**:
+   - Always reference circomlib for common operations
+   - Use Circom 2.x syntax (pragma circom 2.0.0)
+   - Private inputs stay in witness, never exposed on-chain
+   - Public inputs are visible during verification
+
+2. **Smart Contracts**:
+   - Use Foundry for testing and deployment
+   - Follow ERC-8004 standard for agent workflows
+   - IdentityRegistry is ERC-721 based (NFT identity)
+   - Validation and Reputation registries are separate contracts
+
+3. **Frontend Development**:
+   - Use Next.js App Router (not Pages Router)
+   - API routes in `app/api/` for backend logic
+   - workflow-executor.ts manages state across steps
+   - Extract event data from transaction receipts for state updates
+   - Handle wallet switching between agent roles
+
+4. **Agent Development**:
+   - Extend ERC8004BaseAgent for common functionality
+   - RebalancerAgent generates proofs using snarkjs
+   - ValidatorAgent validates via on-chain Verifier contract (eth_call)
+   - ClientAgent provides feedback to ReputationRegistry
+
+5. **State Management**:
+   - Always extract agentIds from registration and store in workflowState
+   - Pass workflowState between steps to maintain context
+   - Use stateUpdate in StepResult to update workflow state
+   - Critical data: agentIds, proof, publicInputs, requestHash, validationResult
+
+6. **Error Handling**:
+   - Check for required state (agentIds, proof, etc.) before operations
+   - Provide clear error messages indicating missing prerequisites
+   - Handle wallet switching with requiresWalletSwitch response
+
+7. **Testing**:
+   - Use E2E test (`tests/e2e/test-zk-rebalancing-workflow.ts`) as reference
+   - Test locally with Anvil before deploying to testnet
+   - Verify proof generation and on-chain validation work end-to-end
+
+8. **Code Quality**:
+   - Ensure all file paths are relative to project root
+   - Include error handling in scripts and API routes
+   - Follow established project structure
+   - Provide complete, working code (no placeholders)
+   - Test changes incrementally
+
+## Common Pitfalls to Avoid
+
+1. **Agent Registration**:
+   - ❌ Don't use `tokenOfOwnerByIndex` (not available in contract)
+   - ✅ Use `getLogs` to query past `Registered` events
+   - ✅ Extract agentId from transaction receipt logs
+
+2. **State Management**:
+   - ❌ Don't reference undefined variables (e.g., `simulatedDataHash`)
+   - ✅ Use variables defined in current scope (e.g., `dataHash`)
+   - ✅ Always check if required state exists before using it
+
+3. **Event Extraction**:
+   - ❌ Don't assume event signature hashes without verifying
+   - ✅ Check event address matches contract address
+   - ✅ Fall back to multiple event types if needed
+
+4. **Frontend API Routes**:
+   - ❌ Don't use browser APIs in API routes (no `window`, `document`)
+   - ✅ Use Node.js APIs (`fs`, `path`, `child_process`)
+   - ✅ Handle errors and return proper Next.js responses
 
 ## Current Issues to Watch
 
@@ -220,3 +473,5 @@ When helping with this project:
 - Large number handling (use strings in JSON)
 - Constraint explosion with complex logic
 - Gas costs for on-chain verification
+- Agent registration state management (extract agentIds properly)
+- Wallet switching in frontend (ensure correct signer for each step)

@@ -31,6 +31,7 @@ interface DeployedContracts {
     IdentityRegistry?: string;
     ValidationRegistry?: string;
     ReputationRegistry?: string;
+    Groth16Verifier?: string;
   };
 }
 
@@ -103,6 +104,7 @@ function createDeployedContractsFile(
     "IdentityRegistry",
     "ValidationRegistry",
     "ReputationRegistry",
+    "Groth16Verifier",
   ];
   const missingContracts = requiredContracts.filter((name) => !contracts[name]);
 
@@ -121,6 +123,7 @@ function createDeployedContractsFile(
       IdentityRegistry: contracts.IdentityRegistry,
       ValidationRegistry: contracts.ValidationRegistry,
       ReputationRegistry: contracts.ReputationRegistry,
+      Groth16Verifier: contracts.Groth16Verifier,
     },
   };
 
@@ -141,6 +144,9 @@ function createDeployedContractsFile(
   );
   console.log(
     `   - ReputationRegistry: ${deployedContracts.contracts.ReputationRegistry}`
+  );
+  console.log(
+    `   - Groth16Verifier: ${deployedContracts.contracts.Groth16Verifier}`
   );
 }
 

@@ -2,6 +2,7 @@
  * Client Agent - Minimal Feedback & Reputation
  */
 
+import { type Hash } from "viem";
 import { ERC8004BaseAgent } from "./base-agent";
 import { type ProofPackage } from "./rebalancer-agent";
 
@@ -34,34 +35,57 @@ export class ClientAgent extends ERC8004BaseAgent {
     console.log("🎯 Evaluating quality...");
 
     let score = 50;
-    if (proof.proof) score += 15;
-    if (proof.publicInputs) score += 10;
-    if (proof.rebalancingPlan) score += 25;
+    if (proof.proof) score += 25;
+    if (proof.publicInputs) score += 25;
 
     console.log(`   Quality score: ${score}/100`);
     return score;
   }
 
-  submitFeedback(
-    serverId: bigint,
+  async submitFeedback(
+    agentId: bigint,
     score: number,
-    comment: string = ""
-  ): FeedbackData {
+    feedbackAuth: `0x${string}`,
+    comment: string = "",
+    tag1: `0x${string}` = "0x0000000000000000000000000000000000000000000000000000000000000000",
+    tag2: `0x${string}` = "0x0000000000000000000000000000000000000000000000000000000000000000"
+  ): Promise<Hash> {
     if (score < 0 || score > 100) {
       throw new Error("Score must be 0-100");
     }
 
+    console.log(`📝 Submitting on-chain feedback: ${score}/100`);
+
+    // Submit feedback on-chain using the provided authorization
+    const hash = await (this.walletClient as any).writeContract({
+      address: this.reputationRegistryAddress,
+      abi: this.reputationRegistryAbi,
+      functionName: "giveFeedback",
+      args: [
+        agentId,
+        score,
+        tag1,
+        tag2,
+        comment ? `ipfs://feedback/${comment}` : "",
+        "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
+        feedbackAuth,
+      ],
+    });
+
+    await this.publicClient.waitForTransactionReceipt({ hash });
+
+    // Track locally
     const feedback: FeedbackData = {
-      serverId,
+      serverId: agentId,
       score,
       comment,
       timestamp: Math.floor(Date.now() / 1000),
     };
 
     this.feedbackHistory.push(feedback);
-    console.log(`✅ Feedback submitted: ${score}/100`);
+    console.log(`✅ Feedback submitted on-chain: ${score}/100`);
 
-    return feedback;
+    return hash;
   }
 
   checkRebalancerReputation(serverId: bigint): ReputationInfo {

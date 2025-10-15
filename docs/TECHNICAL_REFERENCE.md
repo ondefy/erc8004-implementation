@@ -50,26 +50,27 @@
                     ┌──────────▼──────────┐
                     │  ZK Proof System    │
                     │                     │
-                    │ • Circom Circuit    │
+                    │ • Circom 2.x Circuit│
                     │ • Groth16 Prover    │
-                    │ • SnarkJS Verifier  │
+                    │ • On-chain Verifier │
+                    │   (Solidity)        │
                     └─────────────────────┘
 ```
 
 ### Component Interaction Flow
 
 ```
-1. Rebalancer creates plan and generates ZK proof
+1. Rebalancer creates plan and generates ZK proof (private witness)
    ↓
 2. Rebalancer submits proof hash to ValidationRegistry
    ↓
-3. Validator retrieves proof, validates cryptographically
+3. Validator retrieves proof and calls Groth16Verifier.verifyProof() on-chain
    ↓
-4. Validator submits validation response on-chain
+4. Validator submits validation response (score 0-100) on-chain
    ↓
 5. Client evaluates service quality
    ↓
-6. Client submits feedback to ReputationRegistry
+6. Client submits feedback to ReputationRegistry with signed authorization
 ```
 
 ---
@@ -93,25 +94,26 @@ class RebalancerAgent extends ERC8004BaseAgent {
     prices: string[],
     minAllocationPct: string,
     maxAllocationPct: string
-  ): Promise<RebalancingPlan>
+  ): Promise<RebalancingPlan>;
 
   // Generate ZK proof
-  generateZkProof(plan: RebalancingPlan): ProofPackage
+  generateZkProof(plan: RebalancingPlan): ProofPackage;
 
   // Submit for validation
-  async submitProofForValidation(
+  async requestValidationFromValidator(
     proof: ProofPackage,
     validatorId: bigint
-  ): Promise<Hash>
+  ): Promise<Hash>;
 
   // Authorize client feedback
-  async authorizeClientFeedback(clientId: bigint): Promise<Hash>
+  async authorizeClientFeedback(clientId: bigint): Promise<Hash>;
 }
 ```
 
 **Trust Model**: `["inference-validation", "zero-knowledge"]`
 
 **Workflow**:
+
 1. Receive rebalancing request
 2. Create plan with allocation constraints
 3. Generate ZK proof hiding actual positions
@@ -130,40 +132,41 @@ class ValidatorAgent extends ERC8004BaseAgent {
   // Validate proof
   async validateProof(
     proofOrHash: ProofPackage | string
-  ): Promise<ValidationResult>
+  ): Promise<ValidationResult>;
 
   // Submit validation response
   async submitValidationResponseWithPackage(
     validation: ValidationPackage
-  ): Promise<Hash>
+  ): Promise<Hash>;
 }
 ```
 
 **Validation Process**:
 
-1. **Structure Verification** (20% weight)
-   - Check Groth16 format
-   - Verify proof points (pi_a, pi_b, pi_c)
-   - Validate public inputs
+1. **Load Proof Package**
 
-2. **Cryptographic Verification** (50% weight)
-   - Run `snarkjs groth16 verify`
-   - Check pairing equations
-   - Validate against verification key
+   - Parse proof JSON (pi_a, pi_b, pi_c)
+   - Extract public signals (5 elements)
+   - Generate data hash for tracking
 
-3. **Logic Verification** (30% weight)
-   - Verify value preservation
-   - Check allocation bounds
-   - Validate constraints
+2. **On-Chain Cryptographic Verification** (100% weight)
 
-**Scoring**:
-```typescript
-overallScore = (
-  structureScore * 0.2 +
-  cryptoScore * 0.5 +
-  logicScore * 0.3
-)
-```
+   - Call `Groth16Verifier.verifyProof()` via eth_call
+   - Pass proof points with FQ2 coordinate swapping for Solidity
+   - Verify against deployed verification key
+   - Returns: boolean (true/false)
+
+3. **Scoring**:
+   ```typescript
+   score = isValid ? 100 : 0;
+   ```
+
+**Key Implementation Details**:
+
+- No off-chain snarkjs verification
+- All verification happens on-chain via deployed Verifier contract
+- Validator reads Verifier address from `deployed_contracts.json`
+- Public signals automatically validated by Verifier contract
 
 #### 3. Client Agent
 
@@ -174,21 +177,22 @@ overallScore = (
 ```typescript
 class ClientAgent extends ERC8004BaseAgent {
   // Evaluate quality
-  evaluateRebalancingQuality(proof: ProofPackage): number
+  evaluateRebalancingQuality(proof: ProofPackage): number;
 
   // Submit feedback
   submitFeedback(
     serverId: bigint,
     score: number,
     comment: string
-  ): FeedbackData
+  ): FeedbackData;
 
   // Check reputation
-  checkRebalancerReputation(serverId: bigint): ReputationInfo
+  checkRebalancerReputation(serverId: bigint): ReputationInfo;
 }
 ```
 
 **Quality Evaluation Criteria**:
+
 - Base score: 50
 - +15 for ZK proof provided
 - +10 for public inputs included
@@ -213,51 +217,84 @@ input.json    witness.wtns           proof.json      On-chain
 
 **Purpose**: Prove portfolio rebalancing satisfies constraints without revealing positions.
 
-**Private Inputs** (hidden):
+**Circom Version**: 2.0.0+ (requires `pragma circom 2.0.0` and `{public [...]}` syntax)
+
+**Private Inputs** (witness-only, never on-chain):
+
 ```circom
 signal input oldBalances[4];  // Current token balances
 signal input newBalances[4];  // Proposed balances after rebalancing
 signal input prices[4];       // Current token prices
 ```
 
-**Public Inputs** (visible on-chain):
+**Public Inputs** (visible on-chain during verification):
+
 ```circom
 signal input totalValueCommitment;  // Total portfolio value
 signal input minAllocationPct;      // Minimum allocation per asset (%)
 signal input maxAllocationPct;      // Maximum allocation per asset (%)
+signal input dataHashPublic;        // Data integrity commitment (computed off-chain)
+```
+
+**Public List Declaration** (Circom 2.x):
+
+```circom
+component main {public [totalValueCommitment, minAllocationPct, maxAllocationPct, dataHashPublic]} = RebalancingProof(4);
+```
+
+**Output Signal** (also exposed):
+
+```circom
+signal output dataHash;  // Computed hash, constrained to match dataHashPublic
 ```
 
 **Constraints Proven**:
 
 1. **Value Preservation**:
+
    ```circom
-   oldTotal === newTotal
+   oldTotal === newTotal === totalValueCommitment
    where:
      oldTotal = Σ(oldBalances[i] * prices[i])
      newTotal = Σ(newBalances[i] * prices[i])
    ```
 
-2. **Allocation Bounds**:
+2. **Data Integrity**:
+
+   ```circom
+   dataHash === dataHashPublic
+   where:
+     dataHash = Σ(newBalances[i] + prices[i])  // Simplified commitment
+   ```
+
+3. **Allocation Bounds** (calculated, not range-checked yet):
+
    ```circom
    For each asset i:
-     allocation[i] = (newBalances[i] * prices[i]) / newTotal * 100
-     minAllocationPct ≤ allocation[i] ≤ maxAllocationPct
+     scaledValue[i] = newBalances[i] * prices[i] * 100
+     minBound[i] = minAllocationPct * newTotal
+     maxBound[i] = maxAllocationPct * newTotal
    ```
+
+   **Note**: Full range checks require additional LessThan/GreaterThan circuits from circomlib (production TODO).
 
 ### Proof System (Groth16)
 
 **Why Groth16?**
+
 - Constant-size proofs (~200 bytes)
 - Fast verification (~250k gas on Ethereum)
 - Most efficient for on-chain verification
 - Industry standard for ZK-SNARKs
 
 **Trade-offs**:
+
 - Requires trusted setup (Powers of Tau ceremony)
 - Circuit-specific proving key
 - Not quantum-resistant
 
 **Alternatives** (not used):
+
 - PLONK: Universal setup, larger proofs
 - STARKs: No trusted setup, larger proofs, more gas
 
@@ -268,34 +305,41 @@ signal input maxAllocationPct;      // Maximum allocation per asset (%)
 ### Source Files
 
 #### `circuits/rebalancing.circom`
+
 **What**: Zero-knowledge circuit definition  
 **Language**: Circom  
 **Purpose**: Defines constraints for valid rebalancing  
-**Output**: Mathematical proof system  
+**Output**: Mathematical proof system
 
 **Key sections**:
+
 ```circom
-template Rebalancing(n) {
-    // Private inputs
+pragma circom 2.0.0;
+
+template RebalancingProof(n) {
+    // Private inputs (witness-only)
     signal input oldBalances[n];
     signal input newBalances[n];
     signal input prices[n];
-    
-    // Public inputs
+
+    // Public inputs (visible on-chain)
     signal input totalValueCommitment;
     signal input minAllocationPct;
     signal input maxAllocationPct;
-    
+    signal input dataHashPublic;
+
     // Constraints...
 }
 ```
 
 #### `agents/base-agent.ts`
+
 **What**: ERC-8004 base functionality  
 **Lines**: 373  
-**Purpose**: Common agent operations  
+**Purpose**: Common agent operations
 
 **Key features**:
+
 - Web3 connection via viem
 - Contract ABI loading
 - Agent registration
@@ -303,33 +347,39 @@ template Rebalancing(n) {
 - Transaction management
 
 #### `agents/rebalancer-agent.ts`
+
 **What**: ZK proof generation service  
 **Lines**: 427  
-**Purpose**: Create and submit proofs  
+**Purpose**: Create and submit proofs
 
 **Key features**:
+
 - Rebalancing plan creation
 - ZK proof generation (via snarkjs)
 - Proof submission
 - Client authorization
 
 #### `agents/validator-agent.ts`
+
 **What**: Proof validation service  
 **Lines**: 459  
-**Purpose**: Validate proofs cryptographically  
+**Purpose**: Validate proofs cryptographically
 
 **Key features**:
+
 - Structure verification
 - Cryptographic verification (snarkjs)
 - Logic validation
 - On-chain response submission
 
 #### `agents/client-agent.ts`
+
 **What**: Feedback and reputation  
 **Lines**: 306  
-**Purpose**: Service quality evaluation  
+**Purpose**: Service quality evaluation
 
 **Key features**:
+
 - Quality assessment
 - Feedback submission
 - Reputation tracking
@@ -337,40 +387,47 @@ template Rebalancing(n) {
 ### Build Artifacts
 
 #### `build/rebalancing.r1cs`
+
 **What**: Rank-1 Constraint System  
 **Created by**: `circom` compiler  
 **Format**: Binary constraint system  
-**Purpose**: Mathematical representation of circuit  
+**Purpose**: Mathematical representation of circuit
 
 **Structure**:
+
 ```
 A × B - C = 0
 where A, B, C are matrices of constraints
 ```
 
 #### `build/rebalancing.wasm`
+
 **What**: WebAssembly witness calculator  
 **Created by**: `circom` compiler  
 **Purpose**: Compute witness from inputs  
 **Usage**: `snarkjs wtns calculate`
 
 #### `build/rebalancing_final.zkey`
+
 **What**: Proving key (Groth16)  
 **Created by**: `snarkjs` trusted setup  
 **Size**: ~50 MB for 4-asset circuit  
-**Purpose**: Generate proofs  
+**Purpose**: Generate proofs
 
 **Contains**:
+
 - Circuit-specific parameters
 - Powers of tau contributions
 - Encrypted proving parameters
 
 #### `build/verification_key.json`
+
 **What**: Verification key  
 **Format**: JSON  
-**Purpose**: Verify proofs (off-chain and on-chain)  
+**Purpose**: Verify proofs (off-chain and on-chain)
 
 **Structure**:
+
 ```json
 {
   "protocol": "groth16",
@@ -384,21 +441,25 @@ where A, B, C are matrices of constraints
 ```
 
 #### `build/witness.wtns`
+
 **What**: Witness file  
 **Created by**: witness calculator (.wasm)  
-**Purpose**: Intermediate values for proof  
+**Purpose**: Intermediate values for proof
 
 **Contains**:
+
 - All signal values
 - Intermediate computations
 - Constraint satisfactions
 
 #### `build/proof.json`
+
 **What**: Generated zero-knowledge proof  
 **Created by**: `snarkjs groth16 prove`  
-**Size**: ~200 bytes  
+**Size**: ~200 bytes
 
 **Structure**:
+
 ```json
 {
   "pi_a": ["...", "...", "1"],  // Proof point A
@@ -410,11 +471,13 @@ where A, B, C are matrices of constraints
 ```
 
 #### `build/public.json`
+
 **What**: Public inputs  
 **Format**: JSON array  
-**Purpose**: Public signals visible on-chain  
+**Purpose**: Public signals visible on-chain
 
 **Example**:
+
 ```json
 ["375000", "10", "40", ...]
 ```
@@ -426,7 +489,7 @@ where A, B, C are matrices of constraints
 ### IdentityRegistry.sol
 
 **Purpose**: Agent registration and identity management  
-**Standard**: ERC-8004 Identity Registry  
+**Standard**: ERC-8004 Identity Registry
 
 **Key Functions**:
 
@@ -436,10 +499,10 @@ function newAgent(
     address agentAddress
 ) external payable returns (uint256 agentId)
 
-function getAgent(uint256 agentId) 
+function getAgent(uint256 agentId)
     external view returns (AgentInfo memory)
 
-function resolveByAddress(address agentAddress) 
+function resolveByAddress(address agentAddress)
     external view returns (AgentInfo memory)
 ```
 
@@ -447,7 +510,7 @@ function resolveByAddress(address agentAddress)
 
 ### ValidationRegistry.sol
 
-**Purpose**: Validation workflow management  
+**Purpose**: Validation workflow management
 
 **Key Functions**:
 
@@ -465,6 +528,7 @@ function validationResponse(
 ```
 
 **Events**:
+
 ```solidity
 event ValidationRequested(
     uint256 indexed validatorAgentId,
@@ -481,7 +545,7 @@ event ValidationResponse(
 
 ### ReputationRegistry.sol
 
-**Purpose**: Feedback and reputation management  
+**Purpose**: Feedback and reputation management
 
 **Key Functions**:
 
@@ -501,7 +565,7 @@ function submitFeedback(
 ### Verifier.sol
 
 **Purpose**: On-chain ZK proof verification  
-**Generated by**: `snarkjs zkey export solidityverifier`  
+**Generated by**: `snarkjs zkey export solidityverifier`
 
 **Key Function**:
 
@@ -523,6 +587,7 @@ function verifyProof(
 ### Using Viem
 
 **Why Viem?**
+
 - Type-safe web3 interactions
 - Optimized bundle size
 - Native TypeScript support
@@ -538,7 +603,7 @@ const addr = getAddress("0x...");
 
 // ETH parsing/formatting
 import { parseEther, formatEther } from "viem";
-const amount = parseEther("1.0");     // Returns bigint
+const amount = parseEther("1.0"); // Returns bigint
 const display = formatEther(balance); // Returns string
 
 // Contract reads
@@ -592,12 +657,14 @@ type Hash = `0x${string}`;
 ### Circom Best Practices
 
 **Signal Assignment**:
+
 ```circom
 signal output c;
 c <== a * b;  // Constrained assignment (creates constraint + assigns)
 ```
 
 **Components**:
+
 ```circom
 component lessThan = LessThan(32);
 lessThan.in[0] <== value;
@@ -606,6 +673,7 @@ lessThan.out === 1;
 ```
 
 **Loops** (unrolled at compile time):
+
 ```circom
 for (var i = 0; i < n; i++) {
     totalValue += balances[i] * prices[i];
@@ -615,12 +683,14 @@ for (var i = 0; i < n; i++) {
 ### Constraint Optimization
 
 **Minimize Constraints**:
+
 - Each constraint costs gas on verification
 - Use components from circomlib
 - Avoid division when possible
 - Reuse intermediate signals
 
 **Example Optimization**:
+
 ```circom
 // Bad: Multiple constraints
 signal a;
@@ -642,12 +712,14 @@ result <== (x * y + z) * w;  // Fewer constraints
 ### Trusted Setup
 
 **Powers of Tau Ceremony**:
+
 - Used for Groth16 proving key generation
 - Requires at least one honest participant
 - Public participation increases trust
 - Final beacon: randomness from Bitcoin/Ethereum blocks
 
 **Our Setup**:
+
 ```bash
 # Download Powers of Tau
 wget https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_10.ptau
@@ -662,16 +734,19 @@ snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey
 ### Privacy Guarantees
 
 **What's Hidden**:
+
 - Old token balances
 - New token balances
 - Token prices
 
 **What's Public**:
+
 - Total portfolio value
 - Min/max allocation percentages
 - That rebalancing satisfies constraints
 
 **Zero-Knowledge Property**:
+
 - Verifier learns nothing beyond constraint satisfaction
 - Cannot reverse-engineer positions from proof
 - Computational soundness (assuming circuit correct)
@@ -679,16 +754,19 @@ snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey
 ### Smart Contract Security
 
 **Access Control**:
+
 - Only registered agents can interact
 - Registration fee prevents spam
 - Feedback requires authorization
 
 **Validation**:
+
 - Input validation on all functions
 - Checks-Effects-Interactions pattern
 - No reentrancy risks (no external calls)
 
 **Gas Optimization**:
+
 - Minimal storage writes
 - Batch operations where possible
 - Efficient data structures
@@ -701,9 +779,10 @@ snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey
 
 **Time**: ~5-10 seconds (local machine)  
 **Memory**: ~2-4 GB RAM  
-**Bottleneck**: Polynomial computations  
+**Bottleneck**: Polynomial computations
 
 **Optimization Tips**:
+
 - Use wasm for witness calculation (faster)
 - Run proving on server with more RAM
 - Consider GPU acceleration for large circuits
@@ -711,11 +790,13 @@ snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey
 ### Proof Verification
 
 **On-chain**:
+
 - Gas: ~250k-300k
 - Time: 1 block confirmation
 - Cost: Varies with gas price
 
 **Off-chain**:
+
 - Time: <100ms
 - Memory: ~100 MB
 - Free
@@ -723,11 +804,13 @@ snarkjs zkey contribute circuit_0000.zkey circuit_final.zkey
 ### Circuit Complexity
 
 **Current Circuit** (4 assets):
+
 - Constraints: ~1000
 - Wires: ~2000
 - Proof size: ~200 bytes
 
 **Scaling**:
+
 - 10 assets: ~2500 constraints
 - 20 assets: ~5000 constraints
 - 100 assets: ~25000 constraints
@@ -754,7 +837,7 @@ await agent.createRebalancingPlan(
 agent.generateZkProof(plan): ProofPackage
 
 // Submit for validation
-await agent.submitProofForValidation(
+await agent.requestValidationFromValidator(
   proof, validatorId
 ): Promise<Hash>
 
@@ -796,4 +879,3 @@ agent.checkRebalancerReputation(serverId): ReputationInfo
 ---
 
 **For setup instructions, see** `docs/GETTING_STARTED.md`
-

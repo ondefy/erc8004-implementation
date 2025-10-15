@@ -19,18 +19,25 @@ npm install
 
 # Run the complete demo
 ./run_demo.sh
+
+# Or use the frontend UI (with Base Sepolia support!)
+npm run frontend:install
+npm run frontend:dev  # Visit http://localhost:3000
 ```
 
-**For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
+**For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)  
+**For frontend guide**, see [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)  
+**For Base Sepolia testnet**, see [BASE_SEPOLIA_SETUP.md](BASE_SEPOLIA_SETUP.md)
 
 ## Technology Stack
 
 ### Zero-Knowledge Proofs
 
-- **ZK Framework**: Circom 0.5.46 (Circom 1.x)
+- **ZK Framework**: Circom 2.2.2+ (Circom 2.x)
 - **Proof System**: Groth16 (efficient on-chain verification)
 - **Proof Library**: SnarkJS 0.7.5
 - **Curve**: bn128
+- **Privacy**: Old/new balances and prices kept private via witness
 
 ### Agentic Orchestration
 
@@ -59,20 +66,25 @@ rebalancing-zkp/
 │   │   └── Verifier.sol            # ZK proof verifier
 │   └── script/
 │       └── Deploy.s.sol            # Deployment script
+├── frontend/                        # 🎨 Next.js UI
+│   ├── app/                        # App router pages & API
+│   ├── components/                 # React components
+│   └── package.json                # Frontend dependencies
 ├── tests/
 │   └── e2e/
 │       └── test-zk-rebalancing-workflow.ts  # Complete demo
 ├── scripts/
 │   └── create-deployed-contracts.ts  # Contract address extraction
 ├── docs/
-│   ├── FILE_EXPLANATION.md         # Detailed file documentation
-│   └── AGENTIC_WORKFLOW.md         # Agent workflow guide
+│   ├── GETTING_STARTED.md          # Setup guide
+│   └── TECHNICAL_REFERENCE.md      # Technical details
 ├── build/                           # ZK proof artifacts
 │   ├── rebalancing.r1cs            # Compiled constraints
 │   ├── rebalancing.wasm            # Circuit WebAssembly
 │   ├── rebalancing_final.zkey      # Proving key
 │   ├── verification_key.json       # Verification key
 │   └── ...
+├── FRONTEND_GUIDE.md                # Frontend usage guide
 ├── tsconfig.json                    # TypeScript configuration
 ├── run_demo.sh                      # 🚀 Complete demo runner
 └── package.json                     # npm dependencies
@@ -82,102 +94,113 @@ rebalancing-zkp/
 
 ### Inputs
 
-**Private Inputs** (hidden from blockchain):
+**Private Inputs** (hidden from blockchain - kept in witness only):
 
 - `oldBalances[4]`: Token balances before rebalancing
 - `newBalances[4]`: Token balances after rebalancing
 - `prices[4]`: Current token prices
 
-**Public Inputs** (visible on-chain):
+**Public Inputs** (visible on-chain during verification):
 
-- `totalValueCommitment`: Total portfolio value (for verification)
+- `totalValueCommitment`: Total portfolio value
 - `minAllocationPct`: Minimum allocation percentage per asset
 - `maxAllocationPct`: Maximum allocation percentage per asset
+- `dataHashPublic`: Commitment to verify data integrity
 
 ### Constraints
 
-1. **Total Value Preservation**: Ensures that the total portfolio value remains the same before and after rebalancing
-2. **Allocation Bounds**: Calculates bounds for min/max allocation constraints (note: full range proofs require additional comparison circuits)
+1. **Total Value Preservation**: Ensures old and new portfolio values are equal and match the commitment
+2. **Data Integrity**: Computed `dataHash` must match the public `dataHashPublic` input
+3. **Allocation Bounds**: Calculates bounds for min/max allocation constraints (note: full range proofs require additional comparison circuits)
 
 ### Circuit Statistics
 
-- **Constraints**: 17
-- **Wires**: 32
-- **Public Inputs**: 15
-- **Private Inputs**: 0 (all inputs are public in this version for Circom 1.x compatibility)
-- **Outputs**: 1 (dataHash commitment)
+- **Constraints**: ~20 (optimized for privacy)
+- **Public Signals**: 4 (minimized for privacy)
+- **Private Witness Inputs**: 12 (balances and prices hidden)
+- **Outputs**: 1 (dataHash commitment matched to public input)
 
 ## Setup Instructions
 
 ### Prerequisites
 
 ```bash
-# Install Circom
-npm install -g circom
+# Install Circom 2.x (required)
+npm install -g circom@latest
+circom --version  # Should be >= 2.0.0
 
 # Install SnarkJS
 npm install -g snarkjs
+
+# Install project dependencies
+npm install
 ```
 
-### Compilation
+### One-Time Setup (Run Once After Circuit Changes)
 
 ```bash
-# Compile the circuit
-circom circuits/rebalancing.circom --r1cs --wasm --sym -o build/
-
-# Move output files to build directory (if using Circom 1.x)
-mv rebalancing.r1cs rebalancing.wasm rebalancing.sym build/
+# Generate zkey and Verifier.sol
+npm run setup:zkp
 ```
 
-### Trusted Setup
+This command:
 
-```bash
-cd build
+1. Compiles the circuit to R1CS and WASM
+2. Runs Powers of Tau ceremony
+3. Generates proving and verification keys
+4. Exports Solidity verifier to `contracts/src/Verifier.sol`
+5. Tests with example input
 
-# 1. Start Powers of Tau ceremony
-snarkjs powersoftau new bn128 8 pot8_0000.ptau -v
-
-# 2. Contribute to ceremony
-snarkjs powersoftau contribute pot8_0000.ptau pot8_0001.ptau --name="First contribution" -v
-
-# 3. Prepare for phase 2
-snarkjs powersoftau prepare phase2 pot8_0001.ptau pot8_final.ptau -v
-
-# 4. Generate initial zkey
-snarkjs groth16 setup rebalancing.r1cs pot8_final.ptau rebalancing_0000.zkey
-
-# 5. Contribute to phase 2
-snarkjs zkey contribute rebalancing_0000.zkey rebalancing_final.zkey --name="1st Contributor" -v
-
-# 6. Export verification key
-snarkjs zkey export verificationkey rebalancing_final.zkey verification_key.json
-
-cd ..
-```
+**Note**: The `Verifier.sol` remains constant for the same circuit. Only regenerate when you modify `circuits/rebalancing.circom`.
 
 ## Usage
 
-### Generate Proof
+### Running the Complete Workflow
 
 ```bash
-# 1. Calculate witness
-snarkjs wtns calculate build/rebalancing.wasm input/input.json build/witness.wtns
+# 1. Start local blockchain (in separate terminal)
+npm run anvil
 
-# 2. Generate proof
-snarkjs groth16 prove build/rebalancing_final.zkey build/witness.wtns build/proof.json build/public.json
+# 2. Run end-to-end test
+npm run test:e2e
 ```
 
-### Verify Proof (Off-chain)
+The E2E test:
+
+- Deploys all contracts (IdentityRegistry, ValidationRegistry, ReputationRegistry, Groth16Verifier)
+- Registers three agents (Rebalancer, Validator, Client)
+- Generates ZK proof for rebalancing plan
+- Validates proof **on-chain** using deployed Verifier contract
+- Submits validation response to registry
+- Handles feedback and reputation tracking
+
+### Generating Proofs for Different Inputs
+
+The proof generation is automatic in the E2E test. To manually generate proofs:
 
 ```bash
-snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json
+# Edit input values
+nano input/input.json
+
+# Generate proof (done automatically by RebalancerAgent)
+# The agent computes dataHashPublic and generates witness + proof
 ```
 
-### Generate Solidity Verifier
+### On-Chain Verification
 
-```bash
-snarkjs zkey export solidityverifier build/rebalancing_final.zkey contracts/Verifier.sol
+The `ValidatorAgent` now verifies proofs by calling the deployed `Groth16Verifier` contract on-chain:
+
+```typescript
+// Automatic in ValidatorAgent.validateProof()
+const isValid = await publicClient.readContract({
+  address: verifierAddress,
+  abi: verifierAbi,
+  functionName: "verifyProof",
+  args: [pA, pB, pC, pubSignals], // 4 public signals
+});
 ```
+
+**Key Point**: Verification happens on-chain via `eth_call` to the Verifier contract. No off-chain snarkjs verification is used in production flow.
 
 ## Example Input
 
@@ -228,87 +251,142 @@ The generated `Verifier.sol` contract serves as the **AgentValidatorID** in the 
 
 ### On-Chain Verification
 
-Deploy `contracts/Verifier.sol` and call:
+The `Groth16Verifier` contract is automatically deployed and called by `ValidatorAgent`:
 
 ```solidity
 function verifyProof(
     uint[2] calldata _pA,
     uint[2][2] calldata _pB,
     uint[2] calldata _pC,
-    uint[15] calldata _pubSignals
+    uint[5] calldata _pubSignals  // Only 4 signals exposed (privacy-focused)
 ) public view returns (bool)
 ```
+
+**Public Signals Order** (visible on-chain):
+
+1. `totalValueCommitment` - Total portfolio value
+2. `minAllocationPct` - Minimum allocation percentage
+3. `maxAllocationPct` - Maximum allocation percentage
+4. `dataHashPublic` - Data integrity commitment
+5. `dataHash` - Output commitment (auto-generated)
 
 ## Important Notes
 
 ### Circom Version Compatibility
 
-This project uses **Circom 1.x (0.5.46)**. Key differences from Circom 2.x:
+This project **requires Circom 2.x** (>= 2.0.0). Key features used:
 
-1. No `pragma circom` statement
-2. No `{public [inputs]}` syntax in main component
-3. All inputs are treated as public (for witness generation)
+1. `pragma circom 2.0.0` statement
+2. `{public [inputs]}` syntax to control which inputs are public
+3. Private witness inputs (balances/prices) not exposed on-chain
+4. Circom 2.x witness generator (`build/rebalancing_js/`)
+
+**Important**: Circom 1.x will NOT work with this circuit.
 
 ### Input Format
 
 - All numeric values must be strings in JSON
-- Values should be within field size limits (bn128 curve)
+- Values should be within field size limits (bn128 curve ~254 bits)
 - Arrays must match the circuit size (4 assets in this case)
+- `dataHashPublic` is computed automatically by RebalancerAgent
 
 ### Circuit Limitations
 
-This is a **simplified proof-of-concept**. For production:
+This is a **proof-of-concept**. For production:
 
-1. Add proper range check circuits for allocation constraints
-2. Implement Poseidon hash for commitments (more efficient)
-3. Use circomlib comparison circuits (LessThan, GreaterThan)
-4. Upgrade to Circom 2.x for better syntax
-5. Conduct security audit
-6. Perform multi-party computation (MPC) ceremony for trusted setup
+1. ✅ Privacy achieved: balances/prices kept in witness
+2. 🔲 Add range check circuits for allocation constraints (LessThan/GreaterThan from circomlib)
+3. 🔲 Implement Poseidon hash for commitments (more efficient than simple addition)
+4. 🔲 Conduct security audit
+5. 🔲 Perform multi-party computation (MPC) ceremony for trusted setup
+6. 🔲 Support dynamic portfolio sizes (currently fixed at 4 assets)
 
 ## Gas Considerations
 
 - Groth16 verification: ~250k-300k gas on Ethereum
 - Proof size: Constant (3 G1 points + 1 G2 point)
-- Public inputs: 15 field elements (can be optimized)
+- Public signals: **4 field elements** (optimized for privacy)
+- On-chain storage: Validation responses stored in ValidationRegistry
 
 ## Security Notes
 
 ⚠️ **For Development/Testing Only**
 
-- The trusted setup uses test entropy
+- The trusted setup uses test entropy (`date +%s`)
 - No proper MPC ceremony conducted
-- Circuit needs security audit
-- Private inputs are not truly private in current Circom 1.x setup
+- Circuit needs security audit before production use
+- Current setup regenerates zkey on every `npm run setup:zkp`
 
-For production:
+✅ **Privacy Achieved**:
 
-1. Conduct proper MPC ceremony
-2. Audit circuit logic
-3. Upgrade to Circom 2.x for true private inputs
-4. Use battle-tested circomlib components
+- Old/new balances and prices are kept private (witness-only)
+- Only commitments and bounds visible on-chain
+- Uses Circom 2.x `{public [...]}` syntax for privacy control
+
+For production deployment:
+
+1. Conduct proper multi-party computation (MPC) ceremony for trusted setup
+2. Audit circuit logic and constraints
+3. Use battle-tested circomlib components for range checks
+4. Deploy Verifier.sol once and reuse across all proofs
+5. Implement proper key management for agent private keys
 
 ## Troubleshooting
 
-### Parse Error on Pragma
+### Circom Version Mismatch
 
-If you see errors about `pragma circom 2.x.x`, you're using Circom 1.x but have Circom 2.x syntax. Remove the pragma line.
+**Error**: `Parse error on line 1: pragma circom 2.0.0`
 
-### Type NQ Cannot Be Converted to QEX
+**Solution**: Upgrade to Circom 2.x:
 
-This means you're trying to assign non-quadratic expressions to signals. Avoid:
+```bash
+npm uninstall -g circom
+npm install -g circom@latest
+circom --version  # Should be >= 2.0.0
+```
 
-- Assigning `var` to `signal`
-- Division in signal constraints
-- Use intermediate signals for complex expressions
+### Invalid Public List Error
 
-### Invalid Proof
+**Error**: `dataHash is not an input signal`
 
-Check that:
+**Cause**: Circom 2.x `{public [...]}` list only accepts inputs, not outputs.
 
-1. Input values satisfy all constraints
-2. Witness generation succeeds without errors
-3. Public inputs match between proof generation and verification
+**Solution**: Use a mirror input (`dataHashPublic`) and constrain it to match the output.
+
+### Invalid Proof Verification
+
+**Possible causes**:
+
+1. **Public signal mismatch**: Ensure proof was generated with same circuit/zkey as deployed Verifier
+2. **Stale Verifier**: Run `npm run setup:zkp` to regenerate after circuit changes
+3. **pi_b coordinate ordering**: Solidity expects FQ2 elements swapped (handled by ValidatorAgent)
+4. **Input constraint violation**: Check that input values satisfy all circuit constraints
+
+**Debug steps**:
+
+```bash
+# Verify off-chain first
+npm run proof:verify
+
+# Check public signals match
+cat build/public.json  # Should have 5 elements
+
+# Ensure Verifier was regenerated
+ls -la contracts/src/Verifier.sol
+```
+
+### Witness Generation Fails
+
+**Error**: `witness check failed`
+
+**Solution**: Ensure `dataHashPublic` is computed correctly:
+
+```javascript
+const dataHashPublic = newBalances.reduce(
+  (sum, bal, i) => sum + parseInt(bal) + parseInt(prices[i]),
+  0
+);
+```
 
 ## Agentic Workflow
 
@@ -325,9 +403,9 @@ This project implements a complete multi-agent system following ERC-8004:
 
 2. **Validator Agent**
 
-   - Validates ZK proofs cryptographically
-   - Verifies rebalancing logic
-   - Submits validation responses on-chain
+   - Validates ZK proofs via **on-chain** Groth16Verifier contract
+   - Calls `verifyProof()` with eth_call (no off-chain snarkjs)
+   - Submits validation responses to ValidationRegistry
    - Maintains validation audit trail
 
 3. **Client Agent**
@@ -339,31 +417,40 @@ This project implements a complete multi-agent system following ERC-8004:
 ### Complete Workflow
 
 ```
-1. Agents register on ERC-8004 Identity Registry
-2. Rebalancer creates plan and generates ZK proof
-3. Rebalancer submits proof for validation
-4. Validator verifies proof cryptographically
-5. Validator submits validation response on-chain
-6. Rebalancer authorizes client feedback
-7. Client evaluates quality and provides feedback
-8. Reputation system tracks service quality
+1. Agents register on ERC-8004 Identity Registry (get NFT-based identity)
+2. Rebalancer creates plan and generates ZK proof (private: balances/prices)
+3. Rebalancer submits proof hash to ValidationRegistry
+4. Validator downloads proof and calls Groth16Verifier.verifyProof() on-chain
+5. Validator submits validation response (score 0-100) to registry
+6. Rebalancer authorizes client feedback via signed message
+7. Client evaluates quality and provides feedback to ReputationRegistry
+8. Reputation system tracks service quality over time
 ```
+
+**Key Privacy Features**:
+
+- Balances and prices never touch the blockchain
+- Only 4 public commitments visible during verification
+- Verifier contract validates constraints without seeing sensitive data
 
 **See [docs/AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md) for complete details.**
 
 ## Key Features
 
-✅ **Privacy**: Portfolio positions hidden via ZK proofs  
-✅ **Trust**: Cryptographic validation of constraints  
-✅ **Transparency**: All interactions recorded on-chain  
-✅ **Reputation**: Feedback system for service quality  
-✅ **Composability**: ERC-8004 standard for agent interoperability
+✅ **Privacy**: Balances and prices kept private (witness-only, not on-chain)  
+✅ **On-Chain Verification**: Proofs verified via deployed Groth16Verifier contract  
+✅ **Trust**: Cryptographic validation without revealing sensitive data  
+✅ **Transparency**: Validation responses and feedback recorded on-chain  
+✅ **Reputation**: Decentralized feedback system for service quality  
+✅ **Composability**: ERC-8004 standard for multi-agent coordination  
+✅ **Efficiency**: Only 4 public signals (minimized calldata/gas)
 
 ## Documentation
 
 ### 📚 Complete Guides
 
 1. **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup guide
+
    - Prerequisites and installation
    - Quick start (5 minutes)
    - Running the demo
@@ -396,14 +483,15 @@ This project implements a complete multi-agent system following ERC-8004:
 
 ### Roadmap 🔲
 
-1. 🔲 Deploy to testnet (Sepolia/Base Sepolia)
-2. 🔲 Add on-chain proof verification
-3. 🔲 Implement TEE-based key management
-4. 🔲 Add range check circuits for allocation constraints
-5. 🔲 Upgrade to Circom 2.x
-6. 🔲 Build web UI for agent interaction
-7. 🔲 Production MPC ceremony for trusted setup
-8. 🔲 Security audit
+1. ✅ Build web UI for agent interaction
+2. ✅ Upgrade to Circom 2.x for private witness inputs
+3. ✅ Add on-chain proof verification via Verifier contract
+4. ✅ Minimize public signals (4 instead of 16) for privacy
+5. 🔲 Deploy to testnet (Sepolia/Base Sepolia)
+6. 🔲 Implement TEE-based key management
+7. 🔲 Add range check circuits for allocation constraints (circomlib)
+8. 🔲 Production MPC ceremony for trusted setup
+9. 🔲 Security audit
 
 ## License
 
