@@ -138,10 +138,10 @@ export default function Home() {
   // Prevent hydration mismatch - show loading until mounted
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <main className="min-h-screen bg-zyfi-bg flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zyfi-accent-bright mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading...</p>
         </div>
       </main>
     );
@@ -387,29 +387,29 @@ export default function Home() {
   // Show network warning if not on a supported network
   if (isConnected && !isCorrectNetwork) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <main className="min-h-screen bg-zyfi-bg">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8 text-center">
+          <div className="bg-zyfi-bg-secondary border-2 border-red-500/50 rounded-zyfi-lg p-8 text-center shadow-zyfi-glow">
             <div className="text-6xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-red-900 mb-2">
+            <h1 className="text-2xl font-bold text-red-400 mb-2">
               Unsupported Network
             </h1>
-            <p className="text-red-700 mb-4">
+            <p className="text-slate-300 mb-4">
               Please switch to one of the supported networks in your wallet
             </p>
             <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-white rounded-lg p-4 text-left text-sm">
-                <p className="font-semibold text-slate-900 mb-2">Base Sepolia</p>
-                <ul className="space-y-1 text-slate-700 text-xs">
-                  <li>• <strong>Chain ID:</strong> 84532</li>
-                  <li>• <strong>RPC:</strong> sepolia.base.org</li>
+              <div className="bg-zyfi-bg border border-zyfi-border rounded-zyfi p-4 text-left text-sm">
+                <p className="font-semibold gradient--primary mb-2">Base Sepolia</p>
+                <ul className="space-y-1 text-slate-400 text-xs">
+                  <li>• <strong className="text-slate-200">Chain ID:</strong> 84532</li>
+                  <li>• <strong className="text-slate-200">RPC:</strong> sepolia.base.org</li>
                 </ul>
               </div>
-              <div className="bg-white rounded-lg p-4 text-left text-sm">
-                <p className="font-semibold text-slate-900 mb-2">Ethereum Sepolia</p>
-                <ul className="space-y-1 text-slate-700 text-xs">
-                  <li>• <strong>Chain ID:</strong> 11155111</li>
-                  <li>• <strong>RPC:</strong> sepolia.infura.io</li>
+              <div className="bg-zyfi-bg border border-zyfi-border rounded-zyfi p-4 text-left text-sm">
+                <p className="font-semibold gradient--primary mb-2">Ethereum Sepolia</p>
+                <ul className="space-y-1 text-slate-400 text-xs">
+                  <li>• <strong className="text-slate-200">Chain ID:</strong> 11155111</li>
+                  <li>• <strong className="text-slate-200">RPC:</strong> sepolia.infura.io</li>
                 </ul>
               </div>
             </div>
@@ -422,15 +422,15 @@ export default function Home() {
   // Show agent setup if not configured
   if (showAgentSetup && (!agentConfig || !isConnected)) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <main className="min-h-screen bg-zyfi-bg">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           {/* Header */}
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-2">
+              <h1 className="text-4xl font-bold gradient--primary mb-2">
                 ZK Rebalancing Workflow
               </h1>
-              <p className="text-slate-600 text-lg">
+              <p className="text-slate-300 text-lg">
                 Base Sepolia • Zero-Knowledge Portfolio Rebalancing
               </p>
             </div>
@@ -438,12 +438,12 @@ export default function Home() {
           </div>
 
           {!isConnected ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
+            <div className="bg-zyfi-bg-secondary border border-zyfi-border rounded-zyfi-lg p-8 text-center shadow-zyfi-glow">
               {/* <div className="text-6xl mb-4">👛</div> */}
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              <h2 className="text-2xl font-bold gradient--quaternary mb-2">
                 Connect Your Wallet
               </h2>
-              <p className="text-slate-600 mb-4">
+              <p className="text-slate-300 mb-4">
                 Connect your wallet to get started with the ZK rebalancing workflow
               </p>
               <div className="flex justify-center">
@@ -462,22 +462,22 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <main className="min-h-screen bg-zyfi-bg">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">
+            <h1 className="text-4xl font-bold gradient--primary mb-2">
               ZK Rebalancing Workflow
             </h1>
-            <p className="text-slate-600 text-lg">
+            <p className="text-slate-300 text-lg">
               {networkInfo?.name || "Testnet"} • Zero-Knowledge Portfolio Rebalancing
             </p>
           </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowAgentSetup(true)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors"
+              className="px-4 py-2 bg-zyfi-bg-secondary hover:bg-zyfi-border border border-zyfi-border text-slate-200 text-sm font-medium rounded-zyfi transition-colors"
             >
               Change Agents
             </button>
@@ -486,41 +486,41 @@ export default function Home() {
         </div>
 
         {/* Agent Info Banner */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border border-slate-200">
+        <div className="bg-zyfi-bg-secondary rounded-zyfi-lg shadow-zyfi-glow p-4 mb-6 border border-zyfi-border">
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="text-sm text-slate-700">
-              <strong>Active Agents:</strong>
+            <div className="text-sm text-slate-300">
+              <strong className="text-slate-100">Active Agents:</strong>
             </div>
             {agentConfig && connectedAddress && (
               <>
-                <div className={`px-3 py-1 rounded text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase()
-                  ? 'bg-blue-100 border-2 border-blue-500 text-blue-900 font-semibold'
-                  : 'bg-blue-50 border border-blue-200'
+                <div className={`px-3 py-1 rounded-zyfi text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase()
+                  ? 'bg-zyfi-accent-blue/20 border-2 border-zyfi-accent-blue text-zyfi-accent-light font-semibold shadow-zyfi-glow'
+                  : 'bg-zyfi-bg border border-zyfi-accent-blue/30 text-zyfi-accent-blue'
                   }`}>
                   🔄 Rebalancer: {agentConfig.rebalancer.slice(0, 6)}...
                   {agentConfig.rebalancer.slice(-4)}
                   {connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase() && (
-                    <span className="ml-2 text-blue-600">✓ Connected</span>
+                    <span className="ml-2 text-zyfi-accent-bright">✓ Connected</span>
                   )}
                 </div>
-                <div className={`px-3 py-1 rounded text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.validator.toLowerCase()
-                  ? 'bg-green-100 border-2 border-green-500 text-green-900 font-semibold'
-                  : 'bg-green-50 border border-green-200'
+                <div className={`px-3 py-1 rounded-zyfi text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.validator.toLowerCase()
+                  ? 'bg-green-500/20 border-2 border-green-500 text-green-300 font-semibold shadow-zyfi-glow'
+                  : 'bg-zyfi-bg border border-green-500/30 text-green-400'
                   }`}>
                   ✅ Validator: {agentConfig.validator.slice(0, 6)}...
                   {agentConfig.validator.slice(-4)}
                   {connectedAddress.toLowerCase() === agentConfig.validator.toLowerCase() && (
-                    <span className="ml-2 text-green-600">✓ Connected</span>
+                    <span className="ml-2 text-green-300">✓ Connected</span>
                   )}
                 </div>
-                <div className={`px-3 py-1 rounded text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.client.toLowerCase()
-                  ? 'bg-purple-100 border-2 border-purple-500 text-purple-900 font-semibold'
-                  : 'bg-purple-50 border border-purple-200'
+                <div className={`px-3 py-1 rounded-zyfi text-xs font-mono ${connectedAddress.toLowerCase() === agentConfig.client.toLowerCase()
+                  ? 'bg-purple-500/20 border-2 border-purple-500 text-purple-300 font-semibold shadow-zyfi-glow'
+                  : 'bg-zyfi-bg border border-purple-500/30 text-purple-400'
                   }`}>
                   👤 Client: {agentConfig.client.slice(0, 6)}...
                   {agentConfig.client.slice(-4)}
                   {connectedAddress.toLowerCase() === agentConfig.client.toLowerCase() && (
-                    <span className="ml-2 text-purple-600">✓ Connected</span>
+                    <span className="ml-2 text-purple-300">✓ Connected</span>
                   )}
                 </div>
               </>
@@ -529,16 +529,16 @@ export default function Home() {
 
           {/* Current wallet indicator */}
           {connectedAddress && agentConfig && (
-            <div className="mt-3 pt-3 border-t border-slate-200">
+            <div className="mt-3 pt-3 border-t border-zyfi-border">
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-600">Currently connected:</span>
-                <span className="font-mono font-semibold text-slate-900">
+                <span className="text-slate-400">Currently connected:</span>
+                <span className="font-mono font-semibold text-slate-100">
                   {connectedAddress.slice(0, 6)}...{connectedAddress.slice(-4)}
                 </span>
                 {connectedAddress.toLowerCase() !== agentConfig.rebalancer.toLowerCase() &&
                   connectedAddress.toLowerCase() !== agentConfig.validator.toLowerCase() &&
                   connectedAddress.toLowerCase() !== agentConfig.client.toLowerCase() && (
-                    <span className="px-2 py-0.5 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded text-xs font-medium">
+                    <span className="px-2 py-0.5 bg-yellow-500/20 border border-yellow-500/50 text-yellow-300 rounded text-xs font-medium">
                       ⚠️ Not a designated agent
                     </span>
                   )}
@@ -548,22 +548,22 @@ export default function Home() {
         </div>
 
         {/* Progress Bar */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-zyfi-bg-secondary rounded-zyfi-lg shadow-zyfi-glow p-6 mb-6 border border-zyfi-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-700">
+            <span className="text-sm font-medium text-slate-200">
               Overall Progress
             </span>
-            <span className="text-sm font-medium text-slate-700">
+            <span className="text-sm font-medium text-slate-200">
               {completedSteps} / {steps.length} steps
             </span>
           </div>
-          <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-zyfi-bg rounded-full h-3 overflow-hidden border border-zyfi-border">
             <div
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-500 ease-out"
+              className="bg-gradient-zyfi-quaternary h-full transition-all duration-500 ease-out shadow-zyfi-glow-lg"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="text-xs text-slate-400 mt-2">
             {isRunning ? "Workflow in progress..." : completedSteps === steps.length ? "✓ Workflow completed!" : "Ready to start"}
           </p>
         </div>
@@ -574,14 +574,14 @@ export default function Home() {
             <button
               onClick={runWorkflow}
               disabled={isRunning}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
+              className="px-6 py-3 bg-gradient-zyfi-quaternary text-white font-semibold rounded-zyfi shadow-zyfi-glow hover:shadow-zyfi-glow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 border border-zyfi-accent-bright/30"
             >
               {isRunning ? "Running..." : "▶ Start Workflow"}
             </button>
             <button
               onClick={resetWorkflow}
               disabled={isRunning}
-              className="px-6 py-3 bg-slate-100 text-slate-700 font-semibold rounded-lg shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-slate-200"
+              className="px-6 py-3 bg-zyfi-bg-secondary border border-zyfi-border text-slate-200 font-semibold rounded-zyfi shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-zyfi-border"
             >
               ↻ Reset
             </button>
@@ -591,12 +591,12 @@ export default function Home() {
           {agentConfig && connectedAddress && !waitingForWalletSwitch && (
             <div className="flex items-center gap-2 text-sm">
               {connectedAddress.toLowerCase() === agentConfig.rebalancer.toLowerCase() ? (
-                <div className="flex items-center gap-2 text-green-700">
+                <div className="flex items-center gap-2 text-green-400">
                   <span className="text-lg">✓</span>
                   <span>Ready to start! Rebalancer wallet is connected.</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2 text-amber-300 bg-amber-500/20 border border-amber-500/50 rounded-zyfi px-3 py-2">
                   <span className="text-lg">⚠️</span>
                   <span>
                     To start the workflow, please connect with the <strong>Rebalancer</strong> wallet ({agentConfig.rebalancer.slice(0, 6)}...{agentConfig.rebalancer.slice(-4)})
@@ -608,18 +608,18 @@ export default function Home() {
 
           {/* Waiting for wallet switch banner */}
           {waitingForWalletSwitch && (
-            <div className="flex items-center gap-3 text-sm bg-blue-50 border-2 border-blue-300 rounded-lg px-4 py-3 animate-pulse">
+            <div className="flex items-center gap-3 text-sm bg-zyfi-accent-blue/20 border-2 border-zyfi-accent-blue rounded-zyfi px-4 py-3 animate-pulse shadow-zyfi-glow">
               <div className="flex-shrink-0">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-zyfi-accent-bright"></div>
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-blue-900">
+                <p className="font-semibold text-zyfi-accent-light">
                   Waiting for {waitingForWalletSwitch.role} wallet...
                 </p>
-                <p className="text-blue-700 text-xs mt-1">
+                <p className="text-slate-300 text-xs mt-1">
                   Please switch to: {waitingForWalletSwitch.requiredAddress.slice(0, 10)}...{waitingForWalletSwitch.requiredAddress.slice(-6)}
                 </p>
-                <p className="text-blue-600 text-xs mt-1">
+                <p className="text-zyfi-accent-bright text-xs mt-1">
                   ✨ Workflow will auto-resume when correct wallet is connected
                 </p>
               </div>
@@ -643,8 +643,8 @@ export default function Home() {
           <div className="lg:col-span-1">
             <div className="sticky top-4 space-y-4">
               {/* Status Summary */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">
+              <div className="bg-zyfi-bg-secondary rounded-zyfi-lg shadow-zyfi-glow p-6 border border-zyfi-border">
+                <h3 className="text-lg font-semibold gradient--primary mb-4">
                   Status Summary
                 </h3>
                 <div className="space-y-3">
