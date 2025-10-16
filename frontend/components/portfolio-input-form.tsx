@@ -31,7 +31,7 @@ export function PortfolioInputForm({ onSubmit, onCancel }: PortfolioInputFormPro
   };
 
   const handleRemoveAsset = (index: number) => {
-    if (assets.length > 2) {
+    if (assets.length > 4) {
       setAssets(assets.filter((_, i) => i !== index));
     }
   };
@@ -81,9 +81,14 @@ export function PortfolioInputForm({ onSubmit, onCancel }: PortfolioInputFormPro
       <h2 className="text-2xl font-bold gradient--primary mb-2">
         Portfolio Rebalancing Input
       </h2>
-      <p className="text-slate-300 mb-6">
+      <p className="text-slate-300 mb-4">
         Enter your portfolio data to generate a zero-knowledge proof of valid rebalancing
       </p>
+      <div className="mb-6 bg-zyfi-accent-blue/10 border border-zyfi-accent-blue/30 rounded-zyfi px-4 py-3">
+        <p className="text-zyfi-accent-light text-sm">
+          <strong>Note:</strong> The circuit is currently compiled for exactly 4 assets. You cannot add or remove assets from the default configuration.
+        </p>
+      </div>
 
       {/* Error display */}
       {error && (
@@ -104,7 +109,9 @@ export function PortfolioInputForm({ onSubmit, onCancel }: PortfolioInputFormPro
           </h3>
           <button
             onClick={handleAddAsset}
-            className="flex items-center gap-2 px-3 py-1.5 bg-zyfi-accent-blue/20 hover:bg-zyfi-accent-blue/30 border border-zyfi-accent-blue/50 text-zyfi-accent-light rounded-zyfi text-sm font-medium transition-colors"
+            disabled={assets.length >= 4}
+            className="flex items-center gap-2 px-3 py-1.5 bg-zyfi-accent-blue/20 hover:bg-zyfi-accent-blue/30 border border-zyfi-accent-blue/50 text-zyfi-accent-light rounded-zyfi text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            title={assets.length >= 4 ? "Maximum 4 assets (circuit limitation)" : "Add another asset"}
           >
             <Plus className="w-4 h-4" />
             Add Asset
@@ -162,9 +169,9 @@ export function PortfolioInputForm({ onSubmit, onCancel }: PortfolioInputFormPro
               <div className="pt-6">
                 <button
                   onClick={() => handleRemoveAsset(index)}
-                  disabled={assets.length <= 2}
+                  disabled={assets.length <= 4}
                   className="p-2 hover:bg-red-500/20 border border-zyfi-border hover:border-red-500/50 rounded-zyfi transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title={assets.length <= 2 ? "Minimum 2 assets required" : "Remove asset"}
+                  title={assets.length <= 4 ? "Exactly 4 assets required (circuit limitation)" : "Remove asset"}
                 >
                   <Trash2 className="w-4 h-4 text-red-400" />
                 </button>
@@ -225,7 +232,7 @@ export function PortfolioInputForm({ onSubmit, onCancel }: PortfolioInputFormPro
           </div>
         </div>
         <p className="text-xs text-slate-400 mt-2">
-          Each asset allocation must be between {minAllocationPct}% and {maxAllocationPct}% of total portfolio value
+          Each asset allocation must be between {minAllocationPct}% and {maxAllocationPct}% of total portfolio value. Portfolio must have exactly 4 assets.
         </p>
       </div>
 

@@ -100,11 +100,11 @@ export function validatePortfolioInput(input: PortfolioInput): {
     };
   }
 
-  // Check minimum 2 assets
-  if (input.oldBalances.length < 2) {
+  // Check exactly 4 assets (circuit is compiled for n=4)
+  if (input.oldBalances.length !== 4) {
     return {
       valid: false,
-      error: 'Portfolio must have at least 2 assets',
+      error: 'Portfolio must have exactly 4 assets (circuit limitation)',
     };
   }
 
