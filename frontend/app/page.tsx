@@ -8,8 +8,10 @@ import { InputDataPanel } from "@/components/input-data-panel";
 import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
 import { DeployedContractsPanel } from "@/components/deployed-contracts-panel";
+import { PortfolioInputForm } from "@/components/portfolio-input-form";
 import { isSupportedNetwork, getNetworkInfo, getContractsForNetwork } from "@/lib/constants";
 import { executeWorkflowStep, WorkflowState } from "@/lib/workflow-executor";
+import { PortfolioInput } from "@/lib/proof-generator";
 
 type StepStatus = "pending" | "in_progress" | "completed" | "error";
 
@@ -109,6 +111,9 @@ export default function Home() {
     requiredAddress: string;
     role: string;
   } | null>(null);
+  const [showInputForm, setShowInputForm] = useState(false);
+  const [portfolioData, setPortfolioData] = useState<PortfolioInput | null>(null);
+  const [useCustomInput, setUseCustomInput] = useState(false);
 
   // Prevent hydration mismatch by only rendering after client mount
   useEffect(() => {
@@ -202,6 +207,21 @@ export default function Home() {
     setCurrentStep(i);
     updateStepStatus(i, "in_progress");
 
+    // Handle portfolio input step (step 1) - show form if custom input is enabled
+    if (i === 1 && useCustomInput && !portfolioData) {
+      setShowInputForm(true);
+      // Wait for user to submit the form
+      await new Promise<void>((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (portfolioData) {
+            clearInterval(checkInterval);
+            setShowInputForm(false);
+            resolve();
+          }
+        }, 500);
+      });
+    }
+
     // Handle client selection step (step 6)
     if (i === 6) {
       const clientChoice = await new Promise<string | null>((resolve) => {
@@ -265,6 +285,7 @@ export default function Home() {
         currentAddress: connectedAddress!,
         publicClient,
         workflowState: currentState, // Use the current accumulated state
+        customData: portfolioData || undefined, // Pass custom portfolio data if available
       });
     } catch (stepError: any) {
       console.error(`Error in step ${i}:`, stepError);
@@ -374,11 +395,25 @@ export default function Home() {
     setSteps(initialSteps);
     setCurrentStep(null);
     setInputData(null);
+    setPortfolioData(null);
+    setShowInputForm(false);
   };
 
   const handleAgentsReady = (agents: AgentConfig) => {
     setAgentConfig(agents);
     setShowAgentSetup(false);
+  };
+
+  const handlePortfolioSubmit = (data: PortfolioInput) => {
+    console.log("Portfolio data submitted:", data);
+    setPortfolioData(data);
+    setShowInputForm(false);
+  };
+
+  const handlePortfolioCancel = () => {
+    setShowInputForm(false);
+    setUseCustomInput(false);
+    setPortfolioData(null);
   };
 
   const completedSteps = steps.filter((s) => s.status === "completed").length;
@@ -585,6 +620,24 @@ export default function Home() {
             >
               ↻ Reset
             </button>
+            <button
+              onClick={() => {
+                setUseCustomInput(!useCustomInput);
+                if (!useCustomInput) {
+                  setShowInputForm(true);
+                } else {
+                  setPortfolioData(null);
+                }
+              }}
+              disabled={isRunning}
+              className={`px-6 py-3 border font-semibold rounded-zyfi shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${
+                useCustomInput
+                  ? 'bg-zyfi-accent-blue/20 border-zyfi-accent-blue text-zyfi-accent-light shadow-zyfi-glow'
+                  : 'bg-zyfi-bg-secondary border-zyfi-border text-slate-200 hover:bg-zyfi-border'
+              }`}
+            >
+              {useCustomInput ? "✓ Using Custom Input" : "📝 Enter Custom Input"}
+            </button>
           </div>
 
           {/* Wallet requirement notice */}
@@ -681,6 +734,18 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Portfolio Input Form Modal */}
+        {showInputForm && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+              <PortfolioInputForm
+                onSubmit={handlePortfolioSubmit}
+                onCancel={handlePortfolioCancel}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

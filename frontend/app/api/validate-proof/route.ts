@@ -16,28 +16,30 @@ export async function POST(req: Request) {
       );
     }
 
-    // Load deployed contracts config
-    const projectRoot = join(process.cwd(), "..");
-    const deployedContractsPath = join(projectRoot, "deployed_contracts.json");
+    // Determine network from chainId
+    const networkName = chainId === 31337 ? "anvil" : chainId === 84532 ? "base-sepolia" : "sepolia";
+
+    // Load deployed contracts config from frontend/lib
+    const deployedContractsPath = join(process.cwd(), "lib", `deployed-contracts-${networkName}.json`);
     const deployed = JSON.parse(readFileSync(deployedContractsPath, "utf-8"));
 
-    const verifierAddress = deployed.contracts?.Groth16Verifier;
+    const verifierAddress = deployed.verifier?.address;
     if (!verifierAddress) {
       return NextResponse.json(
         {
-          error: "Groth16Verifier address not found in deployed_contracts.json",
+          error: `Groth16Verifier address not found in deployed-contracts-${networkName}.json`,
         },
         { status: 500 }
       );
     }
 
-    // Load Verifier ABI
-    const verifierArtifactPath = join(
-      projectRoot,
-      "contracts/out/Verifier.sol/Groth16Verifier.json"
+    // Load Verifier ABI from frontend/lib/abis
+    const verifierAbiPath = join(
+      process.cwd(),
+      "lib/abis/Groth16Verifier.json"
     );
     const verifierArtifact = JSON.parse(
-      readFileSync(verifierArtifactPath, "utf-8")
+      readFileSync(verifierAbiPath, "utf-8")
     );
     const verifierAbi = verifierArtifact.abi;
 
