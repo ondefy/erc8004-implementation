@@ -32,7 +32,7 @@ interface ProofPackage {
   rebalancingPlan: RebalancingPlan;
 }
 
-interface DepositValidationInput {
+interface RebalancerValidationInput {
   liquidity: number;
   zyfiTvl: number;
   amount: number;
@@ -44,10 +44,10 @@ interface DepositValidationInput {
   tvlStable: number;
 }
 
-interface DepositProofPackage {
+interface RebalancerProofPackage {
   proof: unknown;
   publicInputs: string[];
-  depositInput: DepositValidationInput;
+  rebalancerInput: RebalancerValidationInput;
 }
 
 // ============ Rebalancer Agent ============
@@ -122,80 +122,92 @@ export class RebalancerAgent extends ERC8004BaseAgent {
     }
   }
 
-  generateDepositValidationProof(
-    depositInput: DepositValidationInput
-  ): DepositProofPackage {
-    console.log("🔐 Generating Deposit Validation ZK proof...");
+  generateRebalancerValidationProof(
+    rebalancerInput: RebalancerValidationInput
+  ): RebalancerProofPackage {
+    console.log("🔐 Generating Rebalancer Validation ZK proof...");
     console.log("─".repeat(50));
-    console.log("📊 Deposit Parameters:");
-    console.log(`   Liquidity: $${depositInput.liquidity.toLocaleString()}`);
-    console.log(`   ZyFI TVL: $${depositInput.zyfiTvl.toLocaleString()}`);
-    console.log(`   Amount: ${depositInput.amount.toLocaleString()}`);
-    console.log(`   Pool TVL: ${depositInput.poolTvl.toLocaleString()}`);
-    console.log(`   New APY: ${depositInput.newApy / 100}%`);
-    console.log(`   Old APY: ${depositInput.oldApy / 100}%`);
-    console.log(`   APY Stable (7d): ${depositInput.apyStable7Days === 1 ? "✅" : "❌"}`);
-    console.log(`   APY Stable (10d): ${depositInput.apyStable10Days === 1 ? "✅" : "❌"}`);
-    console.log(`   TVL Stable: ${depositInput.tvlStable === 1 ? "✅" : "❌"}`);
+    console.log("📊 Rebalancer Parameters:");
+    console.log(`   Liquidity: $${rebalancerInput.liquidity.toLocaleString()}`);
+    console.log(`   ZyFI TVL: $${rebalancerInput.zyfiTvl.toLocaleString()}`);
+    console.log(`   Amount: ${rebalancerInput.amount.toLocaleString()}`);
+    console.log(`   Pool TVL: ${rebalancerInput.poolTvl.toLocaleString()}`);
+    console.log(`   New APY: ${rebalancerInput.newApy / 100}%`);
+    console.log(`   Old APY: ${rebalancerInput.oldApy / 100}%`);
+    console.log(
+      `   APY Stable (7d): ${
+        rebalancerInput.apyStable7Days === 1 ? "✅" : "❌"
+      }`
+    );
+    console.log(
+      `   APY Stable (10d): ${
+        rebalancerInput.apyStable10Days === 1 ? "✅" : "❌"
+      }`
+    );
+    console.log(
+      `   TVL Stable: ${rebalancerInput.tvlStable === 1 ? "✅" : "❌"}`
+    );
     console.log("─".repeat(50));
 
     const input = {
-      liquidity: depositInput.liquidity,
-      zyfiTvl: depositInput.zyfiTvl,
-      amount: depositInput.amount,
-      poolTvl: depositInput.poolTvl,
-      newApy: depositInput.newApy,
-      oldApy: depositInput.oldApy,
-      apyStable7Days: depositInput.apyStable7Days,
-      apyStable10Days: depositInput.apyStable10Days,
-      tvlStable: depositInput.tvlStable,
+      liquidity: rebalancerInput.liquidity,
+      zyfiTvl: rebalancerInput.zyfiTvl,
+      amount: rebalancerInput.amount,
+      poolTvl: rebalancerInput.poolTvl,
+      newApy: rebalancerInput.newApy,
+      oldApy: rebalancerInput.oldApy,
+      apyStable7Days: rebalancerInput.apyStable7Days,
+      apyStable10Days: rebalancerInput.apyStable10Days,
+      tvlStable: rebalancerInput.tvlStable,
     };
 
-    const tempPath = "build/deposit-validation/temp_deposit_input.json";
-    const witnessPath = "build/deposit-validation/witness.wtns";
-    const proofPath = "build/deposit-validation/proof.json";
-    const publicPath = "build/deposit-validation/public.json";
+    const tempPath = "build/rebalancer-validation/temp_rebalancer_input.json";
+    const witnessPath = "build/rebalancer-validation/witness.wtns";
+    const proofPath = "build/rebalancer-validation/proof.json";
+    const publicPath = "build/rebalancer-validation/public.json";
 
     // Ensure directory exists
-    if (!existsSync("build/deposit-validation")) {
-      mkdirSync("build/deposit-validation", { recursive: true });
+    if (!existsSync("build/rebalancer-validation")) {
+      mkdirSync("build/rebalancer-validation", { recursive: true });
     }
 
     writeFileSync(tempPath, JSON.stringify(input, null, 2));
 
     try {
-      // Generate witness using deposit-validation circuit
+      // Generate witness using rebalancer-validation circuit
       console.log("\n🔄 Generating witness...");
       execSync(
-        `node build/deposit-validation/deposit-validation_js/generate_witness.js build/deposit-validation/deposit-validation_js/deposit-validation.wasm ${tempPath} ${witnessPath}`,
+        `node build/rebalancer-validation/rebalancer-validation_js/generate_witness.js build/rebalancer-validation/rebalancer-validation_js/rebalancer-validation.wasm ${tempPath} ${witnessPath}`,
         { stdio: "inherit" }
       );
 
       // Generate proof
       console.log("🔄 Generating proof...");
       execSync(
-        `snarkjs groth16 prove build/deposit-validation/deposit_validation_final.zkey ${witnessPath} ${proofPath} ${publicPath}`,
+        `snarkjs groth16 prove build/rebalancer-validation/rebalancer_validation_final.zkey ${witnessPath} ${proofPath} ${publicPath}`,
         { stdio: "inherit" }
       );
 
       const proof = JSON.parse(readFileSync(proofPath, "utf-8"));
       const publicInputs = JSON.parse(readFileSync(publicPath, "utf-8"));
 
-      console.log("\n✅ Deposit Validation ZK proof generated successfully");
+      console.log("\n✅ Rebalancer Validation ZK proof generated successfully");
       console.log("─".repeat(50));
       console.log("📤 Public Outputs:");
       console.log(`   Validation Commitment: ${publicInputs[0]}`);
-      console.log(`   Is Valid: ${publicInputs[1] === "1" ? "✅ VALID" : "❌ INVALID"}`);
+      console.log(
+        `   Is Valid: ${publicInputs[1] === "1" ? "✅ VALID" : "❌ INVALID"}`
+      );
       console.log("─".repeat(50));
 
-      return { proof, publicInputs, depositInput };
+      return { proof, publicInputs, rebalancerInput };
     } finally {
       if (existsSync(tempPath)) unlinkSync(tempPath);
     }
   }
 
   async requestValidationFromValidator(
-    proof: ProofPackage | DepositProofPackage,
+    proof: ProofPackage | RebalancerProofPackage,
     validatorAddress: string
   ): Promise<Hash> {
     const dataHash = createHash("sha256")
@@ -304,6 +316,6 @@ export class RebalancerAgent extends ERC8004BaseAgent {
 export type {
   RebalancingPlan,
   ProofPackage,
-  DepositValidationInput,
-  DepositProofPackage,
+  RebalancerValidationInput,
+  RebalancerProofPackage,
 };

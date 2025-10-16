@@ -6,7 +6,7 @@ import { type Hash, type Address } from "viem";
 import { ERC8004BaseAgent } from "./base-agent";
 import {
   type ProofPackage,
-  type DepositProofPackage,
+  type RebalancerProofPackage,
 } from "./rebalancer-agent";
 import {
   readFileSync,
@@ -34,9 +34,9 @@ export class ValidatorAgent extends ERC8004BaseAgent {
   }
 
   async validateProof(
-    proofOrHash: ProofPackage | DepositProofPackage | string
+    proofOrHash: ProofPackage | RebalancerProofPackage | string
   ): Promise<ValidationResult> {
-    let proof: ProofPackage | DepositProofPackage;
+    let proof: ProofPackage | RebalancerProofPackage;
     let dataHash: string;
 
     // Load proof if hash provided
@@ -60,17 +60,15 @@ export class ValidatorAgent extends ERC8004BaseAgent {
     console.log("─".repeat(50));
 
     // ===== Determine which verifier to use based on proof type =====
-    const isDepositProof = "depositInput" in proof;
-    const verifierName = isDepositProof
-      ? "DepositValidationVerifier"
+    const isRebalancerProof = "rebalancerInput" in proof;
+    const verifierName = isRebalancerProof
+      ? "RebalancerVerifier"
       : "Groth16Verifier";
-    const verifierSolFile = isDepositProof
-      ? "DepositValidationVerifier.sol"
+    const verifierSolFile = isRebalancerProof
+      ? "RebalancerVerifier.sol"
       : "Verifier.sol";
 
-    console.log(
-      `\n🔐 Verifying on-chain using ${verifierName} (eth_call)...`
-    );
+    console.log(`\n🔐 Verifying on-chain using ${verifierName} (eth_call)...`);
     console.log("─".repeat(50));
 
     // Resolve verifier address from deployed_contracts.json

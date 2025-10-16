@@ -1,8 +1,8 @@
 #!/usr/bin/env ts-node
 
 /**
- * ZK Deposit Validation E2E Test
- * Tests the complete workflow using ZyFI's deposit validation rules
+ * ZK Rebalancer Validation E2E Test
+ * Tests the complete workflow using ZyFI's rebalancer validation rules
  */
 
 import { createPublicClient, createWalletClient, http, parseEther } from "viem";
@@ -36,7 +36,7 @@ async function deployContracts(): Promise<void> {
 
 async function testZkRebalancingE2E(): Promise<void> {
   console.log("\n" + "=".repeat(70));
-  console.log("  ZK Deposit Validation - End-to-End Test");
+  console.log("  ZK Rebalancer Validation - End-to-End Test");
   console.log("  Using ZyFI Backend Validation Rules");
   console.log("=".repeat(70) + "\n");
 
@@ -110,37 +110,43 @@ async function testZkRebalancingE2E(): Promise<void> {
   await validator.registerAgent();
   await client.registerAgent();
 
-  // Load deposit validation input data
+  // Load rebalancer validation input data
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 4: Load Deposit Validation Input");
+  console.log("STEP 4: Load Rebalancer Validation Input");
   console.log("─".repeat(70));
 
-  const depositInputPath = join(process.cwd(), "input", "deposit-input.json");
-  const depositData = JSON.parse(readFileSync(depositInputPath, "utf-8"));
+  const rebalancerInputPath = join(
+    process.cwd(),
+    "input",
+    "rebalancer-input.json"
+  );
+  const rebalancerData = JSON.parse(readFileSync(rebalancerInputPath, "utf-8"));
 
-  console.log(`📂 Loaded from: input/deposit-input.json`);
-  console.log(`   Liquidity: $${depositData.liquidity.toLocaleString()}`);
-  console.log(`   ZyFI TVL: $${depositData.zyfiTvl.toLocaleString()}`);
-  console.log(`   Deposit Amount: ${depositData.amount.toLocaleString()}`);
-  console.log(`   Pool TVL: ${depositData.poolTvl.toLocaleString()}`);
-  console.log(`   New APY: ${depositData.newApy / 100}%`);
-  console.log(`   Old APY: ${depositData.oldApy / 100}%`);
+  console.log(`📂 Loaded from: input/rebalancer-input.json`);
+  console.log(`   Liquidity: $${rebalancerData.liquidity.toLocaleString()}`);
+  console.log(`   ZyFI TVL: $${rebalancerData.zyfiTvl.toLocaleString()}`);
+  console.log(
+    `   Rebalancer Amount: ${rebalancerData.amount.toLocaleString()}`
+  );
+  console.log(`   Pool TVL: ${rebalancerData.poolTvl.toLocaleString()}`);
+  console.log(`   New APY: ${rebalancerData.newApy / 100}%`);
+  console.log(`   Old APY: ${rebalancerData.oldApy / 100}%`);
 
-  // Generate deposit validation proof
+  // Generate rebalancer validation proof
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 5: Generate Deposit Validation ZK Proof");
+  console.log("STEP 5: Generate Rebalancer Validation ZK Proof");
   console.log("─".repeat(70));
 
-  const proof = rebalancer.generateDepositValidationProof({
-    liquidity: depositData.liquidity,
-    zyfiTvl: depositData.zyfiTvl,
-    amount: depositData.amount,
-    poolTvl: depositData.poolTvl,
-    newApy: depositData.newApy,
-    oldApy: depositData.oldApy,
-    apyStable7Days: depositData.apyStable7Days,
-    apyStable10Days: depositData.apyStable10Days,
-    tvlStable: depositData.tvlStable,
+  const proof = rebalancer.generateRebalancerValidationProof({
+    liquidity: rebalancerData.liquidity,
+    zyfiTvl: rebalancerData.zyfiTvl,
+    amount: rebalancerData.amount,
+    poolTvl: rebalancerData.poolTvl,
+    newApy: rebalancerData.newApy,
+    oldApy: rebalancerData.oldApy,
+    apyStable7Days: rebalancerData.apyStable7Days,
+    apyStable10Days: rebalancerData.apyStable10Days,
+    tvlStable: rebalancerData.tvlStable,
   });
 
   // Submit for validation
@@ -185,7 +191,7 @@ async function testZkRebalancingE2E(): Promise<void> {
     rebalancer.agentId!,
     score,
     feedbackAuth,
-    "Great deposit validation service!"
+    "Great rebalancer validation service!"
   );
 
   // Check reputation
@@ -197,10 +203,12 @@ async function testZkRebalancingE2E(): Promise<void> {
 
   // Summary
   console.log("\n" + "=".repeat(70));
-  console.log("  ✅ DEPOSIT VALIDATION TEST COMPLETE");
+  console.log("  ✅ REBALANCER VALIDATION TEST COMPLETE");
   console.log("=".repeat(70));
   console.log("\nAll steps executed successfully!");
-  console.log("  • Deposit validation input loaded from input/deposit-input.json");
+  console.log(
+    "  • Rebalancer validation input loaded from input/rebalancer-input.json"
+  );
   console.log("  • ZK proof generated with ZyFI validation constraints:");
   console.log("    - Liquidity constraint verified");
   console.log("    - TVL constraint verified (max 25% allocation)");

@@ -1,8 +1,8 @@
 pragma circom 2.0.0;
 
-// ZK Deposit Validation Circuit
-// Proves that a DeFi deposit opportunity satisfies all ZyFI validation constraints
-// without revealing sensitive deposit parameters.
+// ZK Rebalancer Validation Circuit
+// Proves that a DeFi rebalancer opportunity satisfies all ZyFI validation constraints
+// without revealing sensitive rebalancer parameters.
 //
 // Based on ZyFI backend logic and:
 // https://gist.github.com/PaulDeFi/49d1a386c5d1bb85a1cfbe7bff2bd4d2
@@ -17,7 +17,7 @@ pragma circom 2.0.0;
 // Private inputs:
 // - liquidity: Available liquidity in the pool (in dollars, integer)
 // - zyfiTvl: Current ZyFI TVL in the pool (in dollars, integer)
-// - amount: Deposit amount (in token smallest unit, e.g., USDC with 6 decimals)
+// - amount: Rebalancer amount (in token smallest unit, e.g., USDC with 6 decimals)
 // - poolTvl: Total pool TVL (in token smallest unit)
 // - newApy: New opportunity APY (scaled by 100, e.g., 550 = 5.50%)
 // - oldApy: Previous opportunity APY (scaled by 100, e.g., 450 = 4.50%)
@@ -29,7 +29,7 @@ pragma circom 2.0.0;
 // - validationCommitment: Commitment hash of all inputs + result
 // - isValid: 1 if all constraints pass, 0 otherwise
 
-template DepositValidation() {
+template RebalancerValidation() {
     // Private inputs
     signal input liquidity;
     signal input zyfiTvl;
@@ -67,7 +67,7 @@ template DepositValidation() {
     // Constraint 2: TVL Constraint
     // poolTvl * 1e6 > amount * 4
     // Backend: adjustedPoolTvl * 1e6 > amount * (100n / 25n)
-    // This ensures deposit is max 25% of pool TVL
+    // This ensures rebalancer is max 25% of pool TVL
     // ========================================
     signal tvlLeft <== poolTvl * 1000000;
     signal tvlRight <== amount * 4;
@@ -168,4 +168,4 @@ template IsZero() {
 
 // Instantiate main component
 // All outputs are automatically public, all inputs are private
-component main = DepositValidation();
+component main = RebalancerValidation();
