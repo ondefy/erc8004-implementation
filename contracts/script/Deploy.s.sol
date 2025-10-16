@@ -6,6 +6,7 @@ import "../src/IdentityRegistry.sol";
 import "../src/ValidationRegistry.sol";
 import "../src/ReputationRegistry.sol";
 import "../src/Verifier.sol";
+import "../src/DepositValidationVerifier.sol";
 
 /**
  * @title Deploy Script for ERC-8004 Registries
@@ -44,6 +45,10 @@ contract Deploy is Script {
         Groth16Verifier verifier = new Groth16Verifier();
         console.log("Groth16Verifier deployed at:", address(verifier));
 
+        // 5. Deploy Deposit Validation Verifier (for ZyFI deposit validation)
+        DepositValidationVerifier depositVerifier = new DepositValidationVerifier();
+        console.log("DepositValidationVerifier deployed at:", address(depositVerifier));
+
         vm.stopBroadcast();
 
         // Log deployment info
@@ -55,5 +60,6 @@ contract Deploy is Script {
         console.log("- ValidationRegistry:", address(validationRegistry));
         console.log("- ReputationRegistry:", address(reputationRegistry));
         console.log("- Groth16Verifier:", address(verifier));
+        console.log("- DepositValidationVerifier:", address(depositVerifier));
     }
 }

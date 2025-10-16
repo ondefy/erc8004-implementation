@@ -4,7 +4,10 @@
 
 import { type Hash, type Address } from "viem";
 import { ERC8004BaseAgent } from "./base-agent";
-import { type ProofPackage } from "./rebalancer-agent";
+import {
+  type ProofPackage,
+  type DepositProofPackage,
+} from "./rebalancer-agent";
 import {
   readFileSync,
   writeFileSync,
@@ -31,9 +34,9 @@ export class ValidatorAgent extends ERC8004BaseAgent {
   }
 
   async validateProof(
-    proofOrHash: ProofPackage | string
+    proofOrHash: ProofPackage | DepositProofPackage | string
   ): Promise<ValidationResult> {
-    let proof: ProofPackage;
+    let proof: ProofPackage | DepositProofPackage;
     let dataHash: string;
 
     // Load proof if hash provided
@@ -56,25 +59,35 @@ export class ValidatorAgent extends ERC8004BaseAgent {
     console.log(`   0x${dataHash}`);
     console.log("─".repeat(50));
 
-    // ===== On-chain verification via Groth16Verifier =====
-    console.log("\n🔐 Verifying on-chain using Groth16Verifier (eth_call)...");
+    // ===== Determine which verifier to use based on proof type =====
+    const isDepositProof = "depositInput" in proof;
+    const verifierName = isDepositProof
+      ? "DepositValidationVerifier"
+      : "Groth16Verifier";
+    const verifierSolFile = isDepositProof
+      ? "DepositValidationVerifier.sol"
+      : "Verifier.sol";
+
+    console.log(
+      `\n🔐 Verifying on-chain using ${verifierName} (eth_call)...`
+    );
     console.log("─".repeat(50));
 
     // Resolve verifier address from deployed_contracts.json
     const deployedPath = join(process.cwd(), "deployed_contracts.json");
     const deployed = JSON.parse(readFileSync(deployedPath, "utf-8"));
     const verifierAddress: Address | undefined =
-      deployed?.contracts?.Groth16Verifier;
+      deployed?.contracts?.[verifierName];
     if (!verifierAddress) {
       throw new Error(
-        "Groth16Verifier address not found. Please redeploy with updated script to include the verifier."
+        `${verifierName} address not found. Please redeploy with updated script to include the verifier.`
       );
     }
 
     // Load verifier ABI from contracts/out
     const verifierArtifactPath = join(
       process.cwd(),
-      "contracts/out/Verifier.sol/Groth16Verifier.json"
+      `contracts/out/${verifierSolFile}/${verifierName}.json`
     );
     const verifierArtifact = JSON.parse(
       readFileSync(verifierArtifactPath, "utf-8")

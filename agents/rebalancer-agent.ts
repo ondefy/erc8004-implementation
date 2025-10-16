@@ -32,6 +32,24 @@ interface ProofPackage {
   rebalancingPlan: RebalancingPlan;
 }
 
+interface DepositValidationInput {
+  liquidity: number;
+  zyfiTvl: number;
+  amount: number;
+  poolTvl: number;
+  newApy: number;
+  oldApy: number;
+  apyStable7Days: number;
+  apyStable10Days: number;
+  tvlStable: number;
+}
+
+interface DepositProofPackage {
+  proof: unknown;
+  publicInputs: string[];
+  depositInput: DepositValidationInput;
+}
+
 // ============ Rebalancer Agent ============
 
 export class RebalancerAgent extends ERC8004BaseAgent {
@@ -104,8 +122,80 @@ export class RebalancerAgent extends ERC8004BaseAgent {
     }
   }
 
+  generateDepositValidationProof(
+    depositInput: DepositValidationInput
+  ): DepositProofPackage {
+    console.log("🔐 Generating Deposit Validation ZK proof...");
+    console.log("─".repeat(50));
+    console.log("📊 Deposit Parameters:");
+    console.log(`   Liquidity: $${depositInput.liquidity.toLocaleString()}`);
+    console.log(`   ZyFI TVL: $${depositInput.zyfiTvl.toLocaleString()}`);
+    console.log(`   Amount: ${depositInput.amount.toLocaleString()}`);
+    console.log(`   Pool TVL: ${depositInput.poolTvl.toLocaleString()}`);
+    console.log(`   New APY: ${depositInput.newApy / 100}%`);
+    console.log(`   Old APY: ${depositInput.oldApy / 100}%`);
+    console.log(`   APY Stable (7d): ${depositInput.apyStable7Days === 1 ? "✅" : "❌"}`);
+    console.log(`   APY Stable (10d): ${depositInput.apyStable10Days === 1 ? "✅" : "❌"}`);
+    console.log(`   TVL Stable: ${depositInput.tvlStable === 1 ? "✅" : "❌"}`);
+    console.log("─".repeat(50));
+
+    const input = {
+      liquidity: depositInput.liquidity,
+      zyfiTvl: depositInput.zyfiTvl,
+      amount: depositInput.amount,
+      poolTvl: depositInput.poolTvl,
+      newApy: depositInput.newApy,
+      oldApy: depositInput.oldApy,
+      apyStable7Days: depositInput.apyStable7Days,
+      apyStable10Days: depositInput.apyStable10Days,
+      tvlStable: depositInput.tvlStable,
+    };
+
+    const tempPath = "build/deposit-validation/temp_deposit_input.json";
+    const witnessPath = "build/deposit-validation/witness.wtns";
+    const proofPath = "build/deposit-validation/proof.json";
+    const publicPath = "build/deposit-validation/public.json";
+
+    // Ensure directory exists
+    if (!existsSync("build/deposit-validation")) {
+      mkdirSync("build/deposit-validation", { recursive: true });
+    }
+
+    writeFileSync(tempPath, JSON.stringify(input, null, 2));
+
+    try {
+      // Generate witness using deposit-validation circuit
+      console.log("\n🔄 Generating witness...");
+      execSync(
+        `node build/deposit-validation/deposit-validation_js/generate_witness.js build/deposit-validation/deposit-validation_js/deposit-validation.wasm ${tempPath} ${witnessPath}`,
+        { stdio: "inherit" }
+      );
+
+      // Generate proof
+      console.log("🔄 Generating proof...");
+      execSync(
+        `snarkjs groth16 prove build/deposit-validation/deposit_validation_final.zkey ${witnessPath} ${proofPath} ${publicPath}`,
+        { stdio: "inherit" }
+      );
+
+      const proof = JSON.parse(readFileSync(proofPath, "utf-8"));
+      const publicInputs = JSON.parse(readFileSync(publicPath, "utf-8"));
+
+      console.log("\n✅ Deposit Validation ZK proof generated successfully");
+      console.log("─".repeat(50));
+      console.log("📤 Public Outputs:");
+      console.log(`   Validation Commitment: ${publicInputs[0]}`);
+      console.log(`   Is Valid: ${publicInputs[1] === "1" ? "✅ VALID" : "❌ INVALID"}`);
+      console.log("─".repeat(50));
+
+      return { proof, publicInputs, depositInput };
+    } finally {
+      if (existsSync(tempPath)) unlinkSync(tempPath);
+    }
+  }
+
   async requestValidationFromValidator(
-    proof: ProofPackage,
+    proof: ProofPackage | DepositProofPackage,
     validatorAddress: string
   ): Promise<Hash> {
     const dataHash = createHash("sha256")
@@ -211,4 +301,9 @@ export class RebalancerAgent extends ERC8004BaseAgent {
   }
 }
 
-export type { RebalancingPlan, ProofPackage };
+export type {
+  RebalancingPlan,
+  ProofPackage,
+  DepositValidationInput,
+  DepositProofPackage,
+};
