@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PortfolioInput, validatePortfolioInput } from "@/lib/proof-generator";
-import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, AlertCircle, X } from "lucide-react";
 
 interface PortfolioInputFormProps {
   onSubmit: (data: PortfolioInput) => void;
@@ -78,12 +78,26 @@ export function PortfolioInputForm({ onSubmit, onCancel }: PortfolioInputFormPro
 
   return (
     <div className="bg-zyfi-bg-secondary rounded-zyfi-lg shadow-zyfi-glow border border-zyfi-border p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold gradient--primary mb-2">
-        Portfolio Rebalancing Input
-      </h2>
-      <p className="text-slate-300 mb-4">
-        Enter your portfolio data to generate a zero-knowledge proof of valid rebalancing
-      </p>
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold gradient--primary mb-2">
+            Portfolio Rebalancing Input
+          </h2>
+          <p className="text-slate-300">
+            Enter your portfolio data to generate a zero-knowledge proof of valid rebalancing
+          </p>
+        </div>
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="flex-shrink-0 ml-4 p-2 hover:bg-zyfi-border rounded-zyfi transition-colors text-slate-400 hover:text-slate-200"
+            aria-label="Close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        )}
+      </div>
+
       <div className="mb-6 bg-zyfi-accent-blue/10 border border-zyfi-accent-blue/30 rounded-zyfi px-4 py-3">
         <p className="text-zyfi-accent-light text-sm">
           <strong>Note:</strong> The circuit is currently compiled for exactly 4 assets. You cannot add or remove assets from the default configuration.
