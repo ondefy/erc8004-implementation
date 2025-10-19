@@ -20,7 +20,8 @@ export interface WorkflowExecutorParams {
   currentAddress: string;
   publicClient?: any; // viem public client for reading events
   workflowState?: WorkflowState;
-  customData?: any; // Custom portfolio data from user form
+  customData?: any; // Custom portfolio/opportunity data from user form
+  inputMode?: "Rebalancing" | "Math"; // Which input mode is being used
 }
 
 export interface WorkflowState {
@@ -32,14 +33,8 @@ export interface WorkflowState {
   requestHash?: string;
   responseHash?: string;
   dataHash?: string;
-  inputData?: {
-    oldBalances: string[];
-    newBalances: string[];
-    prices: string[];
-    totalValueCommitment: string;
-    minAllocationPct: string;
-    maxAllocationPct: string;
-  };
+  inputData?: any; // Can be either portfolio or opportunity data
+  inputMode?: "portfolio" | "opportunity"; // Track which mode is active
   proofGenerated?: boolean;
   newTotalValue?: number;
   proof?: any; // The actual ZK proof object from snarkjs
@@ -84,6 +79,7 @@ export async function executeWorkflowStep(
     publicClient,
     workflowState = {},
     customData,
+    inputMode = "Rebalancing",
   } = params;
 
   const contractConfig = getContractConfig(chainId);
@@ -107,7 +103,7 @@ export async function executeWorkflowStep(
         );
 
       case 1: // Load Input Data
-        return await loadInputData(customData);
+        return await loadInputData(customData, inputMode);
 
       case 2: // Generate ZK Proof
         return await generateZKProof(workflowState);
@@ -350,50 +346,111 @@ async function registerAgents(
   }
 }
 
-async function loadInputData(customData?: any): Promise<StepResult> {
+async function loadInputData(
+  customData?: any,
+  inputMode: "Rebalancing" | "Math" = "Rebalancing"
+): Promise<StepResult> {
   // Support both custom input data (from user form) and file-based loading
+  // Supports both portfolio and opportunity input modes
   try {
     let data;
+    let isOpportunity = false;
 
     if (customData) {
       // Use custom data provided by user through the form
       console.log("Using custom input data from form:", customData);
 
-      // Calculate totalValueCommitment if not provided
-      const newTotalValue = customData.newBalances.reduce(
-        (sum: number, bal: string, i: number) =>
-          sum + parseInt(bal) * parseInt(customData.prices[i]),
-        0
-      );
+      // Check if this is opportunity data (has liquidity, zyfiTvl, etc.)
+      isOpportunity = inputMode === "Rebalancing" || "liquidity" in customData;
 
-      data = {
-        ...customData,
-        totalValueCommitment: String(newTotalValue),
-      };
+      if (isOpportunity) {
+        // Opportunity data - convert APY percentages to scaled integers (multiply by 100)
+        data = {
+          liquidity: customData.liquidity,
+          zyfiTvl: customData.zyfiTvl,
+          amount: customData.amount,
+          poolTvl: customData.poolTvl,
+          newApy: Math.round(customData.newApy * 100), // 6.00% -> 600
+          oldApy: Math.round(customData.oldApy * 100), // 4.50% -> 450
+          apyStable7Days: customData.apyStable7Days ? 1 : 0,
+          apyStable10Days: customData.apyStable10Days ? 1 : 0,
+          tvlStable: customData.tvlStable ? 1 : 0,
+        };
+      } else {
+        // Portfolio data - calculate totalValueCommitment
+        const newTotalValue = customData.newBalances.reduce(
+          (sum: number, bal: string, i: number) =>
+            sum + parseInt(bal) * parseInt(customData.prices[i]),
+          0
+        );
+
+        data = {
+          ...customData,
+          totalValueCommitment: String(newTotalValue),
+        };
+      }
     } else {
-      // Fallback: Load from input.json file (for testing/demo)
-      console.log("Loading default input data from file...");
-      const response = await fetch("/api/load-input");
+      // Fallback: Load from appropriate input file
+      const endpoint =
+        inputMode === "Rebalancing"
+          ? "/api/load-input?type=opportunity"
+          : "/api/load-input";
+      console.log(`Loading default ${inputMode} data from file...`);
+      const response = await fetch(endpoint);
       if (!response.ok) {
-        throw new Error("Failed to load input data");
+        throw new Error(`Failed to load ${inputMode} data`);
       }
       data = await response.json();
+      isOpportunity = inputMode === "Rebalancing";
     }
 
-    return {
-      success: true,
-      details: `Loaded ${
+    // Format details message based on data type
+    let details;
+    if (isOpportunity) {
+      const utilizationRate = ((data.amount / data.poolTvl) * 100).toFixed(2);
+      const apyImprovement = ((data.newApy - data.oldApy) / 100).toFixed(2);
+      details =
+        `Loaded DeFi Opportunity Data\n\n` +
+        `Pool Metrics:\n` +
+        `• Liquidity: $${data.liquidity.toLocaleString()}\n` +
+        `• ZyFI TVL: $${data.zyfiTvl.toLocaleString()}\n` +
+        `• Rebalance Amount: ${data.amount.toLocaleString()} tokens\n` +
+        `• Pool TVL: ${data.poolTvl.toLocaleString()} tokens\n` +
+        `• Utilization: ${utilizationRate}%\n\n` +
+        `APY Performance:\n` +
+        `• Old APY: ${(data.oldApy / 100).toFixed(2)}%\n` +
+        `• New APY: ${(data.newApy / 100).toFixed(2)}%\n` +
+        `• Improvement: +${apyImprovement}%\n\n` +
+        `Stability:\n` +
+        `• 7-day stable: ${data.apyStable7Days ? "✓" : "✗"}\n` +
+        `• 10-day stable: ${data.apyStable10Days ? "✓" : "✗"}\n` +
+        `• TVL stable: ${data.tvlStable ? "✓" : "✗"}\n\n` +
+        `${
+          customData
+            ? "✓ Using custom opportunity data"
+            : "ℹ️ Using demo data from file"
+        }`;
+    } else {
+      details = `Loaded ${
         data.oldBalances.length
       } assets\n\nPortfolio Overview:\n• Total Value: ${parseInt(
         data.totalValueCommitment
       ).toLocaleString()}\n• Min Allocation: ${
         data.minAllocationPct
       }%\n• Max Allocation: ${data.maxAllocationPct}%\n\n${
-        customData ? "✓ Using custom portfolio data from form" : "ℹ️ Using demo data from file"
-      }`,
+        customData
+          ? "✓ Using custom portfolio data from form"
+          : "ℹ️ Using demo data from file"
+      }`;
+    }
+
+    return {
+      success: true,
+      details,
       data,
       stateUpdate: {
         inputData: data,
+        inputMode: isOpportunity ? "opportunity" : "portfolio",
       },
     };
   } catch (error) {
@@ -425,7 +482,8 @@ async function generateZKProof(
 
   // Calculate new total value (matching agent's createRebalancingPlan)
   const newTotalValue = inputData.newBalances.reduce(
-    (sum, bal, i) => sum + parseInt(bal) * parseInt(inputData.prices[i]),
+    (sum: number, bal: string, i: number) =>
+      sum + parseInt(bal) * parseInt(inputData.prices[i]),
     0
   );
 

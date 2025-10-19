@@ -9,6 +9,7 @@ import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
 import { DeployedContractsPanel } from "@/components/deployed-contracts-panel";
 import { PortfolioInputForm } from "@/components/portfolio-input-form";
+import { OpportunityInputForm, OpportunityInput } from "@/components/opportunity-input-form";
 import { isSupportedNetwork, getNetworkInfo, getContractsForNetwork } from "@/lib/constants";
 import { executeWorkflowStep, WorkflowState } from "@/lib/workflow-executor";
 import { PortfolioInput } from "@/lib/proof-generator";
@@ -32,8 +33,8 @@ const initialSteps: Step[] = [
   },
   {
     id: 1,
-    title: "Load Input Data",
-    description: "Load portfolio balances and constraints",
+    title: "Load Opportunity Data",
+    description: "Load DeFi opportunity metrics for validation",
     status: "pending",
   },
   {
@@ -113,7 +114,9 @@ export default function Home() {
   } | null>(null);
   const [showInputForm, setShowInputForm] = useState(false);
   const [portfolioData, setPortfolioData] = useState<PortfolioInput | null>(null);
+  const [opportunityData, setOpportunityData] = useState<OpportunityInput | null>(null);
   const [useCustomInput, setUseCustomInput] = useState(false);
+  const [inputMode, setInputMode] = useState<"Rebalancing" | "Math">("Rebalancing");
 
   // Prevent hydration mismatch by only rendering after client mount
   useEffect(() => {
@@ -207,19 +210,23 @@ export default function Home() {
     setCurrentStep(i);
     updateStepStatus(i, "in_progress");
 
-    // Handle portfolio input step (step 1) - show form if custom input is enabled
-    if (i === 1 && useCustomInput && !portfolioData) {
-      setShowInputForm(true);
-      // Wait for user to submit the form
-      await new Promise<void>((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (portfolioData) {
-            clearInterval(checkInterval);
-            setShowInputForm(false);
-            resolve();
-          }
-        }, 500);
-      });
+    // Handle input step (step 1) - show form if custom input is enabled
+    if (i === 1 && useCustomInput) {
+      const hasInputData = inputMode === "Rebalancing" ? opportunityData : portfolioData;
+      if (!hasInputData) {
+        setShowInputForm(true);
+        // Wait for user to submit the form
+        await new Promise<void>((resolve) => {
+          const checkInterval = setInterval(() => {
+            const currentData = inputMode === "Rebalancing" ? opportunityData : portfolioData;
+            if (currentData) {
+              clearInterval(checkInterval);
+              setShowInputForm(false);
+              resolve();
+            }
+          }, 500);
+        });
+      }
     }
 
     // Handle client selection step (step 6)
@@ -285,7 +292,8 @@ export default function Home() {
         currentAddress: connectedAddress!,
         publicClient,
         workflowState: currentState, // Use the current accumulated state
-        customData: portfolioData || undefined, // Pass custom portfolio data if available
+        customData: opportunityData || portfolioData || undefined, // Pass opportunity or portfolio data
+        inputMode, // Pass the input mode so executor knows which type
       });
     } catch (stepError: any) {
       console.error(`Error in step ${i}:`, stepError);
@@ -396,6 +404,7 @@ export default function Home() {
     setCurrentStep(null);
     setInputData(null);
     setPortfolioData(null);
+    setOpportunityData(null);
     setShowInputForm(false);
   };
 
@@ -410,10 +419,17 @@ export default function Home() {
     setShowInputForm(false);
   };
 
+  const handleOpportunitySubmit = (data: OpportunityInput) => {
+    console.log("Opportunity data submitted:", data);
+    setOpportunityData(data);
+    setShowInputForm(false);
+  };
+
   const handlePortfolioCancel = () => {
     setShowInputForm(false);
     setUseCustomInput(false);
     setPortfolioData(null);
+    setOpportunityData(null);
   };
 
   const completedSteps = steps.filter((s) => s.status === "completed").length;
@@ -627,16 +643,23 @@ export default function Home() {
                   setShowInputForm(true);
                 } else {
                   setPortfolioData(null);
+                  setOpportunityData(null);
                 }
               }}
               disabled={isRunning}
-              className={`px-6 py-3 border font-semibold rounded-zyfi shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${
-                useCustomInput
-                  ? 'bg-zyfi-accent-blue/20 border-zyfi-accent-blue text-zyfi-accent-light shadow-zyfi-glow'
-                  : 'bg-zyfi-bg-secondary border-zyfi-border text-slate-200 hover:bg-zyfi-border'
-              }`}
+              className={`px-6 py-3 border font-semibold rounded-zyfi shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ${useCustomInput
+                ? 'bg-zyfi-accent-blue/20 border-zyfi-accent-blue text-zyfi-accent-light shadow-zyfi-glow'
+                : 'bg-zyfi-bg-secondary border-zyfi-border text-slate-200 hover:bg-zyfi-border'
+                }`}
             >
               {useCustomInput ? "✓ Using Custom Input" : "📝 Enter Custom Input"}
+            </button>
+            <button
+              onClick={() => setInputMode(inputMode === "Rebalancing" ? "Math" : "Rebalancing")}
+              disabled={true}
+              className="px-6 py-3 bg-zyfi-bg-secondary border border-zyfi-border text-slate-200 font-semibold rounded-zyfi shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-zyfi-border"
+            >
+              Mode: {inputMode === "Rebalancing" ? "Rebalancing" : "Math"}
             </button>
           </div>
 
@@ -735,14 +758,21 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Portfolio Input Form Modal */}
+        {/* Input Form Modal */}
         {showInputForm && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-              <PortfolioInputForm
-                onSubmit={handlePortfolioSubmit}
-                onCancel={handlePortfolioCancel}
-              />
+              {inputMode === "Rebalancing" ? (
+                <OpportunityInputForm
+                  onSubmit={handleOpportunitySubmit}
+                  onCancel={handlePortfolioCancel}
+                />
+              ) : (
+                <PortfolioInputForm
+                  onSubmit={handlePortfolioSubmit}
+                  onCancel={handlePortfolioCancel}
+                />
+              )}
             </div>
           </div>
         )}
