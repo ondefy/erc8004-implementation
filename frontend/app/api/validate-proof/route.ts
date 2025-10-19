@@ -16,31 +16,41 @@ export async function POST(req: Request) {
       );
     }
 
-    // Determine network from chainId
-    const networkName = chainId === 31337 ? "anvil" : chainId === 84532 ? "base-sepolia" : "sepolia";
-
-    // Load deployed contracts config from frontend/lib
-    const deployedContractsPath = join(process.cwd(), "lib", `deployed-contracts-${networkName}.json`);
+    // Load deployed contracts config from project root
+    const deployedContractsPath = join(
+      process.cwd(),
+      "..",
+      "deployed_contracts.json"
+    );
     const deployed = JSON.parse(readFileSync(deployedContractsPath, "utf-8"));
 
-    const verifierAddress = deployed.verifier?.address;
+    // Determine mode based on public inputs length
+    // Rebalancing mode has 2 public outputs, Math mode has more
+    const isRebalancingMode = (publicInputs as any[]).length === 2;
+
+    // Use appropriate verifier based on mode
+    const verifierAddress = isRebalancingMode
+      ? deployed.contracts?.RebalancerVerifier
+      : deployed.contracts?.Groth16Verifier;
+
     if (!verifierAddress) {
       return NextResponse.json(
         {
-          error: `Groth16Verifier address not found in deployed-contracts-${networkName}.json`,
+          error: `Verifier address not found in deployed_contracts.json for ${
+            isRebalancingMode ? "RebalancerVerifier" : "Groth16Verifier"
+          }`,
         },
         { status: 500 }
       );
     }
 
-    // Load Verifier ABI from frontend/lib/abis
+    // Load appropriate Verifier ABI from frontend/lib/abis
     const verifierAbiPath = join(
       process.cwd(),
-      "lib/abis/Groth16Verifier.json"
+      "lib/abis",
+      isRebalancingMode ? "RebalancerVerifier.json" : "Groth16Verifier.json"
     );
-    const verifierArtifact = JSON.parse(
-      readFileSync(verifierAbiPath, "utf-8")
-    );
+    const verifierArtifact = JSON.parse(readFileSync(verifierAbiPath, "utf-8"));
     const verifierAbi = verifierArtifact.abi;
 
     // Parse proof components for Solidity (matching validator-agent.ts)
@@ -67,13 +77,19 @@ export async function POST(req: Request) {
       BigInt(v)
     );
 
-    console.log("🔐 Verifying on-chain using Groth16Verifier (eth_call)...");
+    console.log(
+      `🔐 Verifying on-chain using ${
+        isRebalancingMode ? "RebalancerVerifier" : "Groth16Verifier"
+      } (eth_call)...`
+    );
     console.log("pubSignals", pubSignals);
 
     // Create public client for reading contract
     const publicClient = createPublicClient({
       chain: foundry,
-      transport: http(process.env.RPC_URL || "http://127.0.0.1:8545"),
+      transport: http(
+        process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "http://127.0.0.1:8545"
+      ),
     });
 
     // Perform eth_call to verifyProof

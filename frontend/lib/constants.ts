@@ -25,6 +25,8 @@ export const DEPLOYED_CONTRACTS = {
       "0x662b40A526cb4017d947e71eAF6753BF3eeE66d8" as `0x${string}`,
     groth16Verifier:
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+    rebalancerVerifier:
+      "0xa8680879e12dedee790e1a01e5745a5c03ab2f7c" as `0x${string}`, // TODO: Update after deployment
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",
@@ -38,6 +40,8 @@ export const DEPLOYED_CONTRACTS = {
       "0x662b40A526cb4017d947e71eAF6753BF3eeE66d8" as `0x${string}`,
     groth16Verifier:
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+    rebalancerVerifier:
+      "0xa8680879e12dedee790e1a01e5745a5c03ab2f7c" as `0x${string}`, // TODO: Update after deployment
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
     name: "Ethereum Sepolia",
@@ -148,11 +152,18 @@ export function getAllContracts(chainId: number) {
       explorerUrl: `${contracts.explorer}/address/${contracts.reputationRegistry}`,
       description: "Agent reputation & feedback system",
     },
+    // {
+    //   name: "Groth16Verifier",
+    //   address: contracts.groth16Verifier,
+    //   explorerUrl: `${contracts.explorer}/address/${contracts.groth16Verifier}`,
+    //   description: "ZK proof verifier for Math mode (portfolio allocation)",
+    // },
     {
-      name: "Groth16Verifier",
-      address: contracts.groth16Verifier,
-      explorerUrl: `${contracts.explorer}/address/${contracts.groth16Verifier}`,
-      description: "ZK proof verifier (on-chain verification)",
+      name: "RebalancerVerifier",
+      address: contracts.rebalancerVerifier,
+      explorerUrl: `${contracts.explorer}/address/${contracts.rebalancerVerifier}`,
+      description:
+        "ZK proof verifier for Rebalancing mode (DeFi opportunity validation)",
     },
   ];
 }

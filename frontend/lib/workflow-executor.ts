@@ -227,9 +227,38 @@ async function registerAgents(
       if (balance > BigInt(0)) {
         const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
 
-        // Agent already registered, skip registration
-        // Note: We don't have the exact tokenId here, but the agent is confirmed registered
-        // The workflow will continue successfully without needing to store the tokenId
+        // Agent already registered, retrieve the agentId by querying past events
+        let agentId: number | undefined;
+        try {
+          console.log("Agent already registered, retrieving agentId from events...");
+
+          // Query for Registered events for this owner
+          const events = await publicClient.getLogs({
+            address: contractConfig.identityRegistry.address,
+            event: {
+              type: 'event',
+              name: 'Registered',
+              inputs: [
+                { name: 'agentId', type: 'uint256', indexed: true },
+                { name: 'tokenURI', type: 'string', indexed: false },
+                { name: 'owner', type: 'address', indexed: true }
+              ]
+            },
+            args: { owner: currentAddress as `0x${string}` },
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          });
+
+          if (events.length > 0) {
+            // Get the first agentId for this owner
+            const latestEvent = events[events.length - 1]; // Get most recent
+            agentId = parseInt(latestEvent.topics[1] as string, 16);
+            console.log(`Retrieved existing agentId for ${role}:`, agentId);
+          }
+        } catch (eventError) {
+          console.error("Error retrieving agentId from events:", eventError);
+        }
+
         return {
           success: true,
           details:
@@ -238,8 +267,14 @@ async function registerAgents(
               -4
             )}\n` +
             `NFT Balance: ${balance.toString()} agent NFT(s)\n` +
+            (agentId !== undefined ? `Agent ID: ${agentId}\n` : "") +
             `Status: ✓ Already an active agent\n\n` +
             `ℹ️ Registration skipped - agent is already on-chain`,
+          stateUpdate: agentId !== undefined ? {
+            agentIds: {
+              [role]: agentId,
+            },
+          } : undefined,
         };
       }
     } catch (error) {
@@ -469,7 +504,9 @@ async function generateZKProof(
   // Get input data from workflow state (from step 1)
   console.log("generateZKProof - workflowState:", workflowState);
   const inputData = workflowState.inputData;
+  const inputMode = workflowState.inputMode || "Rebalancing"; // Default to Rebalancing
   console.log("generateZKProof - inputData:", inputData);
+  console.log("generateZKProof - inputMode:", inputMode);
 
   if (!inputData) {
     console.error("Input data not found in workflow state!");
@@ -480,64 +517,130 @@ async function generateZKProof(
     };
   }
 
-  // Calculate new total value (matching agent's createRebalancingPlan)
-  const newTotalValue = inputData.newBalances.reduce(
-    (sum: number, bal: string, i: number) =>
-      sum + parseInt(bal) * parseInt(inputData.prices[i]),
-    0
-  );
+  // Check if this is Rebalancing (opportunity) or Math (portfolio) mode
+  const isRebalancingMode = inputMode === "Rebalancing" || 'liquidity' in inputData;
 
-  // Use browser-based proof generation (works on Vercel)
-  try {
-    // Import the proof generator dynamically (client-side only)
-    const { generateProofInBrowser } = await import("@/lib/proof-generator");
+  if (isRebalancingMode) {
+    // Rebalancing mode - use API to generate proof with rebalancer-validation.circom
+    try {
+      console.log("🔐 Starting ZK proof generation for Rebalancing mode...");
 
-    console.log("🔐 Starting browser-based ZK proof generation...");
+      const response = await fetch("/api/generate-proof", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputData,
+          mode: "rebalancing",
+        }),
+      });
 
-    const result = await generateProofInBrowser({
-      oldBalances: inputData.oldBalances,
-      newBalances: inputData.newBalances,
-      prices: inputData.prices,
-      minAllocationPct: inputData.minAllocationPct,
-      maxAllocationPct: inputData.maxAllocationPct,
-    });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate proof");
+      }
 
-    if (!result.success) {
-      throw new Error(result.error || "Failed to generate proof");
+      const result = await response.json();
+
+      console.log("✅ Rebalancing proof generated successfully!");
+
+      return {
+        success: true,
+        details:
+          `ZK proof generated using Groth16\n\n` +
+          `Proof Details:\n` +
+          `• Circuit: rebalancer-validation.circom\n` +
+          `• Proof System: Groth16\n` +
+          `• Mode: Rebalancing (DeFi Opportunity Validation)\n` +
+          `• Private Inputs: liquidity, zyfiTvl, amount, poolTvl, APYs, stability flags\n` +
+          `• Public Outputs: validationCommitment, isValid\n` +
+          `• Constraints: 5 DeFi validation rules\n\n` +
+          `Validation Rules:\n` +
+          `  1. Liquidity Check: liquidity × 1.05 > zyfiTvl + (amount / 1M)\n` +
+          `  2. TVL Constraint: poolTvl × 1M > amount × 4 (max 25%)\n` +
+          `  3. APY Performance: newApy > oldApy + 10 (0.1% min improvement)\n` +
+          `  4. APY Stability: 7-day OR 10-day stability required\n` +
+          `  5. TVL Stability: Must be stable\n\n` +
+          `✓ Proof cryptographically generated\n` +
+          `✓ All constraints validated in zero-knowledge`,
+        stateUpdate: {
+          proofGenerated: true,
+          proof: result.proof,
+          publicInputs: result.publicInputs,
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error generating rebalancing proof:", error);
+      return {
+        success: false,
+        details: "",
+        error:
+          error instanceof Error ? error.message : "Failed to generate ZK proof",
+      };
     }
+  } else {
+    // Math mode (portfolio) - use browser-based proof generation
+    // Calculate new total value (matching agent's createRebalancingPlan)
+    const newTotalValue = inputData.newBalances.reduce(
+      (sum: number, bal: string, i: number) =>
+        sum + parseInt(bal) * parseInt(inputData.prices[i]),
+      0
+    );
 
-    console.log("✅ Proof generated successfully in browser!");
+    // Use browser-based proof generation (works on Vercel)
+    try {
+      // Import the proof generator dynamically (client-side only)
+      const { generateProofInBrowser } = await import("@/lib/proof-generator");
 
-    return {
-      success: true,
-      details:
-        `ZK proof generated using Groth16 (Browser)\n\n` +
-        `Proof Details:\n` +
-        `• Circuit: rebalancing.circom\n` +
-        `• Proof System: Groth16\n` +
-        `• Generated: Client-side (browser)\n` +
-        `• Private Inputs: ${inputData.oldBalances.length} balances + prices (hidden)\n` +
-        `• Public Signals: [${result.publicInputs.join(", ")}]\n` +
-        `• Constraints: ${inputData.minAllocationPct}% ≤ allocations ≤ ${inputData.maxAllocationPct}%\n` +
-        `• Assets: ${inputData.oldBalances.length} portfolio assets\n\n` +
-        `✓ Proof cryptographically generated in your browser\n` +
-        `✓ Public inputs: totalValueCommitment, minAllocationPct, maxAllocationPct\n` +
-        `✓ Works on Vercel (no server-side execution needed)`,
-      stateUpdate: {
-        proofGenerated: true,
-        newTotalValue,
-        proof: result.proof,
-        publicInputs: result.publicInputs,
-      },
-    };
-  } catch (error) {
-    console.error("❌ Error generating proof:", error);
-    return {
-      success: false,
-      details: "",
-      error:
-        error instanceof Error ? error.message : "Failed to generate ZK proof",
-    };
+      console.log("🔐 Starting browser-based ZK proof generation for Math mode...");
+
+      const result = await generateProofInBrowser({
+        oldBalances: inputData.oldBalances,
+        newBalances: inputData.newBalances,
+        prices: inputData.prices,
+        minAllocationPct: inputData.minAllocationPct,
+        maxAllocationPct: inputData.maxAllocationPct,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to generate proof");
+      }
+
+      console.log("✅ Math proof generated successfully in browser!");
+
+      return {
+        success: true,
+        details:
+          `ZK proof generated using Groth16 (Browser)\n\n` +
+          `Proof Details:\n` +
+          `• Circuit: rebalancing.circom\n` +
+          `• Proof System: Groth16\n` +
+          `• Mode: Math (Portfolio Allocation)\n` +
+          `• Generated: Client-side (browser)\n` +
+          `• Private Inputs: ${inputData.oldBalances.length} balances + prices (hidden)\n` +
+          `• Public Signals: [${result.publicInputs.join(", ")}]\n` +
+          `• Constraints: ${inputData.minAllocationPct}% ≤ allocations ≤ ${inputData.maxAllocationPct}%\n` +
+          `• Assets: ${inputData.oldBalances.length} portfolio assets\n\n` +
+          `✓ Proof cryptographically generated in your browser\n` +
+          `✓ Public inputs: totalValueCommitment, minAllocationPct, maxAllocationPct\n` +
+          `✓ Works on Vercel (no server-side execution needed)`,
+        stateUpdate: {
+          proofGenerated: true,
+          newTotalValue,
+          proof: result.proof,
+          publicInputs: result.publicInputs,
+        },
+      };
+    } catch (error) {
+      console.error("❌ Error generating math proof:", error);
+      return {
+        success: false,
+        details: "",
+        error:
+          error instanceof Error ? error.message : "Failed to generate ZK proof",
+      };
+    }
   }
 }
 
