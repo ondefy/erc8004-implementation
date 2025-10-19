@@ -20,6 +20,7 @@ export interface WorkflowExecutorParams {
   currentAddress: string;
   publicClient?: any; // viem public client for reading events
   workflowState?: WorkflowState;
+  customData?: any; // Custom portfolio data from user form
 }
 
 export interface WorkflowState {
@@ -82,6 +83,7 @@ export async function executeWorkflowStep(
     currentAddress,
     publicClient,
     workflowState = {},
+    customData,
   } = params;
 
   const contractConfig = getContractConfig(chainId);
@@ -105,7 +107,7 @@ export async function executeWorkflowStep(
         );
 
       case 1: // Load Input Data
-        return await loadInputData();
+        return await loadInputData(customData);
 
       case 2: // Generate ZK Proof
         return await generateZKProof(workflowState);
@@ -348,14 +350,35 @@ async function registerAgents(
   }
 }
 
-async function loadInputData(): Promise<StepResult> {
-  // Load actual input data from input/input.json (same as E2E test)
+async function loadInputData(customData?: any): Promise<StepResult> {
+  // Support both custom input data (from user form) and file-based loading
   try {
-    const response = await fetch("/api/load-input");
-    if (!response.ok) {
-      throw new Error("Failed to load input data");
+    let data;
+
+    if (customData) {
+      // Use custom data provided by user through the form
+      console.log("Using custom input data from form:", customData);
+
+      // Calculate totalValueCommitment if not provided
+      const newTotalValue = customData.newBalances.reduce(
+        (sum: number, bal: string, i: number) =>
+          sum + parseInt(bal) * parseInt(customData.prices[i]),
+        0
+      );
+
+      data = {
+        ...customData,
+        totalValueCommitment: String(newTotalValue),
+      };
+    } else {
+      // Fallback: Load from input.json file (for testing/demo)
+      console.log("Loading default input data from file...");
+      const response = await fetch("/api/load-input");
+      if (!response.ok) {
+        throw new Error("Failed to load input data");
+      }
+      data = await response.json();
     }
-    const data = await response.json();
 
     return {
       success: true,
@@ -365,7 +388,9 @@ async function loadInputData(): Promise<StepResult> {
         data.totalValueCommitment
       ).toLocaleString()}\n• Min Allocation: ${
         data.minAllocationPct
-      }%\n• Max Allocation: ${data.maxAllocationPct}%`,
+      }%\n• Max Allocation: ${data.maxAllocationPct}%\n\n${
+        customData ? "✓ Using custom portfolio data from form" : "ℹ️ Using demo data from file"
+      }`,
       data,
       stateUpdate: {
         inputData: data,
@@ -393,7 +418,7 @@ async function generateZKProof(
     console.error("Input data not found in workflow state!");
     return {
       success: false,
-      error: "Input data not found. Please load input data first.",
+      error: "Input data not found. Please provide input data first.",
       details: "",
     };
   }
@@ -404,42 +429,42 @@ async function generateZKProof(
     0
   );
 
-  // Call backend API to generate actual ZK proof
+  // Use browser-based proof generation (works on Vercel)
   try {
-    const response = await fetch("/api/generate-proof", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        oldBalances: inputData.oldBalances,
-        newBalances: inputData.newBalances,
-        prices: inputData.prices,
-        minAllocationPct: inputData.minAllocationPct,
-        maxAllocationPct: inputData.maxAllocationPct,
-      }),
+    // Import the proof generator dynamically (client-side only)
+    const { generateProofInBrowser } = await import("@/lib/proof-generator");
+
+    console.log("🔐 Starting browser-based ZK proof generation...");
+
+    const result = await generateProofInBrowser({
+      oldBalances: inputData.oldBalances,
+      newBalances: inputData.newBalances,
+      prices: inputData.prices,
+      minAllocationPct: inputData.minAllocationPct,
+      maxAllocationPct: inputData.maxAllocationPct,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to generate proof");
+    if (!result.success) {
+      throw new Error(result.error || "Failed to generate proof");
     }
 
-    const result = await response.json();
+    console.log("✅ Proof generated successfully in browser!");
 
     return {
       success: true,
       details:
-        `ZK proof generated using Groth16\n\n` +
+        `ZK proof generated using Groth16 (Browser)\n\n` +
         `Proof Details:\n` +
         `• Circuit: rebalancing.circom\n` +
         `• Proof System: Groth16\n` +
+        `• Generated: Client-side (browser)\n` +
         `• Private Inputs: ${inputData.oldBalances.length} balances + prices (hidden)\n` +
         `• Public Signals: [${result.publicInputs.join(", ")}]\n` +
         `• Constraints: ${inputData.minAllocationPct}% ≤ allocations ≤ ${inputData.maxAllocationPct}%\n` +
         `• Assets: ${inputData.oldBalances.length} portfolio assets\n\n` +
-        `✓ Proof cryptographically generated\n` +
-        `✓ Public inputs: totalValueCommitment, minAllocationPct, maxAllocationPct`,
+        `✓ Proof cryptographically generated in your browser\n` +
+        `✓ Public inputs: totalValueCommitment, minAllocationPct, maxAllocationPct\n` +
+        `✓ Works on Vercel (no server-side execution needed)`,
       stateUpdate: {
         proofGenerated: true,
         newTotalValue,
@@ -448,6 +473,7 @@ async function generateZKProof(
       },
     };
   } catch (error) {
+    console.error("❌ Error generating proof:", error);
     return {
       success: false,
       details: "",

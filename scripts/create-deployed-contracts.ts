@@ -32,6 +32,7 @@ interface DeployedContracts {
     ValidationRegistry?: string;
     ReputationRegistry?: string;
     Groth16Verifier?: string;
+    RebalancerVerifier?: string;
   };
 }
 
@@ -124,6 +125,7 @@ function createDeployedContractsFile(
       ValidationRegistry: contracts.ValidationRegistry,
       ReputationRegistry: contracts.ReputationRegistry,
       Groth16Verifier: contracts.Groth16Verifier,
+      RebalancerVerifier: contracts.RebalancerVerifier,
     },
   };
 
@@ -148,6 +150,11 @@ function createDeployedContractsFile(
   console.log(
     `   - Groth16Verifier: ${deployedContracts.contracts.Groth16Verifier}`
   );
+  if (contracts.RebalancerVerifier) {
+    console.log(
+      `   - RebalancerVerifier: ${deployedContracts.contracts.RebalancerVerifier}`
+    );
+  }
 }
 
 // ============ Main Execution ============

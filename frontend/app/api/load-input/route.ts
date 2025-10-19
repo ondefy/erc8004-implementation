@@ -4,8 +4,8 @@ import { join } from "path";
 
 export async function GET() {
   try {
-    // Load input data from input/input.json (same as E2E test)
-    const inputPath = join(process.cwd(), "..", "input", "input.json");
+    // Load input data from frontend/data/input.json
+    const inputPath = join(process.cwd(), "data", "input.json");
     const inputData = JSON.parse(readFileSync(inputPath, "utf-8"));
 
     return NextResponse.json(inputData);

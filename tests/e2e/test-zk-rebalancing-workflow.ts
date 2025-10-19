@@ -1,7 +1,8 @@
 #!/usr/bin/env ts-node
 
 /**
- * ZK Rebalancing E2E Test - Minimal Version
+ * ZK Rebalancer Validation E2E Test
+ * Tests the complete workflow using ZyFI's rebalancer validation rules
  */
 
 import { createPublicClient, createWalletClient, http, parseEther } from "viem";
@@ -35,7 +36,8 @@ async function deployContracts(): Promise<void> {
 
 async function testZkRebalancingE2E(): Promise<void> {
   console.log("\n" + "=".repeat(70));
-  console.log("  ZK Rebalancing Proof - End-to-End Test");
+  console.log("  ZK Rebalancer Validation - End-to-End Test");
+  console.log("  Using ZyFI Backend Validation Rules");
   console.log("=".repeat(70) + "\n");
 
   const rpcUrl = process.env.RPC_URL || "http://127.0.0.1:8545";
@@ -108,66 +110,69 @@ async function testZkRebalancingE2E(): Promise<void> {
   await validator.registerAgent();
   await client.registerAgent();
 
-  // Load input data
+  // Load rebalancer validation input data
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 4: Load Input Data");
+  console.log("STEP 4: Load Rebalancer Validation Input");
   console.log("─".repeat(70));
 
-  const inputPath = join(process.cwd(), "input", "input.json");
-  const inputData = JSON.parse(readFileSync(inputPath, "utf-8"));
+  const rebalancerInputPath = join(
+    process.cwd(),
+    "input",
+    "rebalancer-input.json"
+  );
+  const rebalancerData = JSON.parse(readFileSync(rebalancerInputPath, "utf-8"));
 
-  console.log(`📂 Loaded from: input/input.json`);
-  console.log(`   Assets: ${inputData.oldBalances.length}`);
+  console.log(`📂 Loaded from: input/rebalancer-input.json`);
+  console.log(`   Liquidity: $${rebalancerData.liquidity.toLocaleString()}`);
+  console.log(`   ZyFI TVL: $${rebalancerData.zyfiTvl.toLocaleString()}`);
   console.log(
-    `   Total Value: ${parseInt(
-      inputData.totalValueCommitment
-    ).toLocaleString()}`
+    `   Rebalancer Amount: ${rebalancerData.amount.toLocaleString()}`
   );
+  console.log(`   Pool TVL: ${rebalancerData.poolTvl.toLocaleString()}`);
+  console.log(`   New APY: ${rebalancerData.newApy / 100}%`);
+  console.log(`   Old APY: ${rebalancerData.oldApy / 100}%`);
 
-  // Create plan
+  // Generate rebalancer validation proof
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 5: Create Rebalancing Plan");
+  console.log("STEP 5: Generate Rebalancer Validation ZK Proof");
   console.log("─".repeat(70));
 
-  const plan = await rebalancer.createRebalancingPlan(
-    inputData.oldBalances,
-    inputData.newBalances,
-    inputData.prices,
-    inputData.minAllocationPct,
-    inputData.maxAllocationPct
-  );
-
-  // Generate proof
-  console.log("\n" + "─".repeat(70));
-  console.log("STEP 6: Generate ZK Proof");
-  console.log("─".repeat(70));
-
-  const proof = rebalancer.generateZkProof(plan);
+  const proof = rebalancer.generateRebalancerValidationProof({
+    liquidity: rebalancerData.liquidity,
+    zyfiTvl: rebalancerData.zyfiTvl,
+    amount: rebalancerData.amount,
+    poolTvl: rebalancerData.poolTvl,
+    newApy: rebalancerData.newApy,
+    oldApy: rebalancerData.oldApy,
+    apyStable7Days: rebalancerData.apyStable7Days,
+    apyStable10Days: rebalancerData.apyStable10Days,
+    tvlStable: rebalancerData.tvlStable,
+  });
 
   // Submit for validation
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 7: Submit for Validation");
+  console.log("STEP 6: Submit for Validation");
   console.log("─".repeat(70));
 
   await rebalancer.requestValidationFromValidator(proof, validator.address);
 
   // Validate
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 8: Validate Proof");
+  console.log("STEP 7: Validate Proof");
   console.log("─".repeat(70));
 
   const validationResult = await validator.validateProof(proof);
 
   // Submit validation
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 9: Submit Validation");
+  console.log("STEP 8: Submit Validation");
   console.log("─".repeat(70));
 
   await validator.submitValidation(validationResult);
 
   // Generate feedback authorization
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 10: Generate Feedback Authorization");
+  console.log("STEP 9: Generate Feedback Authorization");
   console.log("─".repeat(70));
 
   const { feedbackAuth } = await rebalancer.generateFeedbackAuthorization(
@@ -178,7 +183,7 @@ async function testZkRebalancingE2E(): Promise<void> {
 
   // Evaluate and feedback
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 11: Client Feedback");
+  console.log("STEP 10: Client Feedback");
   console.log("─".repeat(70));
 
   const score = client.evaluateRebalancingQuality(proof);
@@ -186,23 +191,31 @@ async function testZkRebalancingE2E(): Promise<void> {
     rebalancer.agentId!,
     score,
     feedbackAuth,
-    "Great service!"
+    "Great rebalancer validation service!"
   );
 
   // Check reputation
   console.log("\n" + "─".repeat(70));
-  console.log("STEP 12: Check Reputation");
+  console.log("STEP 11: Check Reputation");
   console.log("─".repeat(70));
 
   client.checkRebalancerReputation(rebalancer.agentId!);
 
   // Summary
   console.log("\n" + "=".repeat(70));
-  console.log("  ✅ TEST COMPLETE");
+  console.log("  ✅ REBALANCER VALIDATION TEST COMPLETE");
   console.log("=".repeat(70));
   console.log("\nAll steps executed successfully!");
-  console.log("  • Input loaded from input/input.json");
-  console.log("  • ZK proof generated and validated");
+  console.log(
+    "  • Rebalancer validation input loaded from input/rebalancer-input.json"
+  );
+  console.log("  • ZK proof generated with ZyFI validation constraints:");
+  console.log("    - Liquidity constraint verified");
+  console.log("    - TVL constraint verified (max 25% allocation)");
+  console.log("    - APY performance improvement verified");
+  console.log("    - APY stability verified (7 or 10 days)");
+  console.log("    - TVL stability verified");
+  console.log("  • Proof validated on-chain");
   console.log("  • Agents registered and coordinated");
   console.log("  • Feedback and reputation tracked");
   console.log("\n" + "=".repeat(70) + "\n");

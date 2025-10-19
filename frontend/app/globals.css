@@ -1,1 +1,102 @@
 @import "tailwindcss";
+
+@theme {
+  /* Breakpoints */
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 900px;
+  --breakpoint-lg: 1200px;
+  --breakpoint-xl: 1536px;
+  --breakpoint-3xl: 1920px;
+
+  /* ZyFI Brand Colors */
+  --color-zyfi-bg: #0D131C;
+  --color-zyfi-bg-secondary: #182739;
+  --color-zyfi-bg-tertiary: #101924;
+  --color-zyfi-border: #253B49;
+  --color-zyfi-accent-blue: #6C92C2;
+  --color-zyfi-accent-light: #AFCAEE;
+  --color-zyfi-accent-cyan: #138DBA;
+  --color-zyfi-accent-bright: #58E3FE;
+  --color-zyfi-gradient-start: #6373D2;
+  --color-zyfi-gradient-end: #55B3D1;
+  --color-zyfi-glow: #33b4d9;
+
+  /* Brand colors */
+  --color-brand-1: #6C92C2;
+  --color-brand-2: #AFCAEE;
+  --color-brand-3: #138DBA;
+  --color-brand-4: #58E3FE;
+  --color-brand-5: #6373D2;
+  --color-brand-6: #55B3D1;
+
+  /* Border radius */
+  --radius-zyfi: 12.5px;
+  --radius-zyfi-lg: 18px;
+
+  /* Shadows */
+  --shadow-zyfi-glow: 0 0 10px #33b4d9;
+  --shadow-zyfi-glow-lg: 0 0 20px #33b4d9;
+}
+
+:root {
+  --zyfi-bg: #0D131C;
+  --zyfi-bg-secondary: #182739;
+  --zyfi-border: #253B49;
+  --zyfi-glow: #33b4d9;
+}
+
+body {
+  background: var(--zyfi-bg);
+  color: #F5F5F5;
+}
+
+/* ZyFI Gradient Utilities */
+.gradient--primary {
+  background: linear-gradient(94deg, #6C92C2 3.44%, #AFCAEE 88.73%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient--secondary {
+  background: linear-gradient(0deg, #B0B6BC 90%, #747B81 95%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient--quaternary {
+  background: linear-gradient(98deg, #138DBA 0%, #58E3FE 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ZyFI Border Gradients */
+.gradient-border--primary {
+  position: relative;
+}
+
+.gradient-border--primary::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(20deg, #AFCAEE, #6C92C2);
+  z-index: -1;
+  border-radius: inherit;
+}
+
+.gradient-border--primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--zyfi-bg);
+  z-index: -1;
+  border-radius: inherit;
+}
+
+.gradient-border--secondary {
+  border: 1px solid var(--zyfi-border);
+}

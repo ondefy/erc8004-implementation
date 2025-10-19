@@ -4,7 +4,10 @@
 
 import { type Hash } from "viem";
 import { ERC8004BaseAgent } from "./base-agent";
-import { type ProofPackage } from "./rebalancer-agent";
+import {
+  type ProofPackage,
+  type RebalancerProofPackage,
+} from "./rebalancer-agent";
 
 // ============ Types ============
 
@@ -31,7 +34,9 @@ export class ClientAgent extends ERC8004BaseAgent {
     console.log("💼 Client Agent initialized");
   }
 
-  evaluateRebalancingQuality(proof: ProofPackage): number {
+  evaluateRebalancingQuality(
+    proof: ProofPackage | RebalancerProofPackage
+  ): number {
     console.log("🎯 Evaluating quality...");
 
     let score = 50;

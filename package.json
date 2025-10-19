@@ -7,6 +7,7 @@
   "scripts": {
     "postinstall": "node scripts/check-zkp-setup.js || echo '\n First time setup required. Run: npm run setup:zkp\n'",
     "setup:zkp": "bash scripts/setup.sh",
+    "setup:zkp:rebalancer": "bash scripts/setup-rebalancer-validation.sh",
     "setup:forge": "cd contracts && mkdir -p lib && cd lib && (git clone https://github.com/foundry-rs/forge-std.git 2>/dev/null || echo 'forge-std already exists')",
     "check:zkp": "node scripts/check-zkp-setup.js",
     "circuit:compile": "circom circuits/rebalancing.circom --r1cs --wasm --sym -o build/ && ([ -f rebalancing.r1cs ] && mv rebalancing.* build/ || true)",

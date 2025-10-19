@@ -13,13 +13,13 @@ export function StepCard({ step, isActive }: StepCardProps) {
     const getStatusStyles = () => {
         switch (step.status) {
             case "completed":
-                return "bg-green-50 border-green-200";
+                return "bg-green-500/10 border-green-500/50";
             case "in_progress":
-                return "bg-blue-50 border-blue-300 shadow-md";
+                return "bg-zyfi-accent-blue/20 border-zyfi-accent-blue shadow-zyfi-glow";
             case "error":
-                return "bg-red-50 border-red-200";
+                return "bg-red-500/10 border-red-500/50";
             default:
-                return "bg-white border-slate-200";
+                return "bg-zyfi-bg-secondary border-zyfi-border";
         }
     };
 
@@ -27,7 +27,7 @@ export function StepCard({ step, isActive }: StepCardProps) {
         switch (step.status) {
             case "completed":
                 return (
-                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center shadow-zyfi-glow">
                         <svg
                             className="w-5 h-5 text-white"
                             fill="none"
@@ -43,13 +43,13 @@ export function StepCard({ step, isActive }: StepCardProps) {
                 );
             case "in_progress":
                 return (
-                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-gradient-zyfi-quaternary flex items-center justify-center shadow-zyfi-glow-lg">
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     </div>
                 );
             case "error":
                 return (
-                    <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center shadow-zyfi-glow">
                         <svg
                             className="w-5 h-5 text-white"
                             fill="none"
@@ -65,8 +65,8 @@ export function StepCard({ step, isActive }: StepCardProps) {
                 );
             default:
                 return (
-                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
-                        <span className="text-slate-600 text-sm font-medium">
+                    <div className="w-8 h-8 rounded-full bg-zyfi-bg border border-zyfi-border flex items-center justify-center">
+                        <span className="text-slate-400 text-sm font-medium">
                             {step.id}
                         </span>
                     </div>
@@ -76,22 +76,22 @@ export function StepCard({ step, isActive }: StepCardProps) {
 
     return (
         <div
-            className={`border rounded-lg p-5 transition-all duration-300 ${getStatusStyles()} ${isActive ? "ring-2 ring-blue-400" : ""
+            className={`border rounded-zyfi-lg p-5 transition-all duration-300 ${getStatusStyles()} ${isActive ? "ring-2 ring-zyfi-accent-bright shadow-zyfi-glow-lg" : ""
                 }`}
         >
             <div className="flex items-start gap-4">
                 {getStatusIcon()}
                 <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-slate-900">{step.title}</h3>
-                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        <h3 className="font-semibold text-slate-100">{step.title}</h3>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">
                             Step {step.id}
                         </span>
                     </div>
-                    <p className="text-sm text-slate-600 mb-2">{step.description}</p>
+                    <p className="text-sm text-slate-300 mb-2">{step.description}</p>
                     {step.details && (
-                        <div className="mt-3 p-3 bg-white/60 rounded border border-slate-200">
-                            <p className="text-xs text-slate-700 font-mono">{step.details}</p>
+                        <div className="mt-3 p-3 bg-zyfi-bg/60 rounded-zyfi border border-zyfi-border">
+                            <p className="text-xs text-slate-300 font-mono whitespace-pre-wrap">{step.details}</p>
                         </div>
                     )}
                 </div>
@@ -99,4 +99,3 @@ export function StepCard({ step, isActive }: StepCardProps) {
         </div>
     );
 }
-
