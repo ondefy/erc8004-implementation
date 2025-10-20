@@ -254,7 +254,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
   }> {
     console.log(`🔐 Generating feedback authorization for ${clientAddress}`);
 
-    if (!this.agentId) {
+    if (this.agentId === null || this.agentId === undefined) {
       throw new Error("Agent must be registered first");
     }
 

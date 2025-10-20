@@ -73,9 +73,6 @@ export class ERC8004BaseAgent {
     this.identityRegistryAbi = this.loadAbi("IdentityRegistry");
     this.validationRegistryAbi = this.loadAbi("ValidationRegistry");
     this.reputationRegistryAbi = this.loadAbi("ReputationRegistry");
-
-    // Check registration
-    this.checkRegistration();
   }
 
   // ============ Private Methods ============
@@ -136,6 +133,8 @@ export class ERC8004BaseAgent {
   // ============ Public Methods ============
 
   async registerAgent(): Promise<bigint> {
+    // First, check if already registered
+    await this.checkRegistration();
     if (this.agentId !== null) return this.agentId;
 
     console.log(`📝 Registering agent: ${this.agentDomain}`);

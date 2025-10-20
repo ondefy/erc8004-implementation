@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "./interfaces/IIdentityRegistry.sol";
 
-/// @notice Minimal, compilable scaffold of ERC-8004 Reputation Registry.
-/// - Stores identityRegistry address
-/// - Emits NewFeedback / FeedbackRevoked / ResponseAppended
-/// - Stores small amount of data so we can deploy & test now
-contract ReputationRegistry {
+contract ReputationRegistryUpgradeable is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    address private immutable identityRegistry;
+    address private identityRegistry;
 
     event NewFeedback(
         uint256 indexed agentId,
@@ -71,8 +70,15 @@ contract ReputationRegistry {
     mapping(uint256 => address[]) private _clients;
     mapping(uint256 => mapping(address => bool)) private _clientExists;
 
-    constructor(address _identityRegistry) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _identityRegistry) public initializer {
         require(_identityRegistry != address(0), "bad identity");
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
         identityRegistry = _identityRegistry;
     }
 
@@ -391,5 +397,11 @@ contract ReputationRegistry {
         } catch {
             return false;
         }
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function getVersion() external pure returns (string memory) {
+        return "1.0.0";
     }
 }
