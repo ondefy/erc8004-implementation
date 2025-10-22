@@ -44,8 +44,8 @@ const initialSteps: Step[] = [
   },
   {
     id: 3,
-    title: "Submit for Validation",
-    description: "Send proof to validator agent",
+    title: "Submit Proof for Validation",
+    description: "Request for validation",
     status: "pending",
   },
   {
@@ -170,7 +170,7 @@ export default function Home() {
     switch (stepId) {
       case 0: // Register Agents - can be any of the three agents
         return null; // Will check dynamically
-      case 3: // Submit for Validation
+      case 3: // Submit Proof for Validation
       case 7: // Authorize Feedback
         return { address: agentConfig.rebalancer, role: "Rebalancer" };
       case 4: // Validate Proof

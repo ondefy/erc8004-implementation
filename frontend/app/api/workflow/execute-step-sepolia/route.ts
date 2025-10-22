@@ -134,7 +134,7 @@ ${
         details = "ZK proof generated using Groth16 (off-chain computation)";
         break;
 
-      case 7: // Submit for Validation
+      case 7: // Submit Proof for Validation
         details = `Proof submitted to Validator (${agents.validator.address.slice(
           0,
           10

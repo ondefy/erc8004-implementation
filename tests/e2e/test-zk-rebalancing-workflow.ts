@@ -22,7 +22,7 @@ async function deployContracts(): Promise<void> {
   try {
     // Note: Run `npm run setup:zkp` manually once when circuit changes.
     // For normal E2E testing with different inputs, setup is NOT needed.
-    // The Verifier.sol remains constant for the same circuit.
+    // The RebalancerVerifier.sol and Verifier.sol remains constant for the same circuit.
 
     execSync("npm run forge:deploy:local", {
       stdio: "inherit",

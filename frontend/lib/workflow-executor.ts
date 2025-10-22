@@ -100,7 +100,7 @@ export async function executeWorkflowStep(
       case 2: // Generate ZK Proof
         return await generateZKProof(workflowState);
 
-      case 3: // Submit for Validation
+      case 3: // Submit Proof for Validation
         return await submitForValidation(
           agents,
           contractConfig,
@@ -239,9 +239,7 @@ async function registerAgents(
             `${
               role.charAt(0).toUpperCase() + role.slice(1)
             } Already Registered\n\n` +
-            `Address: ${currentAddress.slice(0, 10)}...${currentAddress.slice(
-              -4
-            )}\n` +
+            `Address: ${currentAddress}\n` +
             (agentId !== undefined ? `Agent ID: ${agentId}\n` : "") +
             `✓ Active agent`,
           stateUpdate:
@@ -321,7 +319,7 @@ async function loadInputData(
     let isOpportunity = false;
 
     if (customData) {
-      isOpportunity = inputMode === "Rebalancing" || "liquidity" in customData;
+      isOpportunity = inputMode === "Rebalancing" && "liquidity" in customData;
       if (isOpportunity) {
         data = {
           liquidity: customData.liquidity,
@@ -345,8 +343,8 @@ async function loadInputData(
     } else {
       const endpoint =
         inputMode === "Rebalancing"
-          ? "/api/load-input?type=opportunity"
-          : "/api/load-input";
+          ? "/api/load-input?type=Rebalancing"
+          : "/api/load-input?type=Math";
       const response = await fetch(endpoint);
       if (!response.ok) throw new Error(`Failed to load ${inputMode} data`);
       data = await response.json();
@@ -355,26 +353,38 @@ async function loadInputData(
 
     let details;
     if (isOpportunity) {
-      const util = ((data.amount / data.poolTvl) * 100).toFixed(2);
-      const apyDiff = ((data.newApy - data.oldApy) / 100).toFixed(2);
+      // Add null/undefined checks before accessing properties
+      const liquidity = data.liquidity ?? 0;
+      const zyfiTvl = data.zyfiTvl ?? 0;
+      const amount = data.amount ?? 0;
+      const poolTvl = data.poolTvl ?? 1; // Prevent division by zero
+      const newApy = data.newApy ?? 0;
+      const oldApy = data.oldApy ?? 0;
+
+      const util = ((amount / poolTvl) * 100).toFixed(2);
+      const apyDiff = ((newApy - oldApy) / 100).toFixed(2);
       details =
         `DeFi Opportunity Data\n\n` +
-        `Liquidity: $${data.liquidity.toLocaleString()}\n` +
-        `ZyFI TVL: $${data.zyfiTvl.toLocaleString()}\n` +
-        `Amount: ${data.amount.toLocaleString()}\n` +
-        `Pool TVL: ${data.poolTvl.toLocaleString()}\n` +
+        `Liquidity: $${liquidity.toLocaleString()}\n` +
+        `ZyFI TVL: $${zyfiTvl.toLocaleString()}\n` +
+        `Amount: ${amount.toLocaleString()}\n` +
+        `Pool TVL: ${poolTvl.toLocaleString()}\n` +
         `Utilization: ${util}%\n\n` +
-        `Old APY: ${(data.oldApy / 100).toFixed(2)}%\n` +
-        `New APY: ${(data.newApy / 100).toFixed(2)}%\n` +
+        `Old APY: ${(oldApy / 100).toFixed(2)}%\n` +
+        `New APY: ${(newApy / 100).toFixed(2)}%\n` +
         `Improvement: +${apyDiff}%\n\n` +
         `7d: ${data.apyStable7Days ? "✓" : "✗"} | ` +
         `10d: ${data.apyStable10Days ? "✓" : "✗"} | ` +
         `TVL: ${data.tvlStable ? "✓" : "✗"}`;
     } else {
       details =
-        `Portfolio Data (${data.oldBalances.length} assets)\n\n` +
-        `Value: ${parseInt(data.totalValueCommitment).toLocaleString()}\n` +
-        `Range: ${data.minAllocationPct}% - ${data.maxAllocationPct}%`;
+        `Portfolio Data (${data.oldBalances?.length ?? 0} assets)\n\n` +
+        `Value: ${parseInt(
+          data.totalValueCommitment ?? 0
+        ).toLocaleString()}\n` +
+        `Range: ${data.minAllocationPct ?? 0}% - ${
+          data.maxAllocationPct ?? 0
+        }%`;
     }
 
     return {
@@ -724,7 +734,7 @@ async function submitValidation(
       success: false,
       details: "",
       error:
-        "Request hash not found. Please complete 'Submit for Validation' step first.",
+        "Request hash not found. Please complete 'Submit Proof for Validation' step first.",
     };
   }
 
