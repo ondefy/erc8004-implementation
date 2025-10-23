@@ -95,37 +95,52 @@ export class ERC8004BaseAgent {
 
   private async checkRegistration(): Promise<void> {
     try {
-      // Check if this address owns any agent NFTs
-      const totalAgents = (await this.publicClient.readContract({
+      // First check if this address owns any agent NFTs using balanceOf
+      const balance = (await this.publicClient.readContract({
         address: this.identityRegistryAddress,
         abi: this.identityRegistryAbi,
-        functionName: "totalAgents",
+        functionName: "balanceOf",
+        args: [this.address],
       })) as bigint;
 
-      // Try to find an agent owned by this address
-      // Note: This is a simple check. In production, you'd want to index ownership
-      for (let i = 1n; i <= totalAgents && i <= 100n; i++) {
-        try {
-          const owner = (await this.publicClient.readContract({
-            address: this.identityRegistryAddress,
-            abi: this.identityRegistryAbi,
-            functionName: "ownerOf",
-            args: [i],
-          })) as Address;
+      if (balance === 0n) {
+        console.log("ℹ️  Agent not yet registered");
+        return;
+      }
 
-          if (owner.toLowerCase() === this.address.toLowerCase()) {
-            this.agentId = i;
-            console.log(`✅ Agent already registered with ID: ${this.agentId}`);
-            return;
-          }
-        } catch {
-          // Agent ID doesn't exist or no owner
-          continue;
+      // If balance > 0, query the Registered events to find the agentId
+      // TODO: For production, consider tracking deployment block to optimize fromBlock
+      // or cache agentId after first registration
+      try {
+        const events = await this.publicClient.getLogs({
+          address: this.identityRegistryAddress,
+          event: {
+            type: "event",
+            name: "Registered",
+            inputs: [
+              { name: "agentId", type: "uint256", indexed: true },
+              { name: "tokenURI", type: "string", indexed: false },
+              { name: "owner", type: "address", indexed: true },
+            ],
+          },
+          args: { owner: this.address },
+          fromBlock: "earliest",
+          toBlock: "latest",
+        });
+
+        if (events.length > 0) {
+          // Take the most recent registration
+          this.agentId = BigInt(events[events.length - 1].topics[1] as string);
+          console.log(`✅ Agent already registered with ID: ${this.agentId}`);
+          return;
         }
+      } catch (eventError) {
+        console.error("Error querying Registered events:", eventError);
       }
 
       console.log("ℹ️  Agent not yet registered");
-    } catch {
+    } catch (error) {
+      console.error("Error checking registration:", error);
       console.log("ℹ️  Agent not yet registered");
     }
   }
@@ -152,13 +167,7 @@ export class ERC8004BaseAgent {
 
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
 
-    // Parse the Registered event to get the agentId
-    // Event signature: Registered(uint256 indexed agentId, string tokenURI, address indexed owner)
-    // This creates a keccak256 hash of: keccak256("Registered(uint256,string,address)")
-    const registeredEventSig =
-      "0x4fdc8ad5e7b44eac5c54d8b9c1e7a890f8f3c9e5a2d3f3e2d1c0b0a09fef1234"; // Placeholder - will search for actual event
-
-    // Find the Registered event (not the Transfer event from ERC-721)
+    // Extract agentId from the Transfer event (ERC-721 minting event)
     // The Transfer event signature is 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
     const transferEventSig =
       "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";

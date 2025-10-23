@@ -1,5 +1,6 @@
 import { encodeAbiParameters, parseAbiParameters, keccak256 } from "viem";
 import { getContractConfig } from "./contracts";
+import { getContractsForNetwork } from "./constants";
 
 /**
  * Execute workflow steps with real blockchain transactions
@@ -91,7 +92,8 @@ export async function executeWorkflowStep(
           contractConfig,
           writeContract,
           currentAddress,
-          publicClient
+          publicClient,
+          chainId
         );
 
       case 1: // Load Input Data
@@ -180,7 +182,8 @@ async function registerAgents(
   contractConfig: any,
   writeContract: any,
   currentAddress: string,
-  publicClient: any
+  publicClient: any,
+  chainId: number
 ): Promise<StepResult> {
   let role: AgentRole;
   if (currentAddress.toLowerCase() === agents.rebalancer.toLowerCase())
@@ -208,6 +211,12 @@ async function registerAgents(
       if (balance > BigInt(0)) {
         let agentId: number | undefined;
         try {
+          // Get deployment block for optimized event querying
+          // This reduces the block range we need to search through
+          // TODO: Consider caching agentId in localStorage/database for even better performance
+          const networkConfig = getContractsForNetwork(chainId);
+          const fromBlock = networkConfig?.deploymentBlock ?? "earliest";
+
           const events = await publicClient.getLogs({
             address: contractConfig.identityRegistry.address,
             event: {
@@ -220,7 +229,7 @@ async function registerAgents(
               ],
             },
             args: { owner: currentAddress as `0x${string}` },
-            fromBlock: "earliest",
+            fromBlock,
             toBlock: "latest",
           });
           if (events.length > 0) {

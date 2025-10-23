@@ -27,13 +27,14 @@ export const DEPLOYED_CONTRACTS = {
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
     rebalancerVerifier:
       "0xd1FB5AdD8C5533b8004a15D6386A4b9dBdc925a7" as `0x${string}`,
+    deploymentBlock: 32481444,
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",
   },
   ETHEREUM_SEPOLIA: {
     identityRegistry:
-      "0x8004a6090Cd10A72880924830477B097295Fb8847" as `0x${string}`,
+      "0x8004a6090Cd10A7288092483047B097295Fb8847" as `0x${string}`,
     reputationRegistry:
       "0x8004B8FD1A363aa02fDC07635C0c5F94f6Af5B7E" as `0x${string}`,
     validationRegistry:
@@ -42,6 +43,7 @@ export const DEPLOYED_CONTRACTS = {
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
     rebalancerVerifier:
       "0xd1FB5AdD8C5533b8004a15D6386A4b9dBdc925a7" as `0x${string}`,
+    deploymentBlock: 9419801,
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
     name: "Ethereum Sepolia",
