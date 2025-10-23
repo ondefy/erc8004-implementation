@@ -21,13 +21,13 @@ interface OpportunityInputFormProps {
 }
 
 export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFormProps) {
-  // Initialize with example data from rebalancer-input.json
-  const [liquidity, setLiquidity] = useState("1000000");
-  const [zyfiTvl, setZyfiTvl] = useState("50000");
-  const [amount, setAmount] = useState("100000000");
-  const [poolTvl, setPoolTvl] = useState("500000000");
-  const [newApy, setNewApy] = useState("6.00");
-  const [oldApy, setOldApy] = useState("4.50");
+  // Initialize with default values matching the UI design
+  const [liquidity, setLiquidity] = useState("10000000");
+  const [zyfiTvl, setZyfiTvl] = useState("500000");
+  const [amount, setAmount] = useState("1000000");
+  const [poolTvl, setPoolTvl] = useState("10000000");
+  const [newApy, setNewApy] = useState("12");
+  const [oldApy, setOldApy] = useState("10");
   const [apyStable7Days, setApyStable7Days] = useState(true);
   const [apyStable10Days, setApyStable10Days] = useState(true);
   const [tvlStable, setTvlStable] = useState(true);
@@ -193,7 +193,7 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               value={formatNumber(liquidity)}
               onChange={(e) => handleNumberInput(e.target.value, setLiquidity)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="1,000,000"
+              placeholder="10,000,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Total liquidity available in the pool
@@ -208,7 +208,7 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               value={formatNumber(zyfiTvl)}
               onChange={(e) => handleNumberInput(e.target.value, setZyfiTvl)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="50,000"
+              placeholder="500,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Current ZyFI total value locked
@@ -232,7 +232,7 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               value={formatNumber(amount)}
               onChange={(e) => handleNumberInput(e.target.value, setAmount)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="100,000,000"
+              placeholder="1,000,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Amount to rebalance (e.g., USDC with 6 decimals)
@@ -247,7 +247,7 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               value={formatNumber(poolTvl)}
               onChange={(e) => handleNumberInput(e.target.value, setPoolTvl)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="500,000,000"
+              placeholder="10,000,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Total value locked in the pool
@@ -299,11 +299,11 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               value={oldApy}
               onChange={(e) => setOldApy(e.target.value)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="4.50"
+              placeholder="10"
               min="0"
             />
             <p className="text-xs text-slate-400 mt-1">
-              Current opportunity APY (e.g., 4.50%)
+              Current opportunity APY (e.g., 10%)
             </p>
           </div>
           <div>
@@ -316,11 +316,11 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               value={newApy}
               onChange={(e) => setNewApy(e.target.value)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="6.00"
+              placeholder="12"
               min="0"
             />
             <p className="text-xs text-slate-400 mt-1">
-              Proposed opportunity APY (e.g., 6.00%)
+              Proposed opportunity APY (e.g., 12%)
             </p>
           </div>
         </div>

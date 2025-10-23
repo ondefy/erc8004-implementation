@@ -1,10 +1,10 @@
 {
-  "liquidity": 1000000,
-  "zyfiTvl": 50000,
-  "amount": 100000000,
-  "poolTvl": 500000000,
-  "newApy": 600,
-  "oldApy": 450,
+  "liquidity": 10000000,
+  "zyfiTvl": 500000,
+  "amount": 1000000,
+  "poolTvl": 10000000,
+  "newApy": 1200,
+  "oldApy": 1000,
   "apyStable7Days": 1,
   "apyStable10Days": 1,
   "tvlStable": 1
