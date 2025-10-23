@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
-import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
+import {
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  unlinkSync,
+  mkdirSync,
+} from "fs";
 import { execSync } from "child_process";
 import { join } from "path";
+import { tmpdir } from "os";
 
 export async function POST(req: Request) {
   try {
@@ -56,10 +63,20 @@ export async function POST(req: Request) {
 
       const projectRoot = join(process.cwd(), "..");
       const buildDir = join(projectRoot, "build", "rebalancer-validation");
-      const tempPath = join(buildDir, "temp_rebalancer_input.json");
-      const witnessPath = join(buildDir, "witness.wtns");
-      const proofPath = join(buildDir, "proof.json");
-      const publicPath = join(buildDir, "public.json");
+
+      // Use system temp directory for writable files
+      const tempDir = join(tmpdir(), "zkp-proof-gen");
+      if (!existsSync(tempDir)) {
+        mkdirSync(tempDir, { recursive: true });
+      }
+
+      const tempPath = join(
+        tempDir,
+        `temp_rebalancer_input_${Date.now()}.json`
+      );
+      const witnessPath = join(tempDir, `witness_${Date.now()}.wtns`);
+      const proofPath = join(tempDir, `proof_${Date.now()}.json`);
+      const publicPath = join(tempDir, `public_${Date.now()}.json`);
 
       // Check if build directory exists
       if (!existsSync(buildDir)) {
@@ -73,7 +90,10 @@ export async function POST(req: Request) {
         );
       }
 
-      const wasmPath = join(buildDir, "rebalancer-validation_js/rebalancer-validation.wasm");
+      const wasmPath = join(
+        buildDir,
+        "rebalancer-validation_js/rebalancer-validation.wasm"
+      );
       const zkeyPath = join(buildDir, "rebalancer_validation_final.zkey");
 
       if (!existsSync(wasmPath)) {
@@ -127,10 +147,16 @@ export async function POST(req: Request) {
           success: true,
         });
       } finally {
-        // Clean up temp file
-        if (existsSync(tempPath)) {
-          unlinkSync(tempPath);
-        }
+        // Clean up temp files
+        [tempPath, witnessPath, proofPath, publicPath].forEach((file) => {
+          if (existsSync(file)) {
+            try {
+              unlinkSync(file);
+            } catch (e) {
+              console.warn(`Failed to delete temp file ${file}:`, e);
+            }
+          }
+        });
       }
     } else {
       // Math mode - use original rebalancing circuit (portfolio allocation)
@@ -174,10 +200,17 @@ export async function POST(req: Request) {
 
       const projectRoot = join(process.cwd(), "..");
       const buildDir = join(projectRoot, "build");
-      const tempPath = join(buildDir, "temp_input.json");
-      const witnessPath = join(buildDir, "witness.wtns");
-      const proofPath = join(buildDir, "proof.json");
-      const publicPath = join(buildDir, "public.json");
+
+      // Use system temp directory for writable files
+      const tempDir = join(tmpdir(), "zkp-proof-gen");
+      if (!existsSync(tempDir)) {
+        mkdirSync(tempDir, { recursive: true });
+      }
+
+      const tempPath = join(tempDir, `temp_input_${Date.now()}.json`);
+      const witnessPath = join(tempDir, `witness_${Date.now()}.wtns`);
+      const proofPath = join(tempDir, `proof_${Date.now()}.json`);
+      const publicPath = join(tempDir, `public_${Date.now()}.json`);
 
       // Check if build directory exists
       if (!existsSync(buildDir)) {
@@ -245,10 +278,16 @@ export async function POST(req: Request) {
           success: true,
         });
       } finally {
-        // Clean up temp file
-        if (existsSync(tempPath)) {
-          unlinkSync(tempPath);
-        }
+        // Clean up temp files
+        [tempPath, witnessPath, proofPath, publicPath].forEach((file) => {
+          if (existsSync(file)) {
+            try {
+              unlinkSync(file);
+            } catch (e) {
+              console.warn(`Failed to delete temp file ${file}:`, e);
+            }
+          }
+        });
       }
     }
   } catch (error) {
