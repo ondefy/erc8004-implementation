@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "Math"; // Default to portfolio for backward compatibility
 
-    let inputPath: string;
+    let inputPath: string = "";
     let inputData: any;
 
     if (type === "Rebalancing") {
@@ -30,7 +30,11 @@ export async function GET(request: Request) {
       }
 
       if (!found) {
-        throw new Error(`rebalancer-input.json not found in any of: ${possiblePaths.join(", ")}`);
+        throw new Error(
+          `rebalancer-input.json not found in any of: ${possiblePaths.join(
+            ", "
+          )}`
+        );
       }
     } else {
       // Try multiple locations for portfolio input
@@ -50,7 +54,9 @@ export async function GET(request: Request) {
       }
 
       if (!found) {
-        throw new Error(`input.json not found in any of: ${possiblePaths.join(", ")}`);
+        throw new Error(
+          `input.json not found in any of: ${possiblePaths.join(", ")}`
+        );
       }
     }
 
