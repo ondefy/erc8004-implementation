@@ -33,6 +33,29 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
   const [tvlStable, setTvlStable] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to format number with commas
+  const formatNumber = (value: string): string => {
+    // Remove all non-digits
+    const cleaned = value.replace(/\D/g, "");
+    if (!cleaned) return "";
+    // Add commas
+    return parseInt(cleaned).toLocaleString("en-US");
+  };
+
+  // Helper function to parse formatted number
+  const parseFormattedNumber = (value: string): string => {
+    return value.replace(/,/g, "");
+  };
+
+  // Handle formatted input change
+  const handleNumberInput = (
+    value: string,
+    setter: (value: string) => void
+  ) => {
+    const cleaned = parseFormattedNumber(value);
+    setter(cleaned);
+  };
+
   const handleSubmit = () => {
     setError(null);
 
@@ -166,12 +189,11 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               Available Liquidity <span className="text-slate-400 text-xs">(USD)</span>
             </label>
             <input
-              type="number"
-              value={liquidity}
-              onChange={(e) => setLiquidity(e.target.value)}
+              type="text"
+              value={formatNumber(liquidity)}
+              onChange={(e) => handleNumberInput(e.target.value, setLiquidity)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="1000000"
-              min="0"
+              placeholder="1,000,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Total liquidity available in the pool
@@ -182,12 +204,11 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               Current ZyFI TVL <span className="text-slate-400 text-xs">(USD)</span>
             </label>
             <input
-              type="number"
-              value={zyfiTvl}
-              onChange={(e) => setZyfiTvl(e.target.value)}
+              type="text"
+              value={formatNumber(zyfiTvl)}
+              onChange={(e) => handleNumberInput(e.target.value, setZyfiTvl)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="50000"
-              min="0"
+              placeholder="50,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Current ZyFI total value locked
@@ -207,12 +228,11 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               Rebalance Amount <span className="text-slate-400 text-xs">(token units)</span>
             </label>
             <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              type="text"
+              value={formatNumber(amount)}
+              onChange={(e) => handleNumberInput(e.target.value, setAmount)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="100000000"
-              min="0"
+              placeholder="100,000,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Amount to rebalance (e.g., USDC with 6 decimals)
@@ -223,12 +243,11 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               Total Pool TVL <span className="text-slate-400 text-xs">(token units)</span>
             </label>
             <input
-              type="number"
-              value={poolTvl}
-              onChange={(e) => setPoolTvl(e.target.value)}
+              type="text"
+              value={formatNumber(poolTvl)}
+              onChange={(e) => handleNumberInput(e.target.value, setPoolTvl)}
               className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
-              placeholder="500000000"
-              min="0"
+              placeholder="500,000,000"
             />
             <p className="text-xs text-slate-400 mt-1">
               Total value locked in the pool

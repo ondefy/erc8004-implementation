@@ -1,3 +1,6 @@
+import { useAccount } from "wagmi";
+import { getNetworkInfo } from "@/lib/constants";
+
 interface StepCardProps {
     step: {
         id: number;
@@ -10,6 +13,9 @@ interface StepCardProps {
 }
 
 export function StepCard({ step, isActive }: StepCardProps) {
+    const { chainId } = useAccount();
+    const networkInfo = chainId ? getNetworkInfo(chainId) : null;
+
     const getStatusStyles = () => {
         switch (step.status) {
             case "completed":
@@ -21,6 +27,74 @@ export function StepCard({ step, isActive }: StepCardProps) {
             default:
                 return "bg-zyfi-bg-secondary border-zyfi-border";
         }
+    };
+
+    // Function to parse and linkify transaction hashes and addresses
+    const renderDetailsWithLinks = (details: string) => {
+        if (!networkInfo) {
+            return <p className="text-xs text-slate-300 font-mono whitespace-pre-wrap">{details}</p>;
+        }
+
+        // Split by lines and process each line
+        const lines = details.split('\n');
+        return (
+            <div className="text-xs text-slate-300 font-mono space-y-1">
+                {lines.map((line, index) => {
+                    // Check if line contains a transaction hash (0x followed by 64 hex chars)
+                    const txHashMatch = line.match(/(0x[a-fA-F0-9]{64})/);
+                    // Check if line contains shortened tx/hash (0x...xxxx pattern)
+                    const shortTxMatch = line.match(/Transaction:\s+(0x[a-fA-F0-9]{6,10})\.\.\.([a-fA-F0-9]{4})/);
+                    // Check if line contains ethereum address (0x followed by 40 hex chars)
+                    const addressMatch = line.match(/(0x[a-fA-F0-9]{40})/);
+
+                    if (txHashMatch) {
+                        const txHash = txHashMatch[1];
+                        const beforeHash = line.substring(0, txHashMatch.index);
+                        const afterHash = line.substring(txHashMatch.index! + txHash.length);
+
+                        return (
+                            <div key={index}>
+                                {beforeHash}
+                                <a
+                                    href={`${networkInfo.explorer}/tx/${txHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors"
+                                >
+                                    {txHash}
+                                </a>
+                                {afterHash}
+                            </div>
+                        );
+                    } else if (shortTxMatch) {
+                        // For shortened transaction display, we need the full hash from state
+                        // For now, just make it look clickable but non-functional
+                        return <div key={index}>{line}</div>;
+                    } else if (addressMatch && !line.includes('Request Hash') && !line.includes('Response Hash')) {
+                        const address = addressMatch[1];
+                        const beforeAddr = line.substring(0, addressMatch.index);
+                        const afterAddr = line.substring(addressMatch.index! + address.length);
+
+                        return (
+                            <div key={index}>
+                                {beforeAddr}
+                                <a
+                                    href={`${networkInfo.explorer}/address/${address}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors"
+                                >
+                                    {address}
+                                </a>
+                                {afterAddr}
+                            </div>
+                        );
+                    } else {
+                        return <div key={index}>{line}</div>;
+                    }
+                })}
+            </div>
+        );
     };
 
     const getStatusIcon = () => {
@@ -91,7 +165,7 @@ export function StepCard({ step, isActive }: StepCardProps) {
                     <p className="text-sm text-slate-300 mb-2">{step.description}</p>
                     {step.details && (
                         <div className="mt-3 p-3 bg-zyfi-bg/60 rounded-zyfi border border-zyfi-border">
-                            <p className="text-xs text-slate-300 font-mono whitespace-pre-wrap">{step.details}</p>
+                            {renderDetailsWithLinks(step.details)}
                         </div>
                     )}
                 </div>

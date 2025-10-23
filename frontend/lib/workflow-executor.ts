@@ -1042,6 +1042,10 @@ async function checkReputation(
     details += `Agent ID: ${rebalancerAgentId}\n`;
   }
 
+  // Add a delay to ensure blockchain has indexed the feedback transaction
+  // This is especially important when checking reputation immediately after submitting feedback
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+
   // Read actual reputation data from blockchain
   if (publicClient && rebalancerAgentId) {
     try {
