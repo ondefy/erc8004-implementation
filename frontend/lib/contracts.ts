@@ -20,6 +20,7 @@ export function getContractConfig(chainId: number) {
   if (!contracts) return null;
 
   return {
+    chainId: contracts.chainId,
     identityRegistry: {
       address: contracts.identityRegistry,
       abi: ABIS.IdentityRegistry,

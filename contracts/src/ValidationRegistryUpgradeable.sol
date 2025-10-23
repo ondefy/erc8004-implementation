@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "./interfaces/IIdentityRegistry.sol";
 
-/// @notice Minimal, compilable scaffold of ERC-8004 Validation Registry.
-/// - Stores identityRegistry address
-/// - Allows requests & responses, emits events
-contract ValidationRegistry {
-    address private immutable identityRegistry;
+contract ValidationRegistryUpgradeable is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+    address private identityRegistry;
 
     event ValidationRequest(
         address indexed validatorAddress, uint256 indexed agentId, string requestUri, bytes32 indexed requestHash
@@ -41,8 +41,15 @@ contract ValidationRegistry {
     // validatorAddress => list of requestHashes
     mapping(address => bytes32[]) private _validatorRequests;
 
-    constructor(address _identityRegistry) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _identityRegistry) public initializer {
         require(_identityRegistry != address(0), "bad identity");
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
         identityRegistry = _identityRegistry;
     }
 
@@ -157,5 +164,11 @@ contract ValidationRegistry {
 
     function getValidatorRequests(address validatorAddress) external view returns (bytes32[] memory) {
         return _validatorRequests[validatorAddress];
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function getVersion() external pure returns (string memory) {
+        return "1.0.0";
     }
 }

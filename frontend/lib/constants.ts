@@ -18,26 +18,32 @@ export type SupportedNetwork = keyof typeof SUPPORTED_NETWORKS;
 export const DEPLOYED_CONTRACTS = {
   BASE_SEPOLIA: {
     identityRegistry:
-      "0x7177a6867296406881E20d6647232314736Dd09A" as `0x${string}`,
+      "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb" as `0x${string}`,
     reputationRegistry:
-      "0xB5048e3ef1DA4E04deB6f7d0423D06F63869e322" as `0x${string}`,
+      "0x8004bd8daB57f14Ed299135749a5CB5c42d341BF" as `0x${string}`,
     validationRegistry:
-      "0x662b40A526cb4017d947e71eAF6753BF3eeE66d8" as `0x${string}`,
+      "0x8004C269D0A5647E51E121FeB226200ECE932d55" as `0x${string}`,
     groth16Verifier:
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+    rebalancerVerifier:
+      "0xd1FB5AdD8C5533b8004a15D6386A4b9dBdc925a7" as `0x${string}`,
+    deploymentBlock: 32481444,
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",
   },
   ETHEREUM_SEPOLIA: {
     identityRegistry:
-      "0x7177a6867296406881E20d6647232314736Dd09A" as `0x${string}`,
+      "0x8004a6090Cd10A7288092483047B097295Fb8847" as `0x${string}`,
     reputationRegistry:
-      "0xB5048e3ef1DA4E04deB6f7d0423D06F63869e322" as `0x${string}`,
+      "0x8004B8FD1A363aa02fDC07635C0c5F94f6Af5B7E" as `0x${string}`,
     validationRegistry:
-      "0x662b40A526cb4017d947e71eAF6753BF3eeE66d8" as `0x${string}`,
+      "0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5" as `0x${string}`,
     groth16Verifier:
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+    rebalancerVerifier:
+      "0xd1FB5AdD8C5533b8004a15D6386A4b9dBdc925a7" as `0x${string}`,
+    deploymentBlock: 9419801,
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
     name: "Ethereum Sepolia",
@@ -148,11 +154,18 @@ export function getAllContracts(chainId: number) {
       explorerUrl: `${contracts.explorer}/address/${contracts.reputationRegistry}`,
       description: "Agent reputation & feedback system",
     },
+    // {
+    //   name: "Groth16Verifier",
+    //   address: contracts.groth16Verifier,
+    //   explorerUrl: `${contracts.explorer}/address/${contracts.groth16Verifier}`,
+    //   description: "ZK proof verifier for Math mode (portfolio allocation)",
+    // },
     {
-      name: "Groth16Verifier",
-      address: contracts.groth16Verifier,
-      explorerUrl: `${contracts.explorer}/address/${contracts.groth16Verifier}`,
-      description: "ZK proof verifier (on-chain verification)",
+      name: "RebalancerVerifier",
+      address: contracts.rebalancerVerifier,
+      explorerUrl: `${contracts.explorer}/address/${contracts.rebalancerVerifier}`,
+      description:
+        "ZK proof verifier for Rebalancing mode (DeFi opportunity validation)",
     },
   ];
 }

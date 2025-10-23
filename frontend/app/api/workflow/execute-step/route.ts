@@ -126,7 +126,7 @@ Proof Details:
 • Public Inputs: total value, min/max allocations`;
         break;
 
-      case 4: // Submit for Validation
+      case 4: // Submit Proof for Validation
         details = `Proof submitted to Validator (${agents.validator.slice(
           0,
           10

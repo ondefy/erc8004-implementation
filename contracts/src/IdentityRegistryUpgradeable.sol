@@ -1,11 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract IdentityRegistry is ERC721URIStorage, Ownable {
-    uint256 private _lastId = 0;
+contract IdentityRegistryUpgradeable is
+    Initializable,
+    ERC721URIStorageUpgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
+{
+    uint256 private _lastId;
 
     // agentId => key => value
     mapping(uint256 => mapping(string => bytes)) private _metadata;
@@ -19,7 +26,18 @@ contract IdentityRegistry is ERC721URIStorage, Ownable {
     event MetadataSet(uint256 indexed agentId, string indexed indexedKey, string key, bytes value);
     event UriUpdated(uint256 indexed agentId, string newUri, address indexed updatedBy);
 
-    constructor() ERC721("AgentIdentity", "AID") Ownable(msg.sender) {}
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
+        __ERC721_init("AgentIdentity", "AID");
+        __ERC721URIStorage_init();
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
+        _lastId = 0;
+    }
 
     function register() external returns (uint256 agentId) {
         agentId = _lastId++;
@@ -72,5 +90,10 @@ contract IdentityRegistry is ERC721URIStorage, Ownable {
         _setTokenURI(agentId, newUri);
         emit UriUpdated(agentId, newUri, msg.sender);
     }
-}
 
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function getVersion() external pure returns (string memory) {
+        return "1.0.0";
+    }
+}

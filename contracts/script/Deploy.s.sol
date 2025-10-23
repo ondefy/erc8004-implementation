@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.20;
 
-import "forge-std/Script.sol";
-import "../src/IdentityRegistry.sol";
-import "../src/ValidationRegistry.sol";
-import "../src/ReputationRegistry.sol";
-import "../src/Verifier.sol";
-import "../src/RebalancerVerifier.sol";
+import {Script, console} from "forge-std/Script.sol";
+import {IdentityRegistry} from "../src/IdentityRegistry.sol";
+import {ValidationRegistry} from "../src/ValidationRegistry.sol";
+import {ReputationRegistry} from "../src/ReputationRegistry.sol";
+import {Groth16Verifier} from "../src/Verifier.sol";
+import {RebalancerVerifier} from "../src/RebalancerVerifier.sol";
 
 /**
  * @title Deploy Script for ERC-8004 Registries

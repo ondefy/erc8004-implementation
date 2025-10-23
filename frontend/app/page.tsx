@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useChainId, useWriteContract, usePublicClient } from "wagmi";
+import { useAccount, useChainId, useWriteContract, usePublicClient, useWalletClient } from "wagmi";
 import { StepCard } from "@/components/step-card";
 import { StatusBadge } from "@/components/status-badge";
-import { InputDataPanel } from "@/components/input-data-panel";
 import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
 import { DeployedContractsPanel } from "@/components/deployed-contracts-panel";
@@ -45,8 +44,8 @@ const initialSteps: Step[] = [
   },
   {
     id: 3,
-    title: "Submit for Validation",
-    description: "Send proof to validator agent",
+    title: "Submit Proof for Validation",
+    description: "Request for validation",
     status: "pending",
   },
   {
@@ -98,6 +97,7 @@ export default function Home() {
   const chainId = useChainId();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const [steps, setSteps] = useState<Step[]>(initialSteps);
   const [isRunning, setIsRunning] = useState(false);
   const [currentStep, setCurrentStep] = useState<number | null>(null);
@@ -170,7 +170,7 @@ export default function Home() {
     switch (stepId) {
       case 0: // Register Agents - can be any of the three agents
         return null; // Will check dynamically
-      case 3: // Submit for Validation
+      case 3: // Submit Proof for Validation
       case 7: // Authorize Feedback
         return { address: agentConfig.rebalancer, role: "Rebalancer" };
       case 4: // Validate Proof
@@ -291,8 +291,9 @@ export default function Home() {
         writeContract: writeContractAsync,
         currentAddress: connectedAddress!,
         publicClient,
+        walletClient, // Pass wallet client for message signing
         workflowState: currentState, // Use the current accumulated state
-        customData: opportunityData || portfolioData || undefined, // Pass opportunity or portfolio data
+        customData: opportunityData || portfolioData, // Pass opportunity or portfolio data
         inputMode, // Pass the input mode so executor knows which type
       });
     } catch (stepError: any) {
@@ -748,9 +749,6 @@ export default function Home() {
                   />
                 </div>
               </div>
-
-              {/* Input Data Panel */}
-              {inputData && <InputDataPanel data={inputData} />}
 
               {/* Deployed Contracts Panel */}
               <DeployedContractsPanel />
