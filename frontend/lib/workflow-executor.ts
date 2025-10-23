@@ -155,7 +155,8 @@ export async function executeWorkflowStep(
         return await checkReputation(
           agents.rebalancer,
           contractConfig,
-          workflowState
+          workflowState,
+          publicClient
         );
 
       default:
@@ -271,10 +272,7 @@ async function registerAgents(
     });
 
     const roleCapitalized = role.charAt(0).toUpperCase() + role.slice(1);
-    let details = `${roleCapitalized} Registration Submitted\n\nTx: ${hash.slice(
-      0,
-      10
-    )}...`;
+    let details = `${roleCapitalized} Registration Submitted\n\nTx: ${hash}\n`;
     let agentId: number | undefined;
 
     if (publicClient) {
@@ -290,10 +288,7 @@ async function registerAgents(
         );
         if (transferLog && transferLog.topics[3]) {
           agentId = parseInt(transferLog.topics[3], 16);
-          details = `${roleCapitalized} Registered\n\nTx: ${hash.slice(
-            0,
-            10
-          )}...\nAgent ID: ${agentId}`;
+          details = `${roleCapitalized} Registered\n\nTx: ${hash}\nAgent ID: ${agentId}`;
         }
       } catch (e) {
         console.warn("Could not extract agentId:", e);
@@ -625,7 +620,7 @@ async function submitForValidation(
           -4
         )}\n` +
         `Agent ID: ${rebalancerAgentId}\n` +
-        `Transaction: ${hash.slice(0, 10)}...${hash.slice(-4)}\n` +
+        `Transaction: ${hash}\n` +
         (requestHash ? `Request Hash: ${requestHash}` : ""),
       txHash: hash,
       stateUpdate: { requestHash, dataHash: requestHash },
@@ -812,7 +807,7 @@ async function submitValidation(
       success: true,
       details:
         `Validation Response Submitted\n\n` +
-        `Transaction: ${hash.slice(0, 10)}...${hash.slice(-4)}\n` +
+        `Transaction: ${hash}\n` +
         `Score: ${score}/100 ${score === 100 ? "✅" : "⚠️"}\n` +
         `Request Hash: ${requestHash}\n` +
         (responseHash ? `Response Hash: ${responseHash}` : ""),
@@ -1012,7 +1007,7 @@ async function submitFeedback(
       success: true,
       details:
         `Client Feedback Submitted\n\n` +
-        `Transaction: ${hash.slice(0, 10)}...${hash.slice(-4)}\n` +
+        `Transaction: ${hash}\n` +
         `Agent ID: ${rebalancerAgentId}\n` +
         `Score: ${score}/100 ⭐\n` +
         `Comment: "${comment}"\n\n` +
@@ -1033,8 +1028,9 @@ async function submitFeedback(
 
 async function checkReputation(
   rebalancer: string,
-  _contractConfig: any,
-  workflowState?: WorkflowState
+  contractConfig: any,
+  workflowState?: WorkflowState,
+  publicClient?: any
 ): Promise<StepResult> {
   const rebalancerAgentId = workflowState?.agentIds?.rebalancer;
 
@@ -1046,11 +1042,60 @@ async function checkReputation(
     details += `Agent ID: ${rebalancerAgentId}\n`;
   }
 
-  details +=
-    `\nValidations: 1\n` +
-    `Feedback: 1\n` +
-    `Score: 95/100 ⭐\n` +
-    `Status: ✓ Active\n`;
+  // Read actual reputation data from blockchain
+  if (publicClient && rebalancerAgentId) {
+    try {
+      // Read from ReputationRegistry
+      // getSummary(uint256 agentId, address[] clientAddresses, bytes32 tag1, bytes32 tag2)
+      // Returns: (uint64 count, uint8 averageScore)
+      const reputationSummary = await publicClient.readContract({
+        address: contractConfig.reputationRegistry.address,
+        abi: contractConfig.reputationRegistry.abi,
+        functionName: "getSummary",
+        args: [
+          BigInt(rebalancerAgentId),
+          [], // empty array means all clients
+          "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag1 (any)
+          "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag2 (any)
+        ],
+      });
+
+      const totalFeedback = Number(reputationSummary[0]); // count
+      const averageScore = Number(reputationSummary[1]); // averageScore
+
+      // Read from ValidationRegistry
+      // getSummary(uint256 agentId, address[] validatorAddresses, bytes32 tag)
+      // Returns: (uint64 count, uint8 avgResponse)
+      const validationSummary = await publicClient.readContract({
+        address: contractConfig.validationRegistry.address,
+        abi: contractConfig.validationRegistry.abi,
+        functionName: "getSummary",
+        args: [
+          BigInt(rebalancerAgentId),
+          [], // empty array means all validators
+          "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`, // tag (any)
+        ],
+      });
+
+      const totalValidations = Number(validationSummary[0]); // count
+
+      // Check if agent is active by checking if it has any activity
+      const isActive = totalFeedback > 0 || totalValidations > 0;
+
+      details +=
+        `\nValidations: ${totalValidations}\n` +
+        `Feedback: ${totalFeedback}\n` +
+        `Score: ${averageScore}/100 ⭐\n` +
+        `Status: ${isActive ? "✓ Active" : "✗ Inactive"}\n`;
+    } catch (error) {
+      console.error("Failed to read reputation from blockchain:", error);
+      details +=
+        `\n⚠️ Could not read reputation data from blockchain\n` +
+        `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
+    }
+  } else {
+    details += `\n⚠️ Public client or agent ID not available for on-chain lookup`;
+  }
 
   if (workflowState) {
     if (workflowState.requestHash || workflowState.dataHash) {
