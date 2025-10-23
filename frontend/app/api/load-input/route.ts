@@ -8,16 +8,17 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "Math"; // Default to portfolio for backward compatibility
 
+    const projectRoot = join(process.cwd(), "..");
     let inputPath: string;
     let inputData: any;
 
     if (type === "Rebalancing") {
-      // Load opportunity data from the root input directory
-      inputPath = join(process.cwd(), "data", "rebalancer-input.json");
+      // Load opportunity data from the root data directory
+      inputPath = join(projectRoot, "data", "rebalancer-input.json");
       inputData = JSON.parse(readFileSync(inputPath, "utf-8"));
     } else {
-      // Load portfolio data from frontend/data/input.json
-      inputPath = join(process.cwd(), "data", "input.json");
+      // Load portfolio data from root input directory
+      inputPath = join(projectRoot, "data", "input.json");
       inputData = JSON.parse(readFileSync(inputPath, "utf-8"));
     }
 
@@ -26,7 +27,14 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Error loading input data:", error);
     return NextResponse.json(
-      { error: "Failed to load input data" },
+      {
+        error: "Failed to load input data",
+        details: error instanceof Error ? error.message : "Unknown error",
+        path:
+          error instanceof Error && "path" in error
+            ? (error as any).path
+            : undefined,
+      },
       { status: 500 }
     );
   }

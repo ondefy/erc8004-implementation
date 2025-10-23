@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, createWalletClient, http, parseEther } from "viem";
+import { createPublicClient, createWalletClient, http, parseEther, Chain } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
+import { baseSepolia, sepolia } from "viem/chains";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -22,11 +22,24 @@ function getDeployedContracts() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { stepId, agents } = await request.json();
+    const { stepId, agents, chainId } = await request.json();
+
+    // Get the correct chain based on chainId
+    let chain: Chain;
+    if (chainId === 84532) {
+      chain = baseSepolia;
+    } else if (chainId === 11155111) {
+      chain = sepolia;
+    } else {
+      return NextResponse.json(
+        { success: false, error: `Unsupported chainId: ${chainId}` },
+        { status: 400 }
+      );
+    }
 
     // Create clients
     const publicClient = createPublicClient({
-      chain: baseSepolia,
+      chain,
       transport: http(),
     });
 
@@ -41,14 +54,14 @@ export async function POST(request: NextRequest) {
     switch (stepId) {
       case 0: // Deploy Contracts (already deployed)
         const contracts = getDeployedContracts();
-        if (contracts) {
-          details = `Using deployed contracts: Identity Registry at ${contracts.identityRegistry.slice(
+        if (contracts && contracts.contracts && contracts.contracts.IdentityRegistry) {
+          details = `Using deployed contracts: Identity Registry at ${contracts.contracts.IdentityRegistry.slice(
             0,
             10
           )}...`;
         } else {
           details =
-            "Contracts deployed on Base Sepolia (addresses in deployed_contracts.json)";
+            `Contracts deployed on ${chain.name} (addresses in deployed_contracts.json)`;
         }
         break;
 
@@ -94,8 +107,8 @@ ${
 
       case 3: // Register Agents
         const contracts3 = getDeployedContracts();
-        if (contracts3) {
-          details = `Agents registered on IdentityRegistry (${contracts3.identityRegistry.slice(
+        if (contracts3 && contracts3.contracts && contracts3.contracts.IdentityRegistry) {
+          details = `Agents registered on IdentityRegistry (${contracts3.contracts.IdentityRegistry.slice(
             0,
             10
           )}...)`;
@@ -143,11 +156,16 @@ ${
 
       case 8: // Validate Proof
         const contracts8 = getDeployedContracts();
-        if (contracts8) {
-          details = `Proof validated on-chain using Verifier contract (${contracts8.verifier.slice(
-            0,
-            10
-          )}...)`;
+        if (contracts8 && contracts8.contracts) {
+          const verifierAddress = contracts8.contracts.Groth16Verifier || contracts8.contracts.RebalancerVerifier;
+          if (verifierAddress) {
+            details = `Proof validated on-chain using Verifier contract (${verifierAddress.slice(
+              0,
+              10
+            )}...)`;
+          } else {
+            details = "Proof validated on-chain";
+          }
         } else {
           details = "Proof validated on-chain";
         }
@@ -155,8 +173,8 @@ ${
 
       case 9: // Submit Validation
         const contracts9 = getDeployedContracts();
-        if (contracts9) {
-          details = `Validation recorded on ValidationRegistry (${contracts9.validationRegistry.slice(
+        if (contracts9 && contracts9.contracts && contracts9.contracts.ValidationRegistry) {
+          details = `Validation recorded on ValidationRegistry (${contracts9.contracts.ValidationRegistry.slice(
             0,
             10
           )}...)`;
@@ -178,8 +196,8 @@ ${
 
       case 12: // Check Reputation
         const contracts12 = getDeployedContracts();
-        if (contracts12) {
-          details = `Reputation updated on ReputationRegistry (${contracts12.reputationRegistry.slice(
+        if (contracts12 && contracts12.contracts && contracts12.contracts.ReputationRegistry) {
+          details = `Reputation updated on ReputationRegistry (${contracts12.contracts.ReputationRegistry.slice(
             0,
             10
           )}...)`;

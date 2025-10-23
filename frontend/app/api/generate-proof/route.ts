@@ -61,6 +61,43 @@ export async function POST(req: Request) {
       const proofPath = join(buildDir, "proof.json");
       const publicPath = join(buildDir, "public.json");
 
+      // Check if build directory exists
+      if (!existsSync(buildDir)) {
+        return NextResponse.json(
+          {
+            error: "Rebalancer validation circuit not built",
+            details: `Build directory not found: ${buildDir}`,
+            solution: "Run: npm run setup:zkp:rebalancer",
+          },
+          { status: 500 }
+        );
+      }
+
+      const wasmPath = join(buildDir, "rebalancer-validation_js/rebalancer-validation.wasm");
+      const zkeyPath = join(buildDir, "rebalancer_validation_final.zkey");
+
+      if (!existsSync(wasmPath)) {
+        return NextResponse.json(
+          {
+            error: "Circuit WASM not found",
+            details: `Missing: ${wasmPath}`,
+            solution: "Run: npm run setup:zkp:rebalancer",
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!existsSync(zkeyPath)) {
+        return NextResponse.json(
+          {
+            error: "Proving key not found",
+            details: `Missing: ${zkeyPath}`,
+            solution: "Run: npm run setup:zkp:rebalancer",
+          },
+          { status: 500 }
+        );
+      }
+
       try {
         // Write input to temp file
         writeFileSync(tempPath, JSON.stringify(input, null, 2));
@@ -70,19 +107,13 @@ export async function POST(req: Request) {
           `node ${join(
             buildDir,
             "rebalancer-validation_js/generate_witness.js"
-          )} ${join(
-            buildDir,
-            "rebalancer-validation_js/rebalancer-validation.wasm"
-          )} ${tempPath} ${witnessPath}`,
+          )} ${wasmPath} ${tempPath} ${witnessPath}`,
           { stdio: "inherit", cwd: projectRoot }
         );
 
         // Generate proof using snarkjs
         execSync(
-          `npx snarkjs groth16 prove ${join(
-            buildDir,
-            "rebalancer_validation_final.zkey"
-          )} ${witnessPath} ${proofPath} ${publicPath}`,
+          `npx snarkjs groth16 prove ${zkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
           { stdio: "inherit", cwd: projectRoot }
         );
 
@@ -142,10 +173,48 @@ export async function POST(req: Request) {
       };
 
       const projectRoot = join(process.cwd(), "..");
-      const tempPath = join(projectRoot, "build", "temp_input.json");
-      const witnessPath = join(projectRoot, "build", "witness.wtns");
-      const proofPath = join(projectRoot, "build", "proof.json");
-      const publicPath = join(projectRoot, "build", "public.json");
+      const buildDir = join(projectRoot, "build");
+      const tempPath = join(buildDir, "temp_input.json");
+      const witnessPath = join(buildDir, "witness.wtns");
+      const proofPath = join(buildDir, "proof.json");
+      const publicPath = join(buildDir, "public.json");
+
+      // Check if build directory exists
+      if (!existsSync(buildDir)) {
+        return NextResponse.json(
+          {
+            error: "Portfolio rebalancing circuit not built",
+            details: `Build directory not found: ${buildDir}`,
+            solution: "Run: npm run setup:zkp",
+          },
+          { status: 500 }
+        );
+      }
+
+      const wasmPath = join(buildDir, "rebalancing_js/rebalancing.wasm");
+      const zkeyPath = join(buildDir, "rebalancing_final.zkey");
+
+      if (!existsSync(wasmPath)) {
+        return NextResponse.json(
+          {
+            error: "Circuit WASM not found",
+            details: `Missing: ${wasmPath}`,
+            solution: "Run: npm run setup:zkp",
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!existsSync(zkeyPath)) {
+        return NextResponse.json(
+          {
+            error: "Proving key not found",
+            details: `Missing: ${zkeyPath}`,
+            solution: "Run: npm run setup:zkp",
+          },
+          { status: 500 }
+        );
+      }
 
       try {
         // Write input to temp file
@@ -154,21 +223,15 @@ export async function POST(req: Request) {
         // Generate witness using Circom 2.x witness generator
         execSync(
           `node ${join(
-            projectRoot,
-            "build/rebalancing_js/generate_witness.js"
-          )} ${join(
-            projectRoot,
-            "build/rebalancing_js/rebalancing.wasm"
-          )} ${tempPath} ${witnessPath}`,
+            buildDir,
+            "rebalancing_js/generate_witness.js"
+          )} ${wasmPath} ${tempPath} ${witnessPath}`,
           { stdio: "inherit", cwd: projectRoot }
         );
 
         // Generate proof using snarkjs
         execSync(
-          `npx snarkjs groth16 prove ${join(
-            projectRoot,
-            "build/rebalancing_final.zkey"
-          )} ${witnessPath} ${proofPath} ${publicPath}`,
+          `npx snarkjs groth16 prove ${zkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
           { stdio: "inherit", cwd: projectRoot }
         );
 

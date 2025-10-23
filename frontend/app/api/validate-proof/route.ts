@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     if (chainId === 84532) {
       // Base Sepolia
       chain = baseSepolia;
-      rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "";
+      rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || baseSepolia.rpcUrls.default.http[0];
       const contracts = getContractsForNetwork(84532);
       if (!contracts) {
         return NextResponse.json(
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     } else if (chainId === 11155111) {
       // Ethereum Sepolia
       chain = sepolia;
-      rpcUrl = process.env.NEXT_PUBLIC_ETHEREUM_SEPOLIA_RPC_URL || "";
+      rpcUrl = process.env.NEXT_PUBLIC_ETHEREUM_SEPOLIA_RPC_URL || sepolia.rpcUrls.default.http[0];
       const contracts = getContractsForNetwork(11155111);
       if (!contracts) {
         return NextResponse.json(
