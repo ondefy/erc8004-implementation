@@ -21,6 +21,8 @@ interface Step {
   description: string;
   status: StepStatus;
   details?: string;
+  proof?: any; // ZK proof data
+  publicInputs?: any; // Public signals
 }
 
 const initialSteps: Step[] = [
@@ -155,10 +157,10 @@ export default function Home() {
     );
   }
 
-  const updateStepStatus = (stepId: number, status: StepStatus, details?: string) => {
+  const updateStepStatus = (stepId: number, status: StepStatus, details?: string, proof?: any, publicInputs?: any) => {
     setSteps((prev) =>
       prev.map((step) =>
-        step.id === stepId ? { ...step, status, details } : step
+        step.id === stepId ? { ...step, status, details, proof, publicInputs } : step
       )
     );
   };
@@ -312,7 +314,13 @@ export default function Home() {
     }
 
     if (result.success) {
-      updateStepStatus(i, "completed", result.details);
+      // For step 2 (Generate ZK Proof), pass proof data to the step card
+      if (i === 2 && result.stateUpdate?.proof && result.stateUpdate?.publicInputs) {
+        updateStepStatus(i, "completed", result.details, result.stateUpdate.proof, result.stateUpdate.publicInputs);
+      } else {
+        updateStepStatus(i, "completed", result.details);
+      }
+
       if (result.data) {
         setInputData(result.data);
       }

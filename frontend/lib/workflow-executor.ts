@@ -621,9 +621,10 @@ async function submitForValidation(
         )}\n` +
         `Agent ID: ${rebalancerAgentId}\n` +
         `Transaction: ${hash}\n` +
+        `Data Hash: ${dataHash}\n` +
         (requestHash ? `Request Hash: ${requestHash}` : ""),
       txHash: hash,
-      stateUpdate: { requestHash, dataHash: requestHash },
+      stateUpdate: { requestHash, dataHash },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
@@ -781,25 +782,15 @@ async function submitValidation(
       ],
     });
 
-    let responseHash: string | undefined;
+    // Wait for transaction confirmation
     if (publicClient) {
       try {
-        const receipt = await publicClient.waitForTransactionReceipt({
+        await publicClient.waitForTransactionReceipt({
           hash,
           timeout: 30000,
         });
-        const validationResponseLog = receipt.logs.find(
-          (log: any) =>
-            log.address.toLowerCase() ===
-              contractConfig.validationRegistry.address.toLowerCase() &&
-            log.topics.length >= 4 &&
-            log.topics[3] === requestHash
-        );
-        if (validationResponseLog) {
-          responseHash = dataHash;
-        }
       } catch (e) {
-        console.warn("Could not extract responseHash from receipt:", e);
+        console.warn("Could not confirm transaction receipt:", e);
       }
     }
 
@@ -809,10 +800,10 @@ async function submitValidation(
         `Validation Response Submitted\n\n` +
         `Transaction: ${hash}\n` +
         `Score: ${score}/100 ${score === 100 ? "✅" : "⚠️"}\n` +
-        `Request Hash: ${requestHash}\n` +
-        (responseHash ? `Response Hash: ${responseHash}` : ""),
+        `Request Hash (Event): ${requestHash}\n` +
+        `Response Data Hash: ${dataHash}`,
       txHash: hash,
-      stateUpdate: { responseHash: responseHash || dataHash },
+      stateUpdate: { responseHash: dataHash },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
