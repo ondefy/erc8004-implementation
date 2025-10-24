@@ -445,39 +445,39 @@ export default function Home() {
   const progress = (completedSteps / steps.length) * 100;
 
   // Show network warning if not on a supported network
-  if (isConnected && !isCorrectNetwork) {
-    return (
-      <main className="min-h-screen bg-zyfi-bg">
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <div className="bg-zyfi-bg-secondary border-2 border-red-500/50 rounded-zyfi-lg p-8 text-center shadow-zyfi-glow">
-            <div className="text-6xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-red-400 mb-2">
-              Unsupported Network
-            </h1>
-            <p className="text-slate-300 mb-4">
-              Please switch to one of the supported networks in your wallet
-            </p>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-zyfi-bg border border-zyfi-border rounded-zyfi p-4 text-left text-sm">
-                <p className="font-semibold gradient--primary mb-2">Base Sepolia</p>
-                <ul className="space-y-1 text-slate-400 text-xs">
-                  <li>• <strong className="text-slate-200">Chain ID:</strong> 84532</li>
-                  <li>• <strong className="text-slate-200">RPC:</strong> sepolia.base.org</li>
-                </ul>
-              </div>
-              <div className="bg-zyfi-bg border border-zyfi-border rounded-zyfi p-4 text-left text-sm">
-                <p className="font-semibold gradient--primary mb-2">Ethereum Sepolia</p>
-                <ul className="space-y-1 text-slate-400 text-xs">
-                  <li>• <strong className="text-slate-200">Chain ID:</strong> 11155111</li>
-                  <li>• <strong className="text-slate-200">RPC:</strong> sepolia.infura.io</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  // if (isConnected && !isCorrectNetwork) {
+  //   return (
+  //     <main className="min-h-screen bg-zyfi-bg">
+  //       <div className="container mx-auto px-4 py-8 max-w-4xl">
+  //         <div className="bg-zyfi-bg-secondary border-2 border-red-500/50 rounded-zyfi-lg p-8 text-center shadow-zyfi-glow">
+  //           <div className="text-6xl mb-4">⚠️</div>
+  //           <h1 className="text-2xl font-bold text-red-400 mb-2">
+  //             Unsupported Network
+  //           </h1>
+  //           <p className="text-slate-300 mb-4">
+  //             Please switch to one of the supported networks in your wallet
+  //           </p>
+  //           <div className="grid grid-cols-2 gap-4 mt-6">
+  //             <div className="bg-zyfi-bg border border-zyfi-border rounded-zyfi p-4 text-left text-sm">
+  //               <p className="font-semibold gradient--primary mb-2">Base Sepolia</p>
+  //               <ul className="space-y-1 text-slate-400 text-xs">
+  //                 <li>• <strong className="text-slate-200">Chain ID:</strong> 84532</li>
+  //                 <li>• <strong className="text-slate-200">RPC:</strong> sepolia.base.org</li>
+  //               </ul>
+  //             </div>
+  //             <div className="bg-zyfi-bg border border-zyfi-border rounded-zyfi p-4 text-left text-sm">
+  //               <p className="font-semibold gradient--primary mb-2">Ethereum Sepolia</p>
+  //               <ul className="space-y-1 text-slate-400 text-xs">
+  //                 <li>• <strong className="text-slate-200">Chain ID:</strong> 11155111</li>
+  //                 <li>• <strong className="text-slate-200">RPC:</strong> sepolia.infura.io</li>
+  //               </ul>
+  //             </div>
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </main>
+  //   );
+  // }
 
   // Show agent setup if not configured
   if (showAgentSetup && (!agentConfig || !isConnected)) {
