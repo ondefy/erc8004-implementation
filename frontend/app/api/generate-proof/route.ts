@@ -71,13 +71,12 @@ export async function POST(req: Request) {
         mkdirSync(tempDir, { recursive: true });
       }
 
-      const tempPath = join(
-        tempDir,
-        `temp_rebalancer_input_${Date.now()}.json`
-      );
-      const witnessPath = join(tempDir, `witness_${Date.now()}.wtns`);
-      const proofPath = join(tempDir, `proof_${Date.now()}.json`);
-      const publicPath = join(tempDir, `public_${Date.now()}.json`);
+      // Generate unique timestamp for ALL temp files in this request
+      const timestamp = Date.now();
+      const tempPath = join(tempDir, `temp_rebalancer_input_${timestamp}.json`);
+      const witnessPath = join(tempDir, `witness_${timestamp}.wtns`);
+      const proofPath = join(tempDir, `proof_${timestamp}.json`);
+      const publicPath = join(tempDir, `public_${timestamp}.json`);
 
       // Check if build directory exists
       if (!existsSync(buildDir)) {
@@ -119,8 +118,6 @@ export async function POST(req: Request) {
         );
       }
 
-      // Generate unique timestamp for this request's temp files
-      const timestamp = Date.now();
       const tempZkeyPath = join(tempDir, `zkey_${timestamp}.zkey`);
 
       try {
@@ -217,10 +214,12 @@ export async function POST(req: Request) {
         mkdirSync(tempDir, { recursive: true });
       }
 
-      const tempPath = join(tempDir, `temp_input_${Date.now()}.json`);
-      const witnessPath = join(tempDir, `witness_${Date.now()}.wtns`);
-      const proofPath = join(tempDir, `proof_${Date.now()}.json`);
-      const publicPath = join(tempDir, `public_${Date.now()}.json`);
+      // Generate unique timestamp for ALL temp files in this request
+      const timestamp = Date.now();
+      const tempPath = join(tempDir, `temp_input_${timestamp}.json`);
+      const witnessPath = join(tempDir, `witness_${timestamp}.wtns`);
+      const proofPath = join(tempDir, `proof_${timestamp}.json`);
+      const publicPath = join(tempDir, `public_${timestamp}.json`);
 
       // Check if build directory exists
       if (!existsSync(buildDir)) {
@@ -259,8 +258,6 @@ export async function POST(req: Request) {
         );
       }
 
-      // Generate unique timestamp for this request's temp files
-      const timestamp = Date.now();
       const tempZkeyPath = join(tempDir, `zkey_${timestamp}.zkey`);
 
       try {
