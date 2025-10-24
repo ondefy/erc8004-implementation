@@ -5,6 +5,7 @@ import {
   existsSync,
   unlinkSync,
   mkdirSync,
+  copyFileSync,
 } from "fs";
 import { execSync } from "child_process";
 import { join } from "path";
@@ -118,7 +119,14 @@ export async function POST(req: Request) {
         );
       }
 
+      // Generate unique timestamp for this request's temp files
+      const timestamp = Date.now();
+      const tempZkeyPath = join(tempDir, `zkey_${timestamp}.zkey`);
+
       try {
+        // Copy zkey to temp directory (snarkjs needs write access to zkey directory)
+        copyFileSync(zkeyPath, tempZkeyPath);
+
         // Write input to temp file
         writeFileSync(tempPath, JSON.stringify(input, null, 2));
 
@@ -131,9 +139,9 @@ export async function POST(req: Request) {
           { stdio: "inherit", cwd: projectRoot }
         );
 
-        // Generate proof using snarkjs
+        // Generate proof using snarkjs with temp zkey
         execSync(
-          `npx snarkjs groth16 prove ${zkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
+          `npx snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
           { stdio: "inherit", cwd: projectRoot }
         );
 
@@ -147,16 +155,18 @@ export async function POST(req: Request) {
           success: true,
         });
       } finally {
-        // Clean up temp files
-        [tempPath, witnessPath, proofPath, publicPath].forEach((file) => {
-          if (existsSync(file)) {
-            try {
-              unlinkSync(file);
-            } catch (e) {
-              console.warn(`Failed to delete temp file ${file}:`, e);
+        // Clean up temp files (including temp zkey)
+        [tempPath, witnessPath, proofPath, publicPath, tempZkeyPath].forEach(
+          (file) => {
+            if (existsSync(file)) {
+              try {
+                unlinkSync(file);
+              } catch (e) {
+                console.warn(`Failed to delete temp file ${file}:`, e);
+              }
             }
           }
-        });
+        );
       }
     } else {
       // Math mode - use original rebalancing circuit (portfolio allocation)
@@ -249,7 +259,14 @@ export async function POST(req: Request) {
         );
       }
 
+      // Generate unique timestamp for this request's temp files
+      const timestamp = Date.now();
+      const tempZkeyPath = join(tempDir, `zkey_${timestamp}.zkey`);
+
       try {
+        // Copy zkey to temp directory (snarkjs needs write access to zkey directory)
+        copyFileSync(zkeyPath, tempZkeyPath);
+
         // Write input to temp file
         writeFileSync(tempPath, JSON.stringify(input, null, 2));
 
@@ -262,9 +279,9 @@ export async function POST(req: Request) {
           { stdio: "inherit", cwd: projectRoot }
         );
 
-        // Generate proof using snarkjs
+        // Generate proof using snarkjs with temp zkey
         execSync(
-          `npx snarkjs groth16 prove ${zkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
+          `npx snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
           { stdio: "inherit", cwd: projectRoot }
         );
 
@@ -278,16 +295,18 @@ export async function POST(req: Request) {
           success: true,
         });
       } finally {
-        // Clean up temp files
-        [tempPath, witnessPath, proofPath, publicPath].forEach((file) => {
-          if (existsSync(file)) {
-            try {
-              unlinkSync(file);
-            } catch (e) {
-              console.warn(`Failed to delete temp file ${file}:`, e);
+        // Clean up temp files (including temp zkey)
+        [tempPath, witnessPath, proofPath, publicPath, tempZkeyPath].forEach(
+          (file) => {
+            if (existsSync(file)) {
+              try {
+                unlinkSync(file);
+              } catch (e) {
+                console.warn(`Failed to delete temp file ${file}:`, e);
+              }
             }
           }
-        });
+        );
       }
     }
   } catch (error) {
