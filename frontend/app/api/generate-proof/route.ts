@@ -136,11 +136,54 @@ export async function POST(req: Request) {
           { stdio: "inherit", cwd: projectRoot }
         );
 
+        // Verify witness was created
+        if (!existsSync(witnessPath)) {
+          throw new Error(`Witness file not created: ${witnessPath}`);
+        }
+        console.log("Witness generated successfully");
+
         // Generate proof using snarkjs with temp zkey
-        execSync(
-          `npx snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
-          { stdio: "inherit", cwd: projectRoot }
+        console.log("Generating proof with snarkjs...");
+        console.log(
+          "  Zkey:",
+          tempZkeyPath,
+          `(exists: ${existsSync(tempZkeyPath)})`
         );
+        console.log(
+          "  Witness:",
+          witnessPath,
+          `(exists: ${existsSync(witnessPath)})`
+        );
+        console.log("  Proof output:", proofPath);
+        console.log("  Public output:", publicPath);
+
+        try {
+          const result = execSync(
+            `npx --yes snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
+            {
+              stdio: "pipe",
+              cwd: projectRoot,
+              env: { ...process.env, NODE_NO_WARNINGS: "1" },
+              maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+            }
+          );
+          console.log("SnarkJS output:", result.toString());
+        } catch (snarkjsError: any) {
+          console.error("SnarkJS error:", snarkjsError.message);
+          if (snarkjsError.stderr) {
+            console.error("Stderr:", snarkjsError.stderr.toString());
+          }
+          if (snarkjsError.stdout) {
+            console.error("Stdout:", snarkjsError.stdout.toString());
+          }
+          throw new Error(
+            `SnarkJS proof generation failed: ${
+              snarkjsError.stderr?.toString() || snarkjsError.message
+            }`
+          );
+        }
+
+        console.log("✅ Proof generated successfully");
 
         // Read generated proof and public inputs
         const proof = JSON.parse(readFileSync(proofPath, "utf-8"));
@@ -268,6 +311,10 @@ export async function POST(req: Request) {
         writeFileSync(tempPath, JSON.stringify(input, null, 2));
 
         // Generate witness using Circom 2.x witness generator
+        console.log("Generating witness...");
+        console.log("  WASM:", wasmPath);
+        console.log("  Input:", tempPath);
+        console.log("  Output:", witnessPath);
         execSync(
           `node ${join(
             buildDir,
@@ -276,11 +323,54 @@ export async function POST(req: Request) {
           { stdio: "inherit", cwd: projectRoot }
         );
 
+        // Verify witness was created
+        if (!existsSync(witnessPath)) {
+          throw new Error(`Witness file not created: ${witnessPath}`);
+        }
+        console.log("✅ Witness generated successfully");
+
         // Generate proof using snarkjs with temp zkey
-        execSync(
-          `npx snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
-          { stdio: "inherit", cwd: projectRoot }
+        console.log("Generating proof with snarkjs...");
+        console.log(
+          "  Zkey:",
+          tempZkeyPath,
+          `(exists: ${existsSync(tempZkeyPath)})`
         );
+        console.log(
+          "  Witness:",
+          witnessPath,
+          `(exists: ${existsSync(witnessPath)})`
+        );
+        console.log("  Proof output:", proofPath);
+        console.log("  Public output:", publicPath);
+
+        try {
+          const result = execSync(
+            `npx --yes snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
+            {
+              stdio: "pipe",
+              cwd: projectRoot,
+              env: { ...process.env, NODE_NO_WARNINGS: "1" },
+              maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+            }
+          );
+          console.log("SnarkJS output:", result.toString());
+        } catch (snarkjsError: any) {
+          console.error("❌ SnarkJS error:", snarkjsError.message);
+          if (snarkjsError.stderr) {
+            console.error("Stderr:", snarkjsError.stderr.toString());
+          }
+          if (snarkjsError.stdout) {
+            console.error("Stdout:", snarkjsError.stdout.toString());
+          }
+          throw new Error(
+            `SnarkJS proof generation failed: ${
+              snarkjsError.stderr?.toString() || snarkjsError.message
+            }`
+          );
+        }
+
+        console.log("✅ Proof generated successfully");
 
         // Read generated proof and public inputs
         const proof = JSON.parse(readFileSync(proofPath, "utf-8"));
