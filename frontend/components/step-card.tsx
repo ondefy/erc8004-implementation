@@ -49,7 +49,22 @@ export function StepCard({ step, isActive }: StepCardProps) {
                     // Check if line contains ethereum address (0x followed by 40 hex chars)
                     const addressMatch = line.match(/(0x[a-fA-F0-9]{40})/);
 
-                    if (txHashMatch) {
+                    // Check if this is a data hash that should NOT be a transaction link
+                    const isDataHash = line.includes('Request Hash') ||
+                        line.includes('Response Hash') ||
+                        line.includes('Response Data Hash') ||
+                        line.includes('Data Hash') ||
+                        line.includes('DataHash') ||
+                        line.includes('dataHash') ||
+                        line.includes('requestHash') ||
+                        line.includes('responseHash') ||
+                        line.includes('Proof Hash') ||
+                        line.includes('proofHash') ||
+                        line.includes('Validation Hash') ||
+                        line.includes('validationHash');
+
+                    if (txHashMatch && !isDataHash) {
+                        // Only create transaction link if it's NOT a data hash
                         const txHash = txHashMatch[1];
                         const beforeHash = line.substring(0, txHashMatch.index);
                         const afterHash = line.substring(txHashMatch.index! + txHash.length);

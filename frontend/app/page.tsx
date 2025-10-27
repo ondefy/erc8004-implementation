@@ -114,6 +114,12 @@ export default function Home() {
     requiredAddress: string;
     role: string;
   } | null>(null);
+  const [waitingForAgentId, setWaitingForAgentId] = useState<{
+    stepId: number;
+    role: "rebalancer" | "validator" | "client";
+    message: string;
+  } | null>(null);
+  const [manualAgentId, setManualAgentId] = useState("");
   const [showInputForm, setShowInputForm] = useState(false);
   const [portfolioData, setPortfolioData] = useState<PortfolioInput | null>(null);
   const [opportunityData, setOpportunityData] = useState<OpportunityInput | null>(null);
@@ -254,7 +260,7 @@ export default function Home() {
       }
 
       setSelectedClientAddress(clientChoice);
-      updateStepStatus(i, "completed", `Selected client: ${clientChoice.slice(0, 10)}...`);
+      updateStepStatus(i, "completed", `Selected client: ${clientChoice}`);
       await new Promise((resolve) => setTimeout(resolve, 500));
       return currentState; // Return unchanged state
     }
@@ -311,6 +317,20 @@ export default function Home() {
         `⚠️ Please switch to ${result.requiresWalletSwitch.role} wallet\n\nCurrent: ${result.requiresWalletSwitch.from.slice(0, 10)}...\nRequired: ${result.requiresWalletSwitch.to.slice(0, 10)}...\n\nSwitch wallets in MetaMask and click "Start Workflow" again`
       );
       throw new Error("Wallet switch required");
+    }
+
+    if (result.requiresManualAgentId) {
+      setWaitingForAgentId({
+        stepId: i,
+        role: result.requiresManualAgentId.role,
+        message: result.requiresManualAgentId.message,
+      });
+      updateStepStatus(
+        i,
+        "error",
+        `⚠️ Agent ID not found!\n\n${result.error}\n\nPlease enter your ${result.requiresManualAgentId.role} agent ID to continue.`
+      );
+      throw new Error("Manual agent ID required");
     }
 
     if (result.success) {
@@ -439,6 +459,33 @@ export default function Home() {
     setUseCustomInput(false);
     setPortfolioData(null);
     setOpportunityData(null);
+  };
+
+  const handleManualAgentIdSubmit = () => {
+    if (!waitingForAgentId || !manualAgentId) return;
+
+    const agentIdNum = parseInt(manualAgentId);
+    if (isNaN(agentIdNum) || agentIdNum <= 0) {
+      alert("Please enter a valid positive number for the agent ID");
+      return;
+    }
+
+    // Update workflow state with the manual agent ID
+    setWorkflowState((prev) => ({
+      ...prev,
+      agentIds: {
+        ...prev.agentIds,
+        [waitingForAgentId.role]: agentIdNum,
+      },
+    }));
+
+    // Clear the modal and resume workflow
+    const resumeFromStep = waitingForAgentId.stepId;
+    setWaitingForAgentId(null);
+    setManualAgentId("");
+
+    // Auto-resume the workflow from the specific step
+    setTimeout(() => resumeWorkflowFromStep(resumeFromStep), 500);
   };
 
   const completedSteps = steps.filter((s) => s.status === "completed").length;
@@ -779,6 +826,84 @@ export default function Home() {
                   onCancel={handlePortfolioCancel}
                 />
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Manual Agent ID Entry Modal */}
+        {waitingForAgentId && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-zyfi-bg-secondary border-2 border-zyfi-accent-blue rounded-zyfi-lg shadow-zyfi-glow-lg max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-zyfi-accent-blue/20 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-zyfi-accent-bright"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-100">
+                    Enter Agent ID
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Step {waitingForAgentId.stepId}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-slate-300 mb-4">
+                  {waitingForAgentId.message}
+                </p>
+                <div className="bg-amber-500/10 border border-amber-500/50 rounded-zyfi p-3 mb-4">
+                  <p className="text-xs text-amber-200">
+                    <strong>💡 Tip:</strong> You can find your agent ID from the transaction receipt when you registered the agent, or check the IdentityRegistry contract on the block explorer.
+                  </p>
+                </div>
+                <label className="block text-sm font-medium text-slate-200 mb-2">
+                  {waitingForAgentId.role.charAt(0).toUpperCase() + waitingForAgentId.role.slice(1)} Agent ID
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={manualAgentId}
+                  onChange={(e) => setManualAgentId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleManualAgentIdSubmit();
+                  }}
+                  placeholder="e.g., 1"
+                  className="w-full px-4 py-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-zyfi-accent-blue focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setWaitingForAgentId(null);
+                    setManualAgentId("");
+                  }}
+                  className="flex-1 px-4 py-2 bg-zyfi-bg hover:bg-zyfi-border border border-zyfi-border text-slate-300 text-sm font-medium rounded-zyfi transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleManualAgentIdSubmit}
+                  disabled={!manualAgentId}
+                  className="flex-1 px-4 py-2 bg-gradient-zyfi-quaternary text-white font-semibold rounded-zyfi shadow-zyfi-glow hover:shadow-zyfi-glow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Continue Workflow ➜
+                </button>
+              </div>
             </div>
           </div>
         )}

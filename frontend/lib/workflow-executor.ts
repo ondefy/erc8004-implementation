@@ -52,6 +52,10 @@ export interface StepResult {
     to: string;
     role: string;
   };
+  requiresManualAgentId?: {
+    role: "rebalancer" | "validator" | "client";
+    message: string;
+  };
   stateUpdate?: Partial<WorkflowState>; // State updates to persist
 }
 
@@ -545,6 +549,10 @@ async function submitForValidation(
       details: "",
       error:
         "Rebalancer agent ID not found. Please complete agent registration first.",
+      requiresManualAgentId: {
+        role: "rebalancer",
+        message: "Enter your Rebalancer Agent ID to continue",
+      },
     };
   }
 
@@ -845,6 +853,10 @@ async function authorizeFeedback(
       details: "",
       error:
         "Rebalancer agent ID not found. Please complete agent registration first.",
+      requiresManualAgentId: {
+        role: "rebalancer",
+        message: "Enter your Rebalancer Agent ID to continue",
+      },
     };
   }
 
@@ -955,6 +967,21 @@ async function submitFeedback(
     };
   }
 
+  // SECURITY: Prevent self-feedback - client cannot be the same as rebalancer
+  if (agents.client.toLowerCase() === agents.rebalancer.toLowerCase()) {
+    return {
+      success: false,
+      details: "",
+      error:
+        "⚠️ Self-feedback not allowed!\n\n" +
+        "The client wallet cannot be the same as the rebalancer wallet.\n" +
+        "Please use a different wallet address for the client role.\n\n" +
+        `Rebalancer: ${agents.rebalancer}\n` +
+        `Client: ${agents.client}\n\n` +
+        "Tip: Click 'Change Agents' to reassign wallet addresses.",
+    };
+  }
+
   const rebalancerAgentId = workflowState.agentIds?.rebalancer;
   if (!rebalancerAgentId) {
     return {
@@ -962,6 +989,10 @@ async function submitFeedback(
       details: "",
       error:
         "Rebalancer agent ID not found. Please complete agent registration first.",
+      requiresManualAgentId: {
+        role: "rebalancer",
+        message: "Enter your Rebalancer Agent ID to continue",
+      },
     };
   }
 
