@@ -700,11 +700,24 @@ async function validateProof(
     const isValid = result.isValid;
     const score = isValid ? 100 : 0;
 
+    // Determine which verifier was used based on input mode
+    const isRebalancingMode =
+      workflowState.inputMode === "Rebalancing" ||
+      (publicInputs && publicInputs.length === 2);
+    const verifierAddress = isRebalancingMode
+      ? contractConfig.rebalancerVerifier
+      : contractConfig.groth16Verifier;
+    const verifierName = isRebalancingMode
+      ? "RebalancerVerifier"
+      : "Groth16Verifier";
+
     return {
       success: true,
       details:
         `ZK Proof Validation\n\n` +
         `Groth16 Verifier (on-chain)\n` +
+        `Contract: ${verifierName}\n` +
+        `Address: ${verifierAddress}\n` +
         `Public: [${publicInputs.join(", ")}]\n` +
         `Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
         `Score: ${score}/100\n` +

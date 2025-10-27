@@ -49,7 +49,11 @@ export function StepCard({ step, isActive }: StepCardProps) {
                     // Check if line contains ethereum address (0x followed by 40 hex chars)
                     const addressMatch = line.match(/(0x[a-fA-F0-9]{40})/);
 
+                    // Get previous line to check if current line is a hash value on next line
+                    const previousLine = index > 0 ? lines[index - 1] : '';
+
                     // Check if this is a data hash that should NOT be a transaction link
+                    // Check current line AND previous line (for multi-line hash labels)
                     const isDataHash = line.includes('Request Hash') ||
                         line.includes('Response Hash') ||
                         line.includes('Response Data Hash') ||
@@ -61,7 +65,11 @@ export function StepCard({ step, isActive }: StepCardProps) {
                         line.includes('Proof Hash') ||
                         line.includes('proofHash') ||
                         line.includes('Validation Hash') ||
-                        line.includes('validationHash');
+                        line.includes('validationHash') ||
+                        previousLine.includes('Request Hash:') ||
+                        previousLine.includes('Response Hash:') ||
+                        previousLine.includes('Data Hash:') ||
+                        previousLine.includes('DataHash:');
 
                     if (txHashMatch && !isDataHash) {
                         // Only create transaction link if it's NOT a data hash
@@ -93,10 +101,15 @@ export function StepCard({ step, isActive }: StepCardProps) {
                         !line.includes('Response Hash') &&
                         !line.includes('Response Data Hash') &&
                         !line.includes('Data Hash') &&
+                        !line.includes('DataHash') &&
                         !line.includes('dataHash') &&
                         !line.includes('requestHash') &&
                         !line.includes('responseHash') &&
-                        !line.includes('(Event)')
+                        !line.includes('(Event)') &&
+                        !previousLine.includes('Request Hash:') &&
+                        !previousLine.includes('Response Hash:') &&
+                        !previousLine.includes('Data Hash:') &&
+                        !previousLine.includes('DataHash:')
                     ) {
                         const address = addressMatch[1];
                         const beforeAddr = line.substring(0, addressMatch.index);
