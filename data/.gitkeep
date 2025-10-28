@@ -1,0 +1,4 @@
+# This directory stores runtime-generated proof files
+# Files are stored with SHA-256 hash filenames
+# Content in this directory is ignored by git (see .gitignore)
+

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { createHash } from "crypto";
 import { join } from "path";
+import { tmpdir } from "os";
 
 export async function POST(req: Request) {
   try {
@@ -22,9 +23,8 @@ export async function POST(req: Request) {
       .digest();
     const dataHash = `0x${dataHashBuffer.toString("hex")}`;
 
-    // Store proof in data/${dataHash}.json
-    const projectRoot = join(process.cwd(), "..");
-    const dataDir = join(projectRoot, "data");
+    // Store proof in system temp directory (writable in serverless)
+    const dataDir = join(tmpdir(), "zkp-proof-storage");
 
     if (!existsSync(dataDir)) {
       mkdirSync(dataDir, { recursive: true });
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const proofFilePath = join(dataDir, `${dataHash.slice(2)}.json`);
     writeFileSync(proofFilePath, JSON.stringify(proofPackage, null, 2));
 
-    console.log(`✅ Proof stored at: data/${dataHash.slice(2)}.json`);
+    console.log(`✅ Proof stored at: ${proofFilePath}`);
 
     return NextResponse.json({
       dataHash,

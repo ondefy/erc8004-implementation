@@ -1,12 +1,12 @@
 "use client";
 
-import { useAccount } from "wagmi";
+import { useChainId } from "wagmi";
 import { getAllContracts, getNetworkInfo } from "@/lib/constants";
 import { ExternalLink, Copy, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 
 export function DeployedContractsPanel() {
-    const { chainId } = useAccount();
+    const chainId = useChainId();
     const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
     if (!chainId) {

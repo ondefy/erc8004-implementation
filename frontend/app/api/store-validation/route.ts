@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
+import { tmpdir } from "os";
 
 export async function POST(req: Request) {
   try {
@@ -14,9 +15,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Store validation result in validations/${dataHash}.json
-    const projectRoot = join(process.cwd(), "..");
-    const validationsDir = join(projectRoot, "validations");
+    // Store validation result in system temp directory (writable in serverless)
+    const validationsDir = join(tmpdir(), "zkp-validation-storage");
 
     if (!existsSync(validationsDir)) {
       mkdirSync(validationsDir, { recursive: true });
@@ -31,9 +31,7 @@ export async function POST(req: Request) {
       JSON.stringify(validationResult, null, 2)
     );
 
-    console.log(
-      `✅ Validation result stored at: validations/${dataHash.slice(2)}.json`
-    );
+    console.log(`✅ Validation result stored at: ${validationFilePath}`);
 
     return NextResponse.json({
       success: true,

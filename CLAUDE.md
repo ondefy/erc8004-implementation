@@ -4,10 +4,12 @@
 
 This is a Zero-Knowledge proof system for portfolio rebalancing validation using Circom, Groth16, and ERC-8004 multi-agent orchestration. The system includes:
 
-- **ZK Circuits** (Circom): Prove rebalancing validity without revealing sensitive data
-- **Smart Contracts** (Solidity/Foundry): ERC-8004 agent registries and Groth16 verifier
+- **Dual ZK Circuits** (Circom 2.x):
+  - Portfolio rebalancing validation (4-asset allocation constraints)
+  - ZyFI rebalancer validation (DeFi liquidity/APY/TVL constraints)
+- **Smart Contracts** (Solidity 0.8.20/Foundry): ERC-8004 agent registries and dual Groth16 verifiers
 - **Agents** (TypeScript): Rebalancer, Validator, and Client implementing ERC-8004 workflows
-- **Frontend** (Next.js): Web UI for interactive agent workflows with wallet integration
+- **Frontend** (Next.js 15): Web UI for interactive agent workflows with wallet integration (Reown AppKit)
 
 ## Quick Context for Debugging
 
@@ -94,9 +96,9 @@ Step 5: Submit Response → responseHash
 
 ### Technology Stack Notes
 
-- **Circom**: 2.2.2+ (Circom 2.x required, not 1.x)
+- **Circom**: 2.2.2+ (Circom 2.x required, not 1.x) - dual circuits
 - **SnarkJS**: 0.7.5 (Groth16 proof system)
-- **Solidity**: 0.8.19 (Foundry framework)
+- **Solidity**: 0.8.20 (Foundry framework) - updated from 0.8.19
 - **Frontend**: Next.js 15.1+ (App Router, not Pages Router)
 - **Wallet**: Reown AppKit (formerly WalletConnect v3)
 - **Blockchain**: Viem (not ethers.js)
@@ -108,11 +110,12 @@ Step 5: Submit Response → responseHash
 
 ### Contract Addresses
 
-Addresses are in `frontend/lib/deployed-contracts-*.json`:
-- `identityRegistry`: Agent registration (ERC-721)
-- `validationRegistry`: Validation requests/responses
-- `reputationRegistry`: Feedback system
-- `verifier`: Groth16 proof verifier (auto-generated from circuit)
+Addresses are in `deployed_contracts.json` (root) or `frontend/lib/deployed-contracts-*.json`:
+- `IdentityRegistry`: Agent registration (ERC-721 based)
+- `ValidationRegistry`: Validation requests/responses
+- `ReputationRegistry`: Feedback system
+- `Groth16Verifier`: Portfolio rebalancing proof verifier (auto-generated)
+- `RebalancerVerifier`: ZyFI rebalancer validation proof verifier (auto-generated)
 
 ### Testing
 
@@ -201,16 +204,19 @@ return {
 rebalancing-poc-main/
 ├── agents/                    # TypeScript agent classes
 │   ├── base-agent.ts         # ERC-8004 base functionality
-│   ├── rebalancer-agent.ts   # Proof generation
-│   ├── validator-agent.ts    # On-chain validation
+│   ├── rebalancer-agent.ts   # Dual proof generation (portfolio + ZyFI)
+│   ├── validator-agent.ts    # On-chain validation (auto-detects verifier)
 │   └── client-agent.ts       # Feedback
-├── circuits/
-│   └── rebalancing.circom    # ZK circuit (Circom 2.x)
+├── circuits/                  # ⭐ Dual ZK circuits
+│   ├── rebalancing.circom    # Portfolio rebalancing (4 assets)
+│   └── rebalancer-validation.circom  # ZyFI validation (5 constraints)
 ├── contracts/src/            # Solidity contracts (Foundry)
 │   ├── IdentityRegistry.sol  # Agent registration (ERC-721)
 │   ├── ValidationRegistry.sol # Validation workflows
 │   ├── ReputationRegistry.sol # Feedback system
-│   └── Verifier.sol          # Groth16 verifier (generated)
+│   ├── Verifier.sol          # Groth16 verifier (portfolio, generated)
+│   ├── RebalancerVerifier.sol # Groth16 verifier (ZyFI, generated)
+│   └── interfaces/           # Contract interfaces
 ├── frontend/
 │   ├── app/
 │   │   ├── api/              # Next.js API routes
@@ -220,34 +226,61 @@ rebalancing-poc-main/
 │   │   │   └── load-input/
 │   │   └── page.tsx          # Main workflow page
 │   ├── components/           # React components
+│   │   ├── opportunity-input-form.tsx
+│   │   └── step-card.tsx
 │   └── lib/
 │       ├── workflow-executor.ts  # ⭐ Core step logic
 │       ├── contracts.ts          # Contract configs
 │       └── constants.ts          # Network configs
 ├── tests/e2e/
 │   └── test-zk-rebalancing-workflow.ts  # ⭐ E2E test (reference)
-├── build/                    # ZK artifacts (r1cs, wasm, zkey)
+├── build/                    # ZK artifacts
+│   ├── rebalancing.r1cs      # Portfolio circuit (r1cs, wasm, zkey)
+│   ├── rebalancing_final.zkey
+│   ├── rebalancing_js/       # Circom 2.x witness generator
+│   └── rebalancer-validation/  # ZyFI circuit artifacts
+│       ├── rebalancer-validation.r1cs
+│       ├── rebalancer_validation_final.zkey
+│       └── rebalancer-validation_js/
 ├── input/input.json          # Portfolio test data
+├── data/                     # Proof storage (SHA-256 hash filenames)
+├── validations/              # Validation results storage
+├── deployed_contracts.json   # ⭐ Contract addresses (root)
+├── CLAUDE.md                 # ⭐ This file (project context)
 └── package.json              # Root dependencies
 ```
 
 ## When to Consult What
 
-- **Circuit issues**: Check `circuits/rebalancing.circom`, `.cursorrules` circuit section
+- **Circuit issues**:
+  - Portfolio: `circuits/rebalancing.circom`
+  - ZyFI validation: `circuits/rebalancer-validation.circom`
+  - Setup: `scripts/setup.sh` and `scripts/setup-rebalancer-validation.sh`
 - **Contract issues**: Check `contracts/src/*.sol`, run Foundry tests
+- **Verifier issues**:
+  - `contracts/src/Verifier.sol` (portfolio, auto-generated)
+  - `contracts/src/RebalancerVerifier.sol` (ZyFI, auto-generated)
+  - Regenerate with `npm run setup:zkp` or `npm run setup:zkp:rebalancer`
 - **Frontend issues**: Check `workflow-executor.ts`, API routes, E2E test
-- **Agent issues**: Check `agents/*.ts`, base-agent.ts
+- **Agent issues**:
+  - Proof generation: `agents/rebalancer-agent.ts` (dual circuits)
+  - Validation: `agents/validator-agent.ts` (auto-detects verifier)
+  - Base: `agents/base-agent.ts`
 - **State management**: Check `workflow-executor.ts` stateUpdate logic
 - **Event extraction**: Check E2E test for reference implementations
+- **ZK artifacts**: Check `build/README.md` for detailed documentation
 
 ## Key Differences from Typical Projects
 
-1. **No ethers.js**: Uses Viem for blockchain interactions
-2. **No WalletConnect v2**: Uses Reown AppKit (WalletConnect v3)
-3. **No ERC721Enumerable**: IdentityRegistry uses basic ERC721URIStorage
-4. **State flows through steps**: Not typical React state management
-5. **On-chain validation**: Validator calls Verifier contract, not snarkjs
-6. **Event-based agentId**: Must extract from logs, not direct return value
+1. **Dual ZK circuits**: Portfolio + ZyFI validation (not single circuit)
+2. **No ethers.js**: Uses Viem for blockchain interactions
+3. **No WalletConnect v2**: Uses Reown AppKit (WalletConnect v3)
+4. **No ERC721Enumerable**: IdentityRegistry uses basic ERC721URIStorage
+5. **State flows through steps**: Not typical React state management
+6. **On-chain validation**: Validator calls Verifier contract, not snarkjs
+7. **Event-based agentId**: Must extract from logs, not direct return value
+8. **Auto-verifier detection**: ValidatorAgent determines Groth16Verifier vs RebalancerVerifier based on proof type
+9. **Dual verifier contracts**: Both deployed and managed separately
 
 ## Quick Reference Commands
 
@@ -255,8 +288,16 @@ rebalancing-poc-main/
 # Start local blockchain
 npm run anvil
 
+# Setup ZK circuits (after circuit changes)
+npm run setup:zkp              # Portfolio rebalancing circuit
+npm run setup:zkp:rebalancer   # ZyFI rebalancer validation circuit
+
 # Deploy contracts (new terminal, anvil must be running)
+npm run forge:build            # Compile contracts (includes verifiers)
+npm run forge:deploy:local     # Deploy to local Anvil
+# or
 cd contracts && forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
+cd .. && ts-node scripts/create-deployed-contracts.ts
 
 # Run E2E test (verifies everything works)
 npm run test:e2e
@@ -265,28 +306,38 @@ npm run test:e2e
 npm run frontend:dev
 # Visit http://localhost:3000
 
-# Setup ZK (after circuit changes)
-npm run setup:zkp
-
 # Check circuit constraints
 snarkjs r1cs info build/rebalancing.r1cs
+snarkjs r1cs info build/rebalancer-validation/rebalancer-validation.r1cs
+
+# Verify artifacts exist
+npm run check:zkp
 ```
 
 ## Most Important Files for Claude Code
 
 When stuck, always check these files in this order:
 
-1. `frontend/lib/workflow-executor.ts` - Step execution and state management
-2. `tests/e2e/test-zk-rebalancing-workflow.ts` - Reference implementation
-3. `agents/rebalancer-agent.ts` - How proof generation works
-4. `agents/validator-agent.ts` - How on-chain validation works
-5. `contracts/src/IdentityRegistry.sol` - Registration contract ABI
-6. `.cursorrules` - Comprehensive project context
+1. `README.md` - ⭐ Comprehensive project overview and latest documentation
+2. `frontend/lib/workflow-executor.ts` - Step execution and state management
+3. `tests/e2e/test-zk-rebalancing-workflow.ts` - Reference implementation
+4. `agents/rebalancer-agent.ts` - Dual proof generation (portfolio + ZyFI)
+5. `agents/validator-agent.ts` - On-chain validation with auto-verifier detection
+6. `circuits/rebalancing.circom` - Portfolio rebalancing circuit
+7. `circuits/rebalancer-validation.circom` - ZyFI validation circuit
+8. `build/README.md` - ⭐ ZK artifacts documentation
+9. `contracts/src/IdentityRegistry.sol` - Registration contract ABI
+10. `CLAUDE.md` - This file (debugging context)
 
 ## Remember
 
+- **Dual circuits**: Portfolio rebalancing + ZyFI validation (separate setup commands)
+- **Auto-verifier detection**: ValidatorAgent checks proof type to determine which verifier to use
 - **Frontend workflow-executor ≠ Backend agents**: Frontend adapts agent logic for browser
 - **Always extract agentIds**: They're required for validation and feedback steps
 - **State is immutable**: Each step receives workflowState, returns stateUpdate
 - **Events are critical**: AgentIds and hashes come from event logs, not return values
 - **Test E2E first**: If E2E passes, frontend integration is the issue
+- **Verifier mismatch**: Ensure circuit artifacts match deployed verifier contracts
+- **Solidity 0.8.20**: Updated from 0.8.19 (check pragma in contracts)
+- **Dual deployed contracts**: Both Groth16Verifier and RebalancerVerifier must be deployed

@@ -52,6 +52,10 @@ export interface StepResult {
     to: string;
     role: string;
   };
+  requiresManualAgentId?: {
+    role: "rebalancer" | "validator" | "client";
+    message: string;
+  };
   stateUpdate?: Partial<WorkflowState>; // State updates to persist
 }
 
@@ -545,6 +549,10 @@ async function submitForValidation(
       details: "",
       error:
         "Rebalancer agent ID not found. Please complete agent registration first.",
+      requiresManualAgentId: {
+        role: "rebalancer",
+        message: "Enter your Rebalancer Agent ID to continue",
+      },
     };
   }
 
@@ -621,9 +629,10 @@ async function submitForValidation(
         )}\n` +
         `Agent ID: ${rebalancerAgentId}\n` +
         `Transaction: ${hash}\n` +
+        `Data Hash: ${dataHash}\n` +
         (requestHash ? `Request Hash: ${requestHash}` : ""),
       txHash: hash,
-      stateUpdate: { requestHash, dataHash: requestHash },
+      stateUpdate: { requestHash, dataHash },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
@@ -691,11 +700,24 @@ async function validateProof(
     const isValid = result.isValid;
     const score = isValid ? 100 : 0;
 
+    // Determine which verifier was used based on input mode
+    const isRebalancingMode =
+      workflowState.inputMode === "Rebalancing" ||
+      (publicInputs && publicInputs.length === 2);
+    const verifierAddress = isRebalancingMode
+      ? contractConfig.rebalancerVerifier
+      : contractConfig.groth16Verifier;
+    const verifierName = isRebalancingMode
+      ? "RebalancerVerifier"
+      : "Groth16Verifier";
+
     return {
       success: true,
       details:
         `ZK Proof Validation\n\n` +
         `Groth16 Verifier (on-chain)\n` +
+        `Contract: ${verifierName}\n` +
+        `Address: ${verifierAddress}\n` +
         `Public: [${publicInputs.join(", ")}]\n` +
         `Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
         `Score: ${score}/100\n` +
@@ -781,25 +803,15 @@ async function submitValidation(
       ],
     });
 
-    let responseHash: string | undefined;
+    // Wait for transaction confirmation
     if (publicClient) {
       try {
-        const receipt = await publicClient.waitForTransactionReceipt({
+        await publicClient.waitForTransactionReceipt({
           hash,
           timeout: 30000,
         });
-        const validationResponseLog = receipt.logs.find(
-          (log: any) =>
-            log.address.toLowerCase() ===
-              contractConfig.validationRegistry.address.toLowerCase() &&
-            log.topics.length >= 4 &&
-            log.topics[3] === requestHash
-        );
-        if (validationResponseLog) {
-          responseHash = dataHash;
-        }
       } catch (e) {
-        console.warn("Could not extract responseHash from receipt:", e);
+        console.warn("Could not confirm transaction receipt:", e);
       }
     }
 
@@ -809,10 +821,10 @@ async function submitValidation(
         `Validation Response Submitted\n\n` +
         `Transaction: ${hash}\n` +
         `Score: ${score}/100 ${score === 100 ? "✅" : "⚠️"}\n` +
-        `Request Hash: ${requestHash}\n` +
-        (responseHash ? `Response Hash: ${responseHash}` : ""),
+        `Request Hash (Event): ${requestHash}\n` +
+        `Response Data Hash: ${dataHash}`,
       txHash: hash,
-      stateUpdate: { responseHash: responseHash || dataHash },
+      stateUpdate: { responseHash: dataHash },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
@@ -854,6 +866,10 @@ async function authorizeFeedback(
       details: "",
       error:
         "Rebalancer agent ID not found. Please complete agent registration first.",
+      requiresManualAgentId: {
+        role: "rebalancer",
+        message: "Enter your Rebalancer Agent ID to continue",
+      },
     };
   }
 
@@ -964,6 +980,21 @@ async function submitFeedback(
     };
   }
 
+  // SECURITY: Prevent self-feedback - client cannot be the same as rebalancer
+  if (agents.client.toLowerCase() === agents.rebalancer.toLowerCase()) {
+    return {
+      success: false,
+      details: "",
+      error:
+        "⚠️ Self-feedback not allowed!\n\n" +
+        "The client wallet cannot be the same as the rebalancer wallet.\n" +
+        "Please use a different wallet address for the client role.\n\n" +
+        `Rebalancer: ${agents.rebalancer}\n` +
+        `Client: ${agents.client}\n\n` +
+        "Tip: Click 'Change Agents' to reassign wallet addresses.",
+    };
+  }
+
   const rebalancerAgentId = workflowState.agentIds?.rebalancer;
   if (!rebalancerAgentId) {
     return {
@@ -971,6 +1002,10 @@ async function submitFeedback(
       details: "",
       error:
         "Rebalancer agent ID not found. Please complete agent registration first.",
+      requiresManualAgentId: {
+        role: "rebalancer",
+        message: "Enter your Rebalancer Agent ID to continue",
+      },
     };
   }
 
@@ -1041,6 +1076,10 @@ async function checkReputation(
   if (rebalancerAgentId) {
     details += `Agent ID: ${rebalancerAgentId}\n`;
   }
+
+  // Add a delay to ensure blockchain has indexed the feedback transaction
+  // This is especially important when checking reputation immediately after submitting feedback
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Read actual reputation data from blockchain
   if (publicClient && rebalancerAgentId) {

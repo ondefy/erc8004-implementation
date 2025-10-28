@@ -47,8 +47,15 @@ export function AgentWalletManager({ onAgentsReady, connectedAddress }: AgentWal
 
     const allAgentsSet = Object.values(agents).every((agent) => agent.address !== null);
 
+    // Check for self-feedback (client === rebalancer)
+    const hasSelfFeedbackIssue = Boolean(
+        agents.client.address &&
+        agents.rebalancer.address &&
+        agents.client.address.toLowerCase() === agents.rebalancer.address.toLowerCase()
+    );
+
     const handleContinue = () => {
-        if (allAgentsSet) {
+        if (allAgentsSet && !hasSelfFeedbackIssue) {
             onAgentsReady({
                 rebalancer: agents.rebalancer.address!,
                 validator: agents.validator.address!,
@@ -176,19 +183,55 @@ export function AgentWalletManager({ onAgentsReady, connectedAddress }: AgentWal
                 })}
             </div>
 
+            {/* Warning for self-feedback */}
+            {hasSelfFeedbackIssue && (
+                <div className="bg-red-500/20 border border-red-500/50 rounded-zyfi p-4 mb-4">
+                    <div className="flex items-start gap-3">
+                        <svg
+                            className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                        </svg>
+                        <div className="flex-1">
+                            <p className="text-sm text-red-300 font-semibold mb-1">
+                                ⚠️ Self-Feedback Not Allowed
+                            </p>
+                            <p className="text-xs text-red-200">
+                                The <strong>Client</strong> wallet cannot be the same as the <strong>Rebalancer</strong> wallet.
+                                The smart contract will reject this configuration to prevent self-feedback.
+                                Please assign a different wallet address for the Client role.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-amber-500/20 border border-amber-500/50 rounded-zyfi p-4 mb-6">
                 <p className="text-sm text-amber-200">
-                    <strong>💡 Tip:</strong> You can use the same wallet for multiple roles, or switch wallets in MetaMask to assign different addresses.
+                    <strong>💡 Tip:</strong> You can use the same wallet for Rebalancer & Validator, but the Client must use a different wallet address.
                 </p>
             </div>
 
             <div className="pt-4 border-t border-zyfi-border">
                 <button
                     onClick={handleContinue}
-                    disabled={!allAgentsSet}
+                    disabled={!allAgentsSet || hasSelfFeedbackIssue}
                     className="w-full px-6 py-3 bg-gradient-zyfi-quaternary text-white font-semibold rounded-zyfi shadow-zyfi-glow hover:shadow-zyfi-glow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 border border-zyfi-accent-bright/30"
                 >
-                    {allAgentsSet ? "Continue to Workflow ➜" : `Assign All Agents to Continue (${assignedCount}/3)`}
+                    {hasSelfFeedbackIssue
+                        ? "⚠️ Client Cannot Be Same as Rebalancer"
+                        : allAgentsSet
+                            ? "Continue to Workflow ➜"
+                            : `Assign All Agents to Continue (${assignedCount}/3)`
+                    }
                 </button>
             </div>
         </div>

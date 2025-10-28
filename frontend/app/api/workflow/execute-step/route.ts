@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPublicClient, createWalletClient, http, parseEther } from "viem";
+import { createPublicClient, createWalletClient, http, parseEther, Chain } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia, sepolia } from "viem/chains";
+import { baseSepolia, sepolia, foundry } from "viem/chains";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
@@ -16,12 +16,27 @@ export async function POST(request: NextRequest) {
       await request.json();
 
     // Get the correct chain
-    const chain = chainId === 84532 ? baseSepolia : sepolia;
+    let chain: Chain;
+    let rpcUrl: string | undefined;
+
+    if (chainId === 84532) {
+      chain = baseSepolia;
+    } else if (chainId === 11155111) {
+      chain = sepolia;
+    } else if (chainId === 31337) {
+      chain = foundry;
+      rpcUrl = "http://127.0.0.1:8545";
+    } else {
+      return NextResponse.json(
+        { success: false, error: `Unsupported chainId: ${chainId}` },
+        { status: 400 }
+      );
+    }
 
     // Create clients
     const publicClient = createPublicClient({
       chain,
-      transport: http(),
+      transport: http(rpcUrl),
     });
 
     // Simulate processing time
