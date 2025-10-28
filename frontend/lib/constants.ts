@@ -26,8 +26,8 @@ export const DEPLOYED_CONTRACTS = {
     groth16Verifier:
       "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
     rebalancerVerifier:
-      "0xd1FB5AdD8C5533b8004a15D6386A4b9dBdc925a7" as `0x${string}`,
-    deploymentBlock: 32481444,
+      "0x806C55BEdFeD85d99Aa681017a629ABf730b696F" as `0x${string}`, // FIXED: New verifier with circuit bugs resolved
+    deploymentBlock: 32952110, // Updated to new deployment block
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",

@@ -1,6 +1,8 @@
 pragma circom 2.0.0;
 
-// RebalancingProof Circuit (Simplified - No External Dependencies)
+include "../node_modules/circomlib/circuits/comparators.circom";
+
+// RebalancingProof Circuit
 // 
 // Proves that a portfolio rebalancing operation satisfies constraints
 // without revealing actual positions or amounts.
@@ -14,8 +16,7 @@ pragma circom 2.0.0;
 // - totalValueCommitment: Hash commitment of total portfolio value
 // - minAllocationPct: Minimum allocation percentage per asset (e.g., 5 = 5%)
 // - maxAllocationPct: Maximum allocation percentage per asset (e.g., 40 = 40%)
-// 
-// This simplified version avoids external dependencies for easier compilation.
+//
 
 template RebalancingProof(n) {
     // Private inputs
@@ -64,11 +65,15 @@ template RebalancingProof(n) {
     newSums[n-1] === totalValueCommitment;
     
     // Constraint 2: Check allocation limits for each asset
-    // Instead of division, we verify: newValue[i] * 100 >= minAllocationPct * totalValue
+    // Verify: newValue[i] * 100 >= minAllocationPct * totalValue
     // and: newValue[i] * 100 <= maxAllocationPct * totalValue
     signal scaledValues[n];
     signal minBound[n];
     signal maxBound[n];
+    
+    // FIX: Actually enforce the constraints!
+    component minChecks[n];
+    component maxChecks[n];
     
     for (var i = 0; i < n; i++) {
         // Scale up by 100 for percentage
@@ -78,10 +83,19 @@ template RebalancingProof(n) {
         minBound[i] <== minAllocationPct * newSums[n-1];
         maxBound[i] <== maxAllocationPct * newSums[n-1];
         
-        // Note: In a production circuit, we would add range checks here to ensure:
-        // scaledValues[i] >= minBound[i] (minimum allocation constraint)
-        // scaledValues[i] <= maxBound[i] (maximum allocation constraint)
-        // This requires additional comparison circuits
+        // NEW: Enforce minimum allocation constraint
+        // scaledValues[i] >= minBound[i]
+        minChecks[i] = GreaterEqThan(252);
+        minChecks[i].in[0] <== scaledValues[i];
+        minChecks[i].in[1] <== minBound[i];
+        minChecks[i].out === 1;  // Must be true
+        
+        // NEW: Enforce maximum allocation constraint
+        // scaledValues[i] <= maxBound[i]
+        maxChecks[i] = LessEqThan(252);
+        maxChecks[i].in[0] <== scaledValues[i];
+        maxChecks[i].in[1] <== maxBound[i];
+        maxChecks[i].out === 1;  // Must be true
     }
     
 }

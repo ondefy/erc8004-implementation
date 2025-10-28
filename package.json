@@ -60,6 +60,7 @@
   },
   "dependencies": {
     "@types/node": "^20.19.19",
+    "circomlib": "^2.0.5",
     "dotenv": "^16.6.1",
     "snarkjs": "^0.7.5",
     "ts-node": "^10.9.2",

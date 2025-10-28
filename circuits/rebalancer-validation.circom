@@ -1,5 +1,7 @@
 pragma circom 2.0.0;
 
+include "../node_modules/circomlib/circuits/comparators.circom";
+
 // ZK Rebalancer Validation Circuit
 // Proves that a DeFi rebalancer opportunity satisfies all ZyFI validation constraints
 // without revealing sensitive rebalancer parameters.
@@ -58,9 +60,10 @@ template RebalancerValidation() {
     signal liquidityRight <== zyfiTvlScaled + amount;
 
     // Check: liquidityLeft > liquidityRight
-    component liquidityCheck = GreaterThan();
-    liquidityCheck.a <== liquidityLeft;
-    liquidityCheck.b <== liquidityRight;
+    // Use GreaterThan from circomlib (252-bit comparison for bn254 curve)
+    component liquidityCheck = GreaterThan(252);
+    liquidityCheck.in[0] <== liquidityLeft;
+    liquidityCheck.in[1] <== liquidityRight;
     signal liquidityCheckValue <== liquidityCheck.out;
 
     // ========================================
@@ -71,9 +74,9 @@ template RebalancerValidation() {
     // ========================================
     signal tvlLeft <== poolTvl * 1000000;
     signal tvlRight <== amount * 4;
-    component tvlCheck = GreaterThan();
-    tvlCheck.a <== tvlLeft;
-    tvlCheck.b <== tvlRight;
+    component tvlCheck = GreaterThan(252);
+    tvlCheck.in[0] <== tvlLeft;
+    tvlCheck.in[1] <== tvlRight;
     signal tvlCheckValue <== tvlCheck.out;
 
     // ========================================
@@ -83,9 +86,9 @@ template RebalancerValidation() {
     // APY scaled by 100, so 0.1% = 10 units
     // ========================================
     signal apyThreshold <== oldApy + 10;
-    component apyCheck = GreaterThan();
-    apyCheck.a <== newApy;
-    apyCheck.b <== apyThreshold;
+    component apyCheck = GreaterThan(252);
+    apyCheck.in[0] <== newApy;
+    apyCheck.in[1] <== apyThreshold;
     signal apyCheckValue <== apyCheck.out;
 
     // ========================================
@@ -94,9 +97,9 @@ template RebalancerValidation() {
     // Backend: newOpportunity.isApyStable7Days || newOpportunity.isApyStable10Days
     // ========================================
     signal apyStabilityOr <== apyStable7Days + apyStable10Days;
-    component apyStabilityCheck = GreaterThan();
-    apyStabilityCheck.a <== apyStabilityOr;
-    apyStabilityCheck.b <== 0;
+    component apyStabilityCheck = GreaterThan(252);
+    apyStabilityCheck.in[0] <== apyStabilityOr;
+    apyStabilityCheck.in[1] <== 0;
     signal apyStabilityCheckValue <== apyStabilityCheck.out;
 
     // ========================================
@@ -104,7 +107,10 @@ template RebalancerValidation() {
     // tvlStable must be 1
     // Backend: newOpportunity.isTvlStable
     // ========================================
-    signal tvlStabilityCheckValue <== tvlStable;
+    component tvlStabilityCheck = IsEqual();
+    tvlStabilityCheck.in[0] <== tvlStable;
+    tvlStabilityCheck.in[1] <== 1;
+    signal tvlStabilityCheckValue <== tvlStabilityCheck.out;
 
     // ========================================
     // Combine all checks with AND logic
@@ -125,45 +131,6 @@ template RebalancerValidation() {
                          newApy + oldApy + apyStable7Days +
                          apyStable10Days + tvlStable + isValid;
     validationCommitment <== commitment;
-}
-
-// Greater than comparison template
-// Returns 1 if a > b, otherwise 0
-template GreaterThan() {
-    signal input a;
-    signal input b;
-    signal output out;
-    signal diff <== a - b;
-
-    // Check if diff is positive
-    component isPos = IsPositive();
-    isPos.in <== diff;
-    out <== isPos.out;
-}
-
-// Check if number is positive
-template IsPositive() {
-    signal input in;
-    signal output out;
-
-    // Use inverse to check if non-zero
-    component isZ = IsZero();
-    isZ.in <== in;
-
-    // If not zero, assume positive (circuit constraints enforce valid range)
-    out <== 1 - isZ.out;
-}
-
-// Check if number is zero
-template IsZero() {
-    signal input in;
-    signal output out;
-
-    signal inv;
-    inv <-- in != 0 ? 1 / in : 0;
-
-    out <== -in * inv + 1;
-    in * out === 0;
 }
 
 // Instantiate main component
