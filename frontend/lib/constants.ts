@@ -40,9 +40,9 @@ export const DEPLOYED_CONTRACTS = {
     validationRegistry:
       "0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5" as `0x${string}`,
     groth16Verifier:
-      "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+      "0x302b490DEb26cfDBcDDAB11d1245f2339e854970" as `0x${string}`,
     rebalancerVerifier:
-      "0xd1FB5AdD8C5533b8004a15D6386A4b9dBdc925a7" as `0x${string}`,
+      "0x571cE11Cd7C93DFFfCd545d5684DB8Bdb84265B2" as `0x${string}`,
     deploymentBlock: 9419801,
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
