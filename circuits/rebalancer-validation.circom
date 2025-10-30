@@ -92,6 +92,20 @@ template RebalancerValidation() {
     signal apyCheckValue <== apyCheck.out;
 
     // ========================================
+    // Boolean Validation: Ensure boolean inputs are actually 0 or 1
+    // ========================================
+    // Validate apyStable7Days is boolean: value * (value - 1) === 0
+    // This is true only for 0 and 1
+    signal apyStable7DaysBoolCheck <== apyStable7Days * (apyStable7Days - 1);
+    apyStable7DaysBoolCheck === 0;
+    
+    signal apyStable10DaysBoolCheck <== apyStable10Days * (apyStable10Days - 1);
+    apyStable10DaysBoolCheck === 0;
+    
+    signal tvlStableBoolCheck <== tvlStable * (tvlStable - 1);
+    tvlStableBoolCheck === 0;
+
+    // ========================================
     // Constraint 4: APY Stability Check
     // apyStable7Days || apyStable10Days
     // Backend: newOpportunity.isApyStable7Days || newOpportunity.isApyStable10Days
@@ -122,8 +136,12 @@ template RebalancerValidation() {
     signal check1234 <== check12 * check34;
     signal finalCheck <== check1234 * check5;
 
-    // Output validation result
-    isValid <== finalCheck;
+    // Enforce that all checks must pass
+    // If any constraint fails, witness generation will fail
+    finalCheck === 1;
+
+    // Output validation result (will always be 1 if proof is generated)
+    isValid <== 1;
 
     // Create commitment hash: sum of all inputs + result
     // This proves all values were used in the validation

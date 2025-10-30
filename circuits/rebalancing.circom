@@ -71,9 +71,13 @@ template RebalancingProof(n) {
     signal minBound[n];
     signal maxBound[n];
     
-    // FIX: Actually enforce the constraints!
+    // Enforce allocation constraints
+    // For min: (scaledValues >= minBound) ≡ (scaledValues > minBound - 1)
+    // For max: (scaledValues <= maxBound) ≡ (scaledValues < maxBound + 1)
     component minChecks[n];
     component maxChecks[n];
+    signal minCheckResults[n];
+    signal maxCheckResults[n];
     
     for (var i = 0; i < n; i++) {
         // Scale up by 100 for percentage
@@ -83,19 +87,25 @@ template RebalancingProof(n) {
         minBound[i] <== minAllocationPct * newSums[n-1];
         maxBound[i] <== maxAllocationPct * newSums[n-1];
         
-        // NEW: Enforce minimum allocation constraint
-        // scaledValues[i] >= minBound[i]
-        minChecks[i] = GreaterEqThan(252);
+        // Enforce minimum allocation: scaledValues[i] > minBound[i] - 1
+        // This is equivalent to: scaledValues[i] >= minBound[i]
+        minChecks[i] = GreaterThan(252);
         minChecks[i].in[0] <== scaledValues[i];
-        minChecks[i].in[1] <== minBound[i];
-        minChecks[i].out === 1;  // Must be true
+        minChecks[i].in[1] <== minBound[i] - 1;
         
-        // NEW: Enforce maximum allocation constraint
-        // scaledValues[i] <= maxBound[i]
-        maxChecks[i] = LessEqThan(252);
+        // Enforce the constraint
+        minCheckResults[i] <== minChecks[i].out - 1;
+        minCheckResults[i] === 0;
+        
+        // Enforce maximum allocation: scaledValues[i] < maxBound[i] + 1
+        // This is equivalent to: scaledValues[i] <= maxBound[i]
+        maxChecks[i] = LessThan(252);
         maxChecks[i].in[0] <== scaledValues[i];
-        maxChecks[i].in[1] <== maxBound[i];
-        maxChecks[i].out === 1;  // Must be true
+        maxChecks[i].in[1] <== maxBound[i] + 1;
+        
+        // Enforce the constraint
+        maxCheckResults[i] <== maxChecks[i].out - 1;
+        maxCheckResults[i] === 0;
     }
     
 }

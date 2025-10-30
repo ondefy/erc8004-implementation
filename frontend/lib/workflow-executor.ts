@@ -152,7 +152,8 @@ export async function executeWorkflowStep(
           contractConfig,
           writeContract,
           currentAddress,
-          workflowState
+          workflowState,
+          publicClient
         );
 
       case 9: // Check Reputation
@@ -285,6 +286,18 @@ async function registerAgents(
           hash,
           timeout: 30000,
         });
+
+        // Check if transaction reverted
+        if (receipt.status === "reverted" || receipt.status === 0) {
+          return {
+            success: false,
+            details: "",
+            error:
+              "Transaction reverted on-chain. Please check the transaction for details.",
+            txHash: hash,
+          };
+        }
+
         const transferLog = receipt.logs.find(
           (log: any) =>
             log.topics[0] ===
@@ -606,6 +619,18 @@ async function submitForValidation(
           hash,
           timeout: 30000,
         });
+
+        // Check if transaction reverted
+        if (receipt.status === "reverted" || receipt.status === 0) {
+          return {
+            success: false,
+            details: "",
+            error:
+              "Transaction reverted on-chain. Please check the transaction for details.",
+            txHash: hash,
+          };
+        }
+
         const validationRequestLog = receipt.logs.find(
           (log: any) =>
             log.address.toLowerCase() ===
@@ -717,7 +742,7 @@ async function validateProof(
         `ZK Proof Validation\n\n` +
         `Groth16 Verifier (on-chain)\n` +
         `Contract: ${verifierName}\n` +
-        `Address: ${verifierAddress}\n` +
+        // `Address: ${verifierAddress}\n` +
         `Public: [${publicInputs.join(", ")}]\n` +
         `Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
         `Score: ${score}/100\n` +
@@ -806,10 +831,21 @@ async function submitValidation(
     // Wait for transaction confirmation
     if (publicClient) {
       try {
-        await publicClient.waitForTransactionReceipt({
+        const receipt = await publicClient.waitForTransactionReceipt({
           hash,
           timeout: 30000,
         });
+
+        // Check if transaction reverted
+        if (receipt.status === "reverted" || receipt.status === 0) {
+          return {
+            success: false,
+            details: "",
+            error:
+              "Transaction reverted on-chain. Please check the transaction for details.",
+            txHash: hash,
+          };
+        }
       } catch (e) {
         console.warn("Could not confirm transaction receipt:", e);
       }
@@ -966,7 +1002,8 @@ async function submitFeedback(
   contractConfig: any,
   writeContract: any,
   currentAddress: string,
-  workflowState: WorkflowState
+  workflowState: WorkflowState,
+  publicClient: any
 ): Promise<StepResult> {
   if (currentAddress.toLowerCase() !== agents.client.toLowerCase()) {
     return {
@@ -1037,6 +1074,29 @@ async function submitFeedback(
         feedbackAuth,
       ],
     });
+
+    // Wait for transaction confirmation
+    if (publicClient) {
+      try {
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash,
+          timeout: 30000,
+        });
+
+        // Check if transaction reverted
+        if (receipt.status === "reverted" || receipt.status === 0) {
+          return {
+            success: false,
+            details: "",
+            error:
+              "Transaction reverted on-chain. Please check the transaction for details.",
+            txHash: hash,
+          };
+        }
+      } catch (e) {
+        console.warn("Could not confirm transaction receipt:", e);
+      }
+    }
 
     return {
       success: true,
