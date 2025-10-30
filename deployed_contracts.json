@@ -1,11 +1,22 @@
 {
-  "network": "anvil",
-  "chainId": 31337,
+  "chainId": 84532,
+  "name": "Base Sepolia",
   "contracts": {
-    "IdentityRegistry": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    "ValidationRegistry": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-    "ReputationRegistry": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-    "Groth16Verifier": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-    "RebalancerVerifier": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
-  }
+    "IdentityRegistry": {
+      "address": "0xCfec11aF0101f1D1C034E5fa8A8F490b78D3d188"
+    },
+    "ValidationRegistry": {
+      "address": "0xc4708fdE00Af35888D8ecC183D24e60fe3bE37b0"
+    },
+    "ReputationRegistry": {
+      "address": "0x9547b6d3F808A8A8F9e0aF3EfED53595e6E172dC"
+    },
+    "Groth16Verifier": {
+      "address": "0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f"
+    },
+    "RebalancerVerifier": {
+      "address": "0x3CcB02561f39133214F5801626643c623D916e01"
+    }
+  },
+  "deploymentBlock": 33018974
 }

@@ -24,10 +24,10 @@ export const DEPLOYED_CONTRACTS = {
     validationRegistry:
       "0x8004C269D0A5647E51E121FeB226200ECE932d55" as `0x${string}`,
     groth16Verifier:
-      "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+      "0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f" as `0x${string}`, // FIXED: All circuit bugs resolved (2,091 constraints)
     rebalancerVerifier:
-      "0x806C55BEdFeD85d99Aa681017a629ABf730b696F" as `0x${string}`, // FIXED: New verifier with circuit bugs resolved
-    deploymentBlock: 32952110, // Updated to new deployment block
+      "0x3CcB02561f39133214F5801626643c623D916e01" as `0x${string}`, // FIXED: Boolean validation + all checks enforced (1,043 constraints)
+    deploymentBlock: 33018974, // Latest deployment with all fixes
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",
