@@ -42,6 +42,8 @@ export function StepCard({ step, isActive }: StepCardProps) {
         return (
             <div className="text-xs text-slate-300 font-mono space-y-1">
                 {lines.map((line, index) => {
+                    // Linkify explicit URLs (e.g., Pinata gateway links)
+                    const urlMatch = line.match(/https?:\/\/[^\s]+/);
                     // Check if line contains a transaction hash (0x followed by 64 hex chars)
                     const txHashMatch = line.match(/(0x[a-fA-F0-9]{64})/);
                     // Check if line contains shortened tx/hash (0x...xxxx pattern)
@@ -71,7 +73,25 @@ export function StepCard({ step, isActive }: StepCardProps) {
                         previousLine.includes('Data Hash:') ||
                         previousLine.includes('DataHash:');
 
-                    if (txHashMatch && !isDataHash) {
+                    if (urlMatch) {
+                        const url = urlMatch[0];
+                        const before = line.substring(0, urlMatch.index);
+                        const after = line.substring((urlMatch.index || 0) + url.length);
+                        return (
+                            <div key={index}>
+                                {before}
+                                <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors"
+                                >
+                                    {url}
+                                </a>
+                                {after}
+                            </div>
+                        );
+                    } else if (txHashMatch && !isDataHash) {
                         // Only create transaction link if it's NOT a data hash
                         const txHash = txHashMatch[1];
                         const beforeHash = line.substring(0, txHashMatch.index);

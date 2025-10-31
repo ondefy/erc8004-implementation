@@ -34,6 +34,8 @@ export interface WorkflowState {
   };
   requestHash?: string;
   responseHash?: string;
+  requestCid?: string; // IPFS CID for stored proof
+  responseCid?: string; // IPFS CID for stored validation
   dataHash?: string;
   inputData?: any; // Can be either portfolio or opportunity data
   inputMode?: "Math" | "Rebalancing"; // Track which mode is active
@@ -579,6 +581,8 @@ async function submitForValidation(
   }
 
   let dataHash: string;
+  let ipfsCid: string | undefined;
+  let pinataGatewayUrl: string | undefined;
   try {
     const response = await fetch("/api/store-proof", {
       method: "POST",
@@ -588,6 +592,8 @@ async function submitForValidation(
     if (!response.ok) throw new Error("Failed to store proof");
     const result = await response.json();
     dataHash = result.dataHash;
+    ipfsCid = result.ipfsCid;
+    pinataGatewayUrl = result.pinataGatewayUrl;
   } catch (error) {
     console.error("Failed to store proof:", error);
     return {
@@ -598,7 +604,11 @@ async function submitForValidation(
   }
 
   try {
-    const requestUri = `file://data/${dataHash.slice(2)}.json`;
+    const requestUri = ((): string => {
+      const cid =
+        typeof ipfsCid !== "undefined" && ipfsCid ? ipfsCid : undefined;
+      return cid ? `ipfs://${cid}` : `file://data/${dataHash.slice(2)}.json`;
+    })();
 
     const hash = await writeContract({
       address: contractConfig.validationRegistry.address,
@@ -654,10 +664,14 @@ async function submitForValidation(
         )}\n` +
         `Agent ID: ${rebalancerAgentId}\n` +
         `Transaction: ${hash}\n` +
-        `Data Hash: ${dataHash}\n` +
+        // `Data Hash: ${dataHash}` +
+        (pinataGatewayUrl
+          ? `Data Hash: ${dataHash} \nView proof on Pinata: ${pinataGatewayUrl}`
+          : `Data Hash: ${dataHash}`) +
+        "\n" +
         (requestHash ? `Request Hash: ${requestHash}` : ""),
       txHash: hash,
-      stateUpdate: { requestHash, dataHash },
+      stateUpdate: { requestHash, dataHash, requestCid: ipfsCid },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {
@@ -743,7 +757,7 @@ async function validateProof(
         `Groth16 Verifier (on-chain)\n` +
         `Contract: ${verifierName}\n` +
         // `Address: ${verifierAddress}\n` +
-        `Public: [${publicInputs.join(", ")}]\n` +
+        // `Public: [${publicInputs.join(", ")}]\n` +
         `Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
         `Score: ${score}/100\n` +
         `DataHash: ${dataHash}`,
@@ -808,11 +822,20 @@ async function submitValidation(
       body: JSON.stringify({ validationResult, dataHash }),
     });
     if (!response.ok) throw new Error("Failed to store validation result");
+    var validationIpfsCid: string | undefined;
+    var validationPinataGatewayUrl: string | undefined;
+    try {
+      const storeRes = await response.json();
+      validationIpfsCid = storeRes.ipfsCid;
+      validationPinataGatewayUrl = storeRes.pinataGatewayUrl;
+    } catch {}
   } catch (error) {
     console.error("Failed to store validation:", error);
   }
 
-  const responseUri = `file://validations/${dataHash.slice(2)}.json`;
+  const responseUri = validationIpfsCid
+    ? `ipfs://${validationIpfsCid}`
+    : `file://validations/${dataHash.slice(2)}.json`;
 
   try {
     const hash = await writeContract({
@@ -858,9 +881,12 @@ async function submitValidation(
         `Transaction: ${hash}\n` +
         `Score: ${score}/100 ${score === 100 ? "✅" : "⚠️"}\n` +
         `Request Hash (Event): ${requestHash}\n` +
-        `Response Data Hash: ${dataHash}`,
+        // `Response Data Hash: ${dataHash}` +
+        (validationPinataGatewayUrl
+          ? `Response Data Hash: ${dataHash} \nView validation on Pinata: ${validationPinataGatewayUrl}`
+          : `Response Data Hash: ${dataHash}`),
       txHash: hash,
-      stateUpdate: { responseHash: dataHash },
+      stateUpdate: { responseHash: dataHash, responseCid: validationIpfsCid },
     };
   } catch (error: any) {
     if (error.message?.includes("user rejected")) {

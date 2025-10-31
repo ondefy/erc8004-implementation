@@ -67,6 +67,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Environment Variables
+
+Copy `env.local.example` to `.env.local` and fill the Pinata credentials (choose ONE method):
+
+```
+# Option 1 (recommended):
+PINATA_JWT=your_pinata_jwt_token
+
+# Option 2 (fallback):
+# PINATA_API_KEY=your_key
+# PINATA_SECRET_API_KEY=your_secret
+```
+
+These variables are used only in server-side API routes to pin proofs and validation results to IPFS via Pinata.
+
 ## Architecture
 
 ### Components
