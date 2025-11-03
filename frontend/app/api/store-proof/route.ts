@@ -6,25 +6,16 @@ import { tmpdir } from "os";
 
 async function pinJsonToPinata(content: unknown, name: string) {
   const jwt = process.env.PINATA_JWT;
-  const apiKey = process.env.PINATA_API_KEY;
-  const secretKey = process.env.PINATA_SECRET_API_KEY;
 
-  if (!jwt && !apiKey) return null;
+  if (!jwt) return null;
 
   try {
     const res = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
       method: "POST",
-      headers: jwt
-        ? {
-            Authorization: `Bearer ${jwt}`,
-            "Content-Type": "application/json",
-          }
-        : {
-            // Legacy key auth fallback
-            pinata_api_key: apiKey as string,
-            pinata_secret_api_key: secretKey as string,
-            "Content-Type": "application/json",
-          },
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         pinataContent: content,
         pinataMetadata: { name },

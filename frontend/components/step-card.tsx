@@ -45,17 +45,17 @@ export function StepCard({ step, isActive }: StepCardProps) {
                     // Linkify explicit URLs (e.g., Pinata gateway links)
                     const urlMatch = line.match(/https?:\/\/[^\s]+/);
                     // Check if line contains a transaction hash (0x followed by 64 hex chars)
-                    const txHashMatch = line.match(/(0x[a-fA-F0-9]{64})/);
+                    const txHashMatch = line.match(/Transaction:\s*(0x[a-fA-F0-9]{64})/);
                     // Check if line contains shortened tx/hash (0x...xxxx pattern)
                     const shortTxMatch = line.match(/Transaction:\s+(0x[a-fA-F0-9]{6,10})\.\.\.([a-fA-F0-9]{4})/);
                     // Check if line contains ethereum address (0x followed by 40 hex chars)
-                    const addressMatch = line.match(/(0x[a-fA-F0-9]{40})/);
+                    const addressMatch = line.match(/(Validator|Agent ID|Contract):\s*(0x[a-fA-F0-9]{40})/);
 
                     // Get previous line to check if current line is a hash value on next line
                     const previousLine = index > 0 ? lines[index - 1] : '';
 
                     // Check if this is a data hash that should NOT be a transaction link
-                    // Check current line AND previous line (for multi-line hash labels)
+                    // These should show Pinata links instead (handled by URL match above)
                     const isDataHash = line.includes('Request Hash') ||
                         line.includes('Response Hash') ||
                         line.includes('Response Data Hash') ||
@@ -73,6 +73,7 @@ export function StepCard({ step, isActive }: StepCardProps) {
                         previousLine.includes('Data Hash:') ||
                         previousLine.includes('DataHash:');
 
+                    // Priority 1: Handle URLs (Pinata links for data hashes)
                     if (urlMatch) {
                         const url = urlMatch[0];
                         const before = line.substring(0, urlMatch.index);
@@ -84,18 +85,20 @@ export function StepCard({ step, isActive }: StepCardProps) {
                                     href={url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors"
+                                    className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors break-all"
                                 >
                                     {url}
                                 </a>
                                 {after}
                             </div>
                         );
-                    } else if (txHashMatch && !isDataHash) {
-                        // Only create transaction link if it's NOT a data hash
+                    }
+                    
+                    // Priority 2: Handle transaction hashes (NOT data hashes)
+                    if (txHashMatch && !isDataHash) {
                         const txHash = txHashMatch[1];
                         const beforeHash = line.substring(0, txHashMatch.index);
-                        const afterHash = line.substring(txHashMatch.index! + txHash.length);
+                        const afterHash = line.substring(txHashMatch.index! + txHashMatch[0].length);
 
                         return (
                             <div key={index}>
@@ -105,53 +108,48 @@ export function StepCard({ step, isActive }: StepCardProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors"
+                                    title="View transaction on explorer"
                                 >
                                     {txHash}
                                 </a>
                                 {afterHash}
                             </div>
                         );
-                    } else if (shortTxMatch) {
-                        // For shortened transaction display, we need the full hash from state
-                        // For now, just make it look clickable but non-functional
-                        return <div key={index}>{line}</div>;
-                    } else if (
-                        addressMatch &&
-                        !line.includes('Request Hash') &&
-                        !line.includes('Response Hash') &&
-                        !line.includes('Response Data Hash') &&
-                        !line.includes('Data Hash') &&
-                        !line.includes('DataHash') &&
-                        !line.includes('dataHash') &&
-                        !line.includes('requestHash') &&
-                        !line.includes('responseHash') &&
-                        !line.includes('(Event)') &&
-                        !previousLine.includes('Request Hash:') &&
-                        !previousLine.includes('Response Hash:') &&
-                        !previousLine.includes('Data Hash:') &&
-                        !previousLine.includes('DataHash:')
-                    ) {
-                        const address = addressMatch[1];
+                    }
+                    
+                    // Priority 3: Handle addresses (Validator, Agent ID, Contract)
+                    if (addressMatch) {
+                        const label = addressMatch[1]; // "Validator", "Agent ID", or "Contract"
+                        const address = addressMatch[2];
                         const beforeAddr = line.substring(0, addressMatch.index);
-                        const afterAddr = line.substring(addressMatch.index! + address.length);
+                        const afterAddr = line.substring(addressMatch.index! + addressMatch[0].length);
 
                         return (
                             <div key={index}>
                                 {beforeAddr}
+                                <span>{label}: </span>
                                 <a
                                     href={`${networkInfo.explorer}/address/${address}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-zyfi-accent-blue hover:text-zyfi-accent-bright underline decoration-dotted hover:decoration-solid transition-colors"
+                                    title={`View ${label.toLowerCase()} on explorer`}
                                 >
                                     {address}
                                 </a>
                                 {afterAddr}
                             </div>
                         );
-                    } else {
+                    }
+                    
+                    // Priority 4: Handle shortened transaction (if we have full hash available)
+                    if (shortTxMatch) {
+                        // For now, just display without link (would need full hash from state)
                         return <div key={index}>{line}</div>;
                     }
+                    
+                    // Default: Plain text
+                    return <div key={index}>{line}</div>;
                 })}
             </div>
         );

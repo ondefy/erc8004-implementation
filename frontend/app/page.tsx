@@ -470,22 +470,46 @@ export default function Home() {
       return;
     }
 
-    // Update workflow state with the manual agent ID
-    setWorkflowState((prev) => ({
-      ...prev,
+    // Create updated workflow state with the manual agent ID
+    const updatedWorkflowState = {
+      ...workflowState,
       agentIds: {
-        ...prev.agentIds,
+        ...workflowState.agentIds,
         [waitingForAgentId.role]: agentIdNum,
       },
-    }));
+    };
 
-    // Clear the modal and resume workflow
+    // Update state for future steps
+    setWorkflowState(updatedWorkflowState);
+
+    // Clear the modal
     const resumeFromStep = waitingForAgentId.stepId;
     setWaitingForAgentId(null);
     setManualAgentId("");
 
-    // Auto-resume the workflow from the specific step
-    setTimeout(() => resumeWorkflowFromStep(resumeFromStep), 500);
+    // Resume workflow with the updated state (pass it directly to avoid race condition)
+    setTimeout(() => {
+      if (!agentConfig || !contracts || !connectedAddress) return;
+
+      setIsRunning(true);
+      console.log(`Resuming workflow from step ${resumeFromStep} with updated agent IDs`);
+
+      // Use the updated state directly instead of reading from state (which might be stale)
+      (async () => {
+        let currentWorkflowState: WorkflowState = { ...updatedWorkflowState };
+        try {
+          for (let i = resumeFromStep; i < steps.length; i++) {
+            const stepResult = await executeStep(i, currentWorkflowState);
+            currentWorkflowState = { ...stepResult };
+          }
+        } catch (error) {
+          console.error("Workflow error during resume:", error);
+        } finally {
+          setIsRunning(false);
+          setCurrentStep(null);
+        }
+      })();
+    }, 500);
   };
 
   const completedSteps = steps.filter((s) => s.status === "completed").length;

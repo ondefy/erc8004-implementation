@@ -459,6 +459,29 @@ async function generateZKProof(
       }
       const result = await response.json();
 
+      // Store proof to Pinata
+      let pinataGatewayUrl: string | undefined;
+      let dataHash: string | undefined;
+      let ipfsCid: string | undefined;
+      try {
+        const storeResponse = await fetch("/api/store-proof", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            proof: result.proof,
+            publicInputs: result.publicInputs,
+          }),
+        });
+        if (storeResponse.ok) {
+          const storeResult = await storeResponse.json();
+          pinataGatewayUrl = storeResult.pinataGatewayUrl;
+          dataHash = storeResult.dataHash;
+          ipfsCid = storeResult.ipfsCid;
+        }
+      } catch (error) {
+        console.warn("Failed to store proof to Pinata:", error);
+      }
+
       return {
         success: true,
         details:
@@ -466,17 +489,22 @@ async function generateZKProof(
           `Circuit: rebalancer-validation.circom\n` +
           `Mode: Rebalancing (DeFi Validation)\n` +
           `Private: liquidity, zyfiTvl, amount, poolTvl, APYs\n` +
-          `Public: validationCommitment, isValid\n\n` +
-          `Rules:\n` +
+          // `Public: validationCommitment, isValid\n\n` +
+          `\nRules:\n` +
           `1. Liquidity × 1.05 > zyfiTvl + (amount/1M)\n` +
           `2. poolTvl × 1M > amount × 4 (max 25%)\n` +
           `3. newApy > oldApy + 10 (0.1% min)\n` +
           `4. 7d OR 10d stability\n` +
-          `5. TVL stable`,
+          `5. TVL stable` +
+          (pinataGatewayUrl && dataHash
+            ? `\n\nData Hash: ${dataHash}\nView proof on Pinata: ${pinataGatewayUrl}`
+            : ""),
         stateUpdate: {
           proofGenerated: true,
           proof: result.proof,
           publicInputs: result.publicInputs,
+          dataHash,
+          requestCid: ipfsCid, // Store CID for Step 3 to reuse
         },
       };
     } catch (error) {
@@ -508,6 +536,29 @@ async function generateZKProof(
       if (!result.success)
         throw new Error(result.error || "Failed to generate proof");
 
+      // Store proof to Pinata
+      let pinataGatewayUrl: string | undefined;
+      let dataHash: string | undefined;
+      let ipfsCid: string | undefined;
+      try {
+        const storeResponse = await fetch("/api/store-proof", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            proof: result.proof,
+            publicInputs: result.publicInputs,
+          }),
+        });
+        if (storeResponse.ok) {
+          const storeResult = await storeResponse.json();
+          pinataGatewayUrl = storeResult.pinataGatewayUrl;
+          dataHash = storeResult.dataHash;
+          ipfsCid = storeResult.ipfsCid;
+        }
+      } catch (error) {
+        console.warn("Failed to store proof to Pinata:", error);
+      }
+
       return {
         success: true,
         details:
@@ -516,12 +567,17 @@ async function generateZKProof(
           `Mode: Math (Portfolio)\n` +
           `Assets: ${inputData.oldBalances.length}\n` +
           `Range: ${inputData.minAllocationPct}%-${inputData.maxAllocationPct}%\n` +
-          `Public: [${result.publicInputs.join(", ")}]`,
+          // `Public: [${result.publicInputs.join(", ")}]` +
+          (pinataGatewayUrl && dataHash
+            ? `\nData Hash: ${dataHash}\nView proof on Pinata: ${pinataGatewayUrl}`
+            : ""),
         stateUpdate: {
           proofGenerated: true,
           newTotalValue,
           proof: result.proof,
           publicInputs: result.publicInputs,
+          dataHash,
+          requestCid: ipfsCid, // Store CID for Step 3 to reuse
         },
       };
     } catch (error) {
@@ -580,27 +636,43 @@ async function submitForValidation(
     };
   }
 
+  // Reuse data hash and Pinata URL from Step 2 if available (no need to re-upload)
   let dataHash: string;
   let ipfsCid: string | undefined;
   let pinataGatewayUrl: string | undefined;
-  try {
-    const response = await fetch("/api/store-proof", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ proof, publicInputs: workflowState.publicInputs }),
-    });
-    if (!response.ok) throw new Error("Failed to store proof");
-    const result = await response.json();
-    dataHash = result.dataHash;
-    ipfsCid = result.ipfsCid;
-    pinataGatewayUrl = result.pinataGatewayUrl;
-  } catch (error) {
-    console.error("Failed to store proof:", error);
-    return {
-      success: false,
-      details: "",
-      error: "Failed to prepare proof for validation",
-    };
+
+  if (workflowState.dataHash) {
+    // Proof already stored in Step 2, reuse the hash and URL
+    dataHash = workflowState.dataHash;
+    ipfsCid = workflowState.requestCid; // May be undefined if Pinata failed in Step 2
+    // Try to reconstruct Pinata URL if we have the CID
+    if (ipfsCid) {
+      pinataGatewayUrl = `https://gateway.pinata.cloud/ipfs/${ipfsCid}`;
+    }
+  } else {
+    // Fallback: Store proof if not already done (shouldn't happen normally)
+    try {
+      const response = await fetch("/api/store-proof", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proof,
+          publicInputs: workflowState.publicInputs,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to store proof");
+      const result = await response.json();
+      dataHash = result.dataHash;
+      ipfsCid = result.ipfsCid;
+      pinataGatewayUrl = result.pinataGatewayUrl;
+    } catch (error) {
+      console.error("Failed to store proof:", error);
+      return {
+        success: false,
+        details: "",
+        error: "Failed to prepare proof for validation",
+      };
+    }
   }
 
   try {
