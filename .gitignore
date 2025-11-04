@@ -83,6 +83,11 @@ contracts/lib/
 .env.*
 !.env.example
 
+# Agent registration sensitive files
+latest-ipfs-cid.txt
+latest-agent-id.txt
+.private_key
+
 # IDE specific files
 .vscode/
 .idea/

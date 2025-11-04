@@ -34,7 +34,10 @@
     "frontend:start": "cd frontend && npm start",
     "frontend:install": "cd frontend && npm install",
     "demo:full": "./run_demo.sh",
-    "demo:frontend": "./start_frontend.sh"
+    "demo:frontend": "./start_frontend.sh",
+    "agent:upload-ipfs": "ts-node scripts/upload-to-pinata.ts",
+    "agent:register": "ts-node scripts/register-agent-sepolia.ts",
+    "agent:update-uri": "ts-node scripts/update-agent-uri.ts"
   },
   "keywords": [
     "zero-knowledge",
@@ -60,8 +63,10 @@
   },
   "dependencies": {
     "@types/node": "^20.19.19",
+    "axios": "^1.13.1",
     "circomlib": "^2.0.5",
     "dotenv": "^16.6.1",
+    "form-data": "^4.0.4",
     "snarkjs": "^0.7.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
