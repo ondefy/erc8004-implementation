@@ -25,17 +25,14 @@
       "agentRegistry": "eip155:84532:0x8004AA63c570c570eBF15376c0dB199918BFe9Fb"
     }
   ],
-  "supportedTrust": [
-    "crypto-economic",
-    "reputation"
-  ],
+  "supportedTrust": ["crypto-economic", "reputation"],
   "capabilities": {
     "zkProofGeneration": {
       "defiOpportunityValidation": {
         "description": "Validates DeFi rebalancing opportunities with liquidity, APY, TVL, and risk constraints",
         "proofSystem": "Groth16",
         "verifierContracts": {
-          "ethereumSepolia": "eip155:11155111:0x571cE11Cd7C93DFFfCd545d5684DB8Bdb84265B2",
+          "ethereumSepolia": "eip155:11155111:0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c",
           "baseSepolia": "eip155:84532:0x3CcB02561f39133214F5801626643c623D916e01"
         },
         "circuitConstraints": 1043,
@@ -54,9 +51,7 @@
         "ethereumSepolia": "eip155:11155111:0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5",
         "baseSepolia": "eip155:84532:0x8004C269D0A5647E51E121FeB226200ECE932d55"
       },
-      "supportedProofTypes": [
-        "zkProofs"
-      ]
+      "supportedProofTypes": ["zkProofs"]
     },
     "reputation": {
       "feedbackEnabled": true,
@@ -75,10 +70,7 @@
   "technology": {
     "zkCircuits": "Circom 2.2.2+",
     "proofSystem": "SnarkJS 0.7.5 (Groth16)",
-    "blockchains": [
-      "Ethereum Sepolia (Testnet)",
-      "Base Sepolia (Testnet)"
-    ],
+    "blockchains": ["Ethereum Sepolia (Testnet)", "Base Sepolia (Testnet)"],
     "smartContracts": "Solidity 0.8.20"
   },
   "links": {
@@ -86,7 +78,7 @@
     "sourceCode": "https://github.com/ZyFAI/rebalancing-poc",
     "ethereumSepolia": {
       "identityRegistry": "https://sepolia.etherscan.io/address/0x8004a6090Cd10A7288092483047B097295Fb8847",
-      "rebalancerVerifier": "https://sepolia.etherscan.io/address/0x571cE11Cd7C93DFFfCd545d5684DB8Bdb84265B2",
+      "rebalancerVerifier": "https://sepolia.etherscan.io/address/0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c",
       "portfolioVerifier": "https://sepolia.etherscan.io/address/0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2"
     },
     "baseSepolia": {

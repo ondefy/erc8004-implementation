@@ -1296,16 +1296,16 @@ async function checkReputation(
     details += `\n⚠️ Public client or agent ID not available for on-chain lookup`;
   }
 
-  if (workflowState) {
-    if (workflowState.requestHash || workflowState.dataHash) {
-      details += `\nRequest Hash:\n${
-        workflowState.requestHash || workflowState.dataHash
-      }`;
-    }
-    if (workflowState.responseHash) {
-      details += `\nResponse Hash:\n${workflowState.responseHash}`;
-    }
-  }
+  // if (workflowState) {
+  //   if (workflowState.requestHash || workflowState.dataHash) {
+  //     details += `\nRequest Hash:\n${
+  //       workflowState.requestHash || workflowState.dataHash
+  //     }`;
+  //   }
+  //   if (workflowState.responseHash) {
+  //     details += `\nResponse Hash:\n${workflowState.responseHash}`;
+  //   }
+  // }
 
   return {
     success: true,
