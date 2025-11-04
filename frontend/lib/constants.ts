@@ -40,10 +40,10 @@ export const DEPLOYED_CONTRACTS = {
     validationRegistry:
       "0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5" as `0x${string}`,
     groth16Verifier:
-      "0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2" as `0x${string}`,
+      "0xC10A3A32Ee429Eea2d5b80CF82357a093d919A44" as `0x${string}`,
     rebalancerVerifier:
-      "0x571cE11Cd7C93DFFfCd545d5684DB8Bdb84265B2" as `0x${string}`,
-    deploymentBlock: 9419801,
+      "0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c" as `0x${string}`,
+    deploymentBlock: 9558786,
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
     name: "Ethereum Sepolia",

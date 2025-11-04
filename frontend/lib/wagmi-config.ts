@@ -9,7 +9,8 @@ const projectId =
 // RPC endpoints - use custom RPCs if provided in environment variables
 const baseSepoliaRpc =
   process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || undefined;
-const sepoliaRpc = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || undefined;
+const sepoliaRpc =
+  process.env.NEXT_PUBLIC_ETHEREUM_SEPOLIA_RPC_URL || undefined;
 
 export const config = createConfig({
   chains: [baseSepolia, sepolia],

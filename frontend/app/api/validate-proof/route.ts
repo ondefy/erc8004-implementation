@@ -29,7 +29,11 @@ export async function POST(req: Request) {
     if (chainId === 84532) {
       // Base Sepolia
       chain = baseSepolia;
-      rpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || baseSepolia.rpcUrls.default.http[0];
+      // Support both NEXT_PUBLIC and server-side env var naming
+      rpcUrl =
+        process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL ||
+        process.env.RPC_URL_BASE_SEPOLIA ||
+        baseSepolia.rpcUrls.default.http[0];
       const contracts = getContractsForNetwork(84532);
       if (!contracts) {
         return NextResponse.json(
@@ -43,7 +47,11 @@ export async function POST(req: Request) {
     } else if (chainId === 11155111) {
       // Ethereum Sepolia
       chain = sepolia;
-      rpcUrl = process.env.NEXT_PUBLIC_ETHEREUM_SEPOLIA_RPC_URL || sepolia.rpcUrls.default.http[0];
+      // Support both NEXT_PUBLIC and server-side env var naming
+      rpcUrl =
+        process.env.NEXT_PUBLIC_ETHEREUM_SEPOLIA_RPC_URL ||
+        process.env.RPC_URL_SEPOLIA ||
+        sepolia.rpcUrls.default.http[0];
       const contracts = getContractsForNetwork(11155111);
       if (!contracts) {
         return NextResponse.json(
@@ -123,10 +131,13 @@ export async function POST(req: Request) {
 
     const pC: [bigint, bigint] = [BigInt(pr.pi_c[0]), BigInt(pr.pi_c[1])];
 
-    // Create public client for reading contract
+    // Create public client for reading contract with retry configuration
     const publicClient = createPublicClient({
       chain,
-      transport: http(rpcUrl),
+      transport: http(rpcUrl, {
+        retryCount: 3,
+        retryDelay: 1000,
+      }),
     });
 
     console.log(
@@ -189,10 +200,33 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Error validating proof:", error);
+
+    // Provide helpful error messages for common issues
+    let errorMessage = "Failed to validate ZK proof";
+    let details = error instanceof Error ? error.message : "Unknown error";
+
+    if (details.includes("Unexpected token") || details.includes("Maximum")) {
+      errorMessage = "RPC rate limit exceeded";
+      details =
+        "Your RPC provider (Alchemy/Infura) rate limit has been exceeded. " +
+        "Solutions:\n" +
+        "1. Upgrade your RPC provider plan\n" +
+        "2. Wait a few minutes and try again\n" +
+        "3. Use a different RPC endpoint\n\n" +
+        "Original error: " +
+        details;
+    } else if (details.includes("HTTP request failed")) {
+      errorMessage = "RPC connection error";
+      details =
+        "Failed to connect to the RPC endpoint. Check your network connection and RPC URL configuration.\n\n" +
+        "Original error: " +
+        details;
+    }
+
     return NextResponse.json(
       {
-        error: "Failed to validate ZK proof",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: errorMessage,
+        details: details,
       },
       { status: 500 }
     );

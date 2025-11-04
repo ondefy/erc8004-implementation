@@ -93,7 +93,7 @@ export function StepCard({ step, isActive }: StepCardProps) {
                             </div>
                         );
                     }
-                    
+
                     // Priority 2: Handle transaction hashes (NOT data hashes)
                     if (txHashMatch && !isDataHash) {
                         const txHash = txHashMatch[1];
@@ -116,7 +116,7 @@ export function StepCard({ step, isActive }: StepCardProps) {
                             </div>
                         );
                     }
-                    
+
                     // Priority 3: Handle addresses (Validator, Agent ID, Contract)
                     if (addressMatch) {
                         const label = addressMatch[1]; // "Validator", "Agent ID", or "Contract"
@@ -141,13 +141,13 @@ export function StepCard({ step, isActive }: StepCardProps) {
                             </div>
                         );
                     }
-                    
+
                     // Priority 4: Handle shortened transaction (if we have full hash available)
                     if (shortTxMatch) {
                         // For now, just display without link (would need full hash from state)
                         return <div key={index}>{line}</div>;
                     }
-                    
+
                     // Default: Plain text
                     return <div key={index}>{line}</div>;
                 })}
@@ -206,93 +206,6 @@ export function StepCard({ step, isActive }: StepCardProps) {
         }
     };
 
-    // Render proof data in a collapsible section
-    const renderProofData = () => {
-        if (!step.proof || !step.publicInputs) return null;
-
-        return (
-            <details className="mt-3 group">
-                <summary className="cursor-pointer p-3 bg-zyfi-bg/60 rounded-zyfi border border-zyfi-border hover:border-zyfi-accent-blue transition-colors">
-                    <div className="flex items-center gap-2">
-                        {/* <svg
-                            className="w-4 h-4 text-zyfi-accent-blue transform transition-transform group-open:rotate-90"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path d="M9 5l7 7-7 7" />
-                        </svg> */}
-                        <span className="text-xs font-semibold text-zyfi-accent-blue uppercase tracking-wider">
-                            View Proof Data
-                        </span>
-                    </div>
-                </summary>
-                <div className="mt-2 p-4 bg-zyfi-bg/80 rounded-zyfi border border-zyfi-accent-blue/30 space-y-3">
-                    {/* Public Inputs */}
-                    <div>
-                        <h4 className="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                            Public Signals ({Array.isArray(step.publicInputs) ? step.publicInputs.length : 0})
-                        </h4>
-                        <div className="bg-slate-900/50 p-2 rounded border border-slate-700 overflow-x-auto">
-                            <pre className="text-[10px] text-green-400 font-mono">
-                                {JSON.stringify(step.publicInputs, null, 2)}
-                            </pre>
-                        </div>
-                    </div>
-
-                    {/* Proof Components */}
-                    <div>
-                        <h4 className="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                            Groth16 Proof
-                        </h4>
-                        <div className="space-y-2">
-                            {/* pi_a */}
-                            <div className="bg-slate-900/50 p-2 rounded border border-slate-700">
-                                <div className="text-[10px] text-purple-300 font-semibold mb-1">π_A (G1 Point)</div>
-                                <pre className="text-[9px] text-slate-400 font-mono break-all">
-                                    {step.proof.pi_a?.[0]?.slice(0, 50)}...
-                                </pre>
-                            </div>
-
-                            {/* pi_b */}
-                            <div className="bg-slate-900/50 p-2 rounded border border-slate-700">
-                                <div className="text-[10px] text-purple-300 font-semibold mb-1">π_B (G2 Point)</div>
-                                <pre className="text-[9px] text-slate-400 font-mono break-all">
-                                    {step.proof.pi_b?.[0]?.[0]?.slice(0, 50)}...
-                                </pre>
-                            </div>
-
-                            {/* pi_c */}
-                            <div className="bg-slate-900/50 p-2 rounded border border-slate-700">
-                                <div className="text-[10px] text-purple-300 font-semibold mb-1">π_C (G1 Point)</div>
-                                <pre className="text-[9px] text-slate-400 font-mono break-all">
-                                    {step.proof.pi_c?.[0]?.slice(0, 50)}...
-                                </pre>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Full Proof JSON (collapsible) */}
-                    <details className="group/proof">
-                        <summary className="cursor-pointer text-[10px] text-slate-400 hover:text-zyfi-accent-blue transition-colors">
-                            View Full Proof JSON
-                        </summary>
-                        <div className="mt-2 bg-slate-900/70 p-3 rounded border border-slate-700 max-h-64 overflow-auto">
-                            <pre className="text-[9px] text-slate-300 font-mono whitespace-pre-wrap break-all">
-                                {JSON.stringify(step.proof, null, 2)}
-                            </pre>
-                        </div>
-                    </details>
-                </div>
-            </details>
-        );
-    };
-
     return (
         <div
             className={`border rounded-zyfi-lg p-5 transition-all duration-300 ${getStatusStyles()} ${isActive ? "ring-2 ring-zyfi-accent-bright shadow-zyfi-glow-lg" : ""
@@ -313,7 +226,7 @@ export function StepCard({ step, isActive }: StepCardProps) {
                             {renderDetailsWithLinks(step.details)}
                         </div>
                     )}
-                    {renderProofData()}
+                    {/* {renderProofData()} */}
                 </div>
             </div>
         </div>

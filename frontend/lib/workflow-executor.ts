@@ -1068,11 +1068,13 @@ async function authorizeFeedback(
         `Limit: ${indexLimit} feedbacks\n` +
         `Expiry: ${expiryDate.toLocaleDateString()}\n` +
         `Chain: ${chainId}\n\n` +
-        `✓ Signed (289 bytes: 224 struct + 65 signature)`,
+        `✓ Off-chain authorization signed\n` +
+        `✓ This signature will be submitted on-chain in the next step`,
       stateUpdate: {
         feedbackAuthGenerated: true,
         feedbackAuth: feedbackAuth,
         authorizedClient: clientAddress,
+        authSignature: signature,
       },
     };
   } catch (error: any) {
@@ -1154,7 +1156,7 @@ async function submitFeedback(
     };
   }
 
-  const score = 95;
+  const score = 100;
   const comment = "Great rebalancing service!";
 
   try {
@@ -1167,7 +1169,7 @@ async function submitFeedback(
         score,
         "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
         "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
-        comment ? `ipfs://feedback/${comment}` : "",
+        comment ? comment : "",
         "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`,
         feedbackAuth,
       ],
