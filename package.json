@@ -37,7 +37,8 @@
     "demo:frontend": "./start_frontend.sh",
     "agent:upload-ipfs": "ts-node scripts/upload-to-pinata.ts",
     "agent:register": "ts-node scripts/register-agent-sepolia.ts",
-    "agent:update-uri": "ts-node scripts/update-agent-uri.ts"
+    "agent:update-uri": "ts-node scripts/update-agent-uri.ts",
+    "agent:update-multi-chain": "ts-node scripts/update-multi-chain.ts"
   },
   "keywords": [
     "zero-knowledge",
