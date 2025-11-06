@@ -12,6 +12,7 @@ This project demonstrates privacy-preserving DeFi rebalancing validation using:
 - **Multi-Agent System** with Rebalancer, Validator, and Client agents implementing ERC-8004 workflows
 - **On-chain Verification** using auto-generated Solidity verifier contracts
 - **Reputation System** for service quality tracking and feedback
+- **Web Interface** with wallet integration (Wagmi + Reown AppKit) for interactive workflow execution
 
 ## Quick Start
 
@@ -22,14 +23,13 @@ npm install
 # Run the complete demo
 ./run_demo.sh
 
-# Or use the frontend UI (with Base Sepolia support!)
-npm run frontend:install
-npm run frontend:dev  # Visit http://localhost:3000
+# Or use the frontend UI (deployed on Base Sepolia!)
+cd frontend
+npm install
+npm run dev  # Visit http://localhost:3000
 ```
 
-**For detailed setup instructions**, see [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)  
-**For frontend guide**, see [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md)  
-**For Base Sepolia testnet**, see [BASE_SEPOLIA_SETUP.md](BASE_SEPOLIA_SETUP.md)
+**For project context and debugging**, see [CLAUDE.md](CLAUDE.md) - comprehensive guide for AI-assisted development
 
 ## Technology Stack
 
@@ -38,15 +38,25 @@ npm run frontend:dev  # Visit http://localhost:3000
 - **ZK Framework**: Circom 2.2.2+ (Circom 2.x)
 - **Proof System**: Groth16 (efficient on-chain verification)
 - **Proof Library**: SnarkJS 0.7.5
-- **Curve**: bn128
+- **Curve**: bn128 (bn254)
 - **Privacy**: Old/new balances and prices kept private via witness
 
 ### Agentic Orchestration
 
 - **Standard**: ERC-8004 Trustless Agents
-- **Smart Contracts**: Solidity (Foundry)
-- **Agent Framework**: TypeScript + Viem
-- **Blockchain**: Ethereum-compatible (Anvil for testing)
+- **Smart Contracts**: Solidity 0.8.20 (Foundry framework)
+- **Agent Framework**: TypeScript + Viem 2.38.0
+- **Blockchain**: Ethereum-compatible (Anvil for local testing, Base Sepolia for testnet)
+
+### Frontend
+
+- **Framework**: Next.js 15.5.4 (App Router)
+- **React**: 19.1.0
+- **Wallet**: Wagmi 2.17.5 + Reown AppKit (WalletConnect v3)
+- **Blockchain Client**: Viem 2.38.0
+- **Styling**: Tailwind CSS 4
+- **State Management**: React Query (TanStack Query 5.90.2)
+- **UI Components**: Lucide React for icons
 
 ## Project Structure
 
@@ -78,18 +88,35 @@ rebalancing-poc-main/
 │   │   │   ├── generate-proof/     # Witness + proof generation
 │   │   │   ├── validate-proof/     # On-chain verification
 │   │   │   ├── store-proof/        # Proof storage with SHA-256
-│   │   │   └── load-input/         # Portfolio data loader
-│   │   └── page.tsx                # Main workflow UI
+│   │   │   ├── load-input/         # Portfolio data loader
+│   │   │   ├── load-opportunity/   # Opportunity data loader
+│   │   │   └── pin-to-ipfs/        # IPFS pinning via Pinata
+│   │   ├── page.tsx                # Main workflow UI
+│   │   ├── layout.tsx              # Root layout with wallet provider
+│   │   └── globals.css             # Global styles
 │   ├── components/                 # React components
+│   │   ├── agent-wallet-manager.tsx
+│   │   ├── deployed-contracts-panel.tsx
 │   │   ├── opportunity-input-form.tsx
+│   │   ├── portfolio-input-form.tsx
 │   │   ├── step-card.tsx
-│   │   └── ...
+│   │   ├── status-badge.tsx
+│   │   └── wallet-connect.tsx
 │   ├── lib/
 │   │   ├── workflow-executor.ts    # ⭐ Core step execution logic
 │   │   ├── contracts.ts            # Contract ABIs and configs
 │   │   ├── constants.ts            # Network configurations
-│   │   └── wagmi-config.ts         # Wallet integration (Reown AppKit)
-│   └── package.json                # Frontend dependencies
+│   │   ├── wagmi-config.ts         # Wallet integration (Reown AppKit)
+│   │   ├── proof-generator.ts      # ZK proof generation utilities
+│   │   ├── providers.tsx           # React providers wrapper
+│   │   └── abis/                   # Contract ABIs (JSON)
+│   ├── data/                       # Input data files
+│   │   ├── input.json             # Portfolio test data
+│   │   └── rebalancer-input.json  # Opportunity test data
+│   ├── public/
+│   │   └── zk-artifacts/          # ZK artifacts (WASM + zkey)
+│   ├── ecosystem.config.js        # PM2 deployment config
+│   └── package.json               # Frontend dependencies
 ├── tests/
 │   └── e2e/
 │       └── test-zk-rebalancing-workflow.ts  # ⭐ Complete E2E test
@@ -97,10 +124,11 @@ rebalancing-poc-main/
 │   ├── setup.sh                    # ZK setup (rebalancing circuit)
 │   ├── setup-rebalancer-validation.sh  # ZK setup (rebalancer circuit)
 │   ├── create-deployed-contracts.ts # Contract address extraction
-│   └── check-zkp-setup.js          # Verify ZK artifacts
-├── docs/
-│   ├── GETTING_STARTED.md          # Setup guide
-│   └── TECHNICAL_REFERENCE.md      # Technical details
+│   ├── check-zkp-setup.js          # Verify ZK artifacts
+│   ├── upload-to-pinata.ts         # IPFS upload utility
+│   ├── register-agent-sepolia.ts   # Agent registration on testnet
+│   ├── update-agent-uri.ts         # Update agent metadata
+│   └── update-multi-chain.ts       # Multi-chain agent management
 ├── build/                           # ZK proof artifacts
 │   ├── rebalancing.r1cs            # Compiled constraints (portfolio)
 │   ├── rebalancing.wasm            # Circuit WebAssembly
@@ -113,12 +141,16 @@ rebalancing-poc-main/
 │   │   └── rebalancer-validation_js/
 │   └── ...
 ├── input/
-│   └── input.json                  # Portfolio test data
-├── data/                            # Proof storage directory
+│   ├── input.json                  # Portfolio test data
+│   └── rebalancer-input.json       # Opportunity test data
+├── data/                            # Proof storage directory (SHA-256 indexed)
 ├── validations/                     # Validation results storage
 ├── CLAUDE.md                        # ⭐ Claude Code project context
+├── agent-card-zyfai.json           # Agent metadata for IPFS
 ├── tsconfig.json                    # TypeScript configuration
-├── deployed_contracts.json          # Contract addresses (anvil/testnet)
+├── deployed_contracts.json          # Contract addresses (Base Sepolia)
+├── run_demo.sh                      # Complete demo script
+├── start_frontend.sh                # Frontend startup script
 └── package.json                     # Root npm dependencies
 ```
 
@@ -142,7 +174,7 @@ Validates that a portfolio rebalancing satisfies allocation constraints without 
 
 **Constraints**:
 1. **Total Value Preservation**: Old and new portfolio values must be equal and match commitment
-2. **Allocation Bounds**: Calculates min/max bounds (note: full range checks require comparison circuits)
+2. **Allocation Bounds**: Each asset allocation must be within [minAllocationPct, maxAllocationPct] using GreaterThan and LessThan comparison circuits from circomlib
 
 **Circuit Statistics**:
 - **Constraints**: ~20 (optimized for privacy)
@@ -206,23 +238,73 @@ npm run setup:zkp
 
 # Setup ZyFI rebalancer validation circuit
 npm run setup:zkp:rebalancer
+
+# Check if ZK setup is complete
+npm run check:zkp
 ```
 
 **Portfolio rebalancing setup** (`npm run setup:zkp`):
 1. Compiles `circuits/rebalancing.circom` to R1CS and WASM
-2. Runs Powers of Tau ceremony
+2. Runs Powers of Tau ceremony (12 constraints)
 3. Generates proving and verification keys
 4. Exports Solidity verifier to `contracts/src/Verifier.sol`
 5. Tests with example input from `input/input.json`
 
 **ZyFI rebalancer setup** (`npm run setup:zkp:rebalancer`):
 1. Compiles `circuits/rebalancer-validation.circom` to R1CS and WASM
-2. Runs Powers of Tau ceremony
+2. Runs Powers of Tau ceremony (8 constraints)
 3. Generates proving and verification keys
 4. Exports Solidity verifier to `contracts/src/RebalancerVerifier.sol`
 5. Creates artifacts in `build/rebalancer-validation/` directory
 
 **Note**: The verifier contracts (`Verifier.sol`, `RebalancerVerifier.sol`) remain constant for the same circuit. Only regenerate when you modify the corresponding `.circom` files.
+
+### Available NPM Scripts
+
+**ZK Proof Setup**:
+- `npm run setup:zkp` - Setup portfolio rebalancing circuit
+- `npm run setup:zkp:rebalancer` - Setup ZyFI validation circuit
+- `npm run check:zkp` - Verify ZK artifacts exist
+- `npm run circuit:compile` - Compile circuit only
+- `npm run circuit:info` - Display circuit information
+- `npm run proof:generate` - Generate proof from input
+- `npm run proof:verify` - Verify proof offline
+- `npm run verifier:export` - Export Solidity verifier
+
+**Smart Contracts (Foundry)**:
+- `npm run setup:forge` - Install forge-std library
+- `npm run forge:build` - Compile contracts
+- `npm run forge:test` - Run Solidity tests
+- `npm run forge:deploy:local` - Deploy to Anvil
+- `npm run forge:deploy:base-sepolia` - Deploy to Base Sepolia
+- `npm run forge:clean` - Clean build artifacts
+
+**Testing**:
+- `npm run test:e2e` - Run end-to-end workflow test
+- `npm run test` - Run all tests (same as forge:test)
+- `npm run anvil` - Start local blockchain
+
+**Frontend**:
+- `npm run frontend:install` - Install frontend dependencies
+- `npm run frontend:dev` - Start dev server (port 3000)
+- `npm run frontend:build` - Build production bundle
+- `npm run frontend:start` - Start production server
+
+**Demos**:
+- `npm run demo:full` - Run complete demo (`./run_demo.sh`)
+- `npm run demo:frontend` - Start frontend demo
+
+**Agent Management**:
+- `npm run agent:upload-ipfs` - Upload agent metadata to Pinata
+- `npm run agent:register` - Register agent on Sepolia
+- `npm run agent:update-uri` - Update agent URI
+- `npm run agent:update-multi-chain` - Update across chains
+
+**Utilities**:
+- `npm run build` - Build TypeScript (agents)
+- `npm run clean` - Clean all build artifacts
+- `npm run clean:zkp` - Clean ZK artifacts only
+- `npm run clean:ts` - Clean TypeScript builds
 
 ## Usage
 
@@ -350,6 +432,7 @@ This project implements the **ERC-8004 Trustless Agents** standard for on-chain 
    - Each agent gets a unique `agentId` (tokenId)
    - Supports metadata and URI for agent profiles
    - Emits `Registered(uint256 agentId, string tokenURI, address owner)`
+   - Available in both standard and upgradeable versions (UUPS pattern)
 
 2. **ValidationRegistry**
    - Manages validation requests and responses
@@ -357,6 +440,7 @@ This project implements the **ERC-8004 Trustless Agents** standard for on-chain 
    - `validationResponse()`: Validator submits on-chain verification result (score 0-100)
    - Tracks validation history per agent and validator
    - Provides `getSummary()` for aggregated validation scores
+   - Available in both standard and upgradeable versions (UUPS pattern)
 
 3. **ReputationRegistry**
    - Feedback system with signature-based authorization
@@ -365,6 +449,11 @@ This project implements the **ERC-8004 Trustless Agents** standard for on-chain 
    - `appendResponse()`: Agents can respond to feedback
    - Anti-self-feedback protection (owner/operators cannot give feedback to themselves)
    - Provides `getSummary()` and `readAllFeedback()` for reputation queries
+   - Available in both standard and upgradeable versions (UUPS pattern)
+
+4. **ERC1967Proxy**
+   - Transparent proxy for upgradeable contracts
+   - OpenZeppelin implementation wrapper
 
 ### Verifier Contracts
 
@@ -415,6 +504,56 @@ function verifyProof(
 9. Query reputation → ReputationRegistry.getSummary()
 ```
 
+## Network Deployment
+
+### Deployed Contracts (Base Sepolia)
+
+The project is deployed on Base Sepolia testnet with the following contract addresses:
+
+```json
+{
+  "chainId": 84532,
+  "name": "Base Sepolia",
+  "contracts": {
+    "IdentityRegistry": "0xCfec11aF0101f1D1C034E5fa8A8F490b78D3d188",
+    "ValidationRegistry": "0xc4708fdE00Af35888D8ecC183D24e60fe3bE37b0",
+    "ReputationRegistry": "0x9547b6d3F808A8A8F9e0aF3EfED53595e6E172dC",
+    "Groth16Verifier": "0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f",
+    "RebalancerVerifier": "0x3CcB02561f39133214F5801626643c623D916e01"
+  },
+  "deploymentBlock": 33018974
+}
+```
+
+### Local Development
+
+For local development with Anvil:
+
+```bash
+# Terminal 1: Start Anvil
+npm run anvil
+
+# Terminal 2: Deploy contracts
+npm run forge:deploy:local
+
+# Terminal 3: Run E2E test
+npm run test:e2e
+
+# Terminal 4: Start frontend
+cd frontend && npm run dev
+```
+
+### Network Configuration
+
+The project supports multiple networks:
+
+- **Local (Anvil)**: Chain ID 31337
+- **Base Sepolia**: Chain ID 84532
+
+Contract addresses are stored in:
+- Root: `deployed_contracts.json` (Base Sepolia)
+- Frontend: `frontend/lib/constants.ts` (network configurations)
+
 ## Important Notes
 
 ### Circom Version Compatibility
@@ -441,7 +580,7 @@ This is a **proof-of-concept**. For production:
 
 **Portfolio Rebalancing Circuit**:
 1. ✅ Privacy achieved: balances/prices kept in witness
-2. 🔲 Add range check circuits for allocation constraints (currently only bounds are calculated)
+2. ✅ Range check circuits for allocation constraints (GreaterThan/LessThan from circomlib)
 3. 🔲 Implement Poseidon hash for commitments (more efficient than simple addition)
 4. 🔲 Support dynamic portfolio sizes (currently fixed at 4 assets)
 5. 🔲 Conduct security audit
@@ -449,8 +588,8 @@ This is a **proof-of-concept**. For production:
 
 **ZyFI Rebalancer Validation Circuit**:
 1. ✅ Privacy achieved: all rebalancer parameters kept in witness
-2. ✅ Comparison circuits implemented (GreaterThan, IsPositive, IsZero)
-3. ⚠️ Uses simple comparison logic (production should use battle-tested circomlib components)
+2. ✅ Comparison circuits implemented (GreaterThan, IsEqual from circomlib)
+3. ✅ Boolean validation for stability flags (0 or 1 enforcement)
 4. 🔲 Add overflow protection for large numbers
 5. 🔲 Conduct security audit for business logic constraints
 6. 🔲 Perform multi-party computation (MPC) ceremony for trusted setup
@@ -642,76 +781,169 @@ This project implements a complete multi-agent system following **ERC-8004 Trust
 
 ### Frontend Integration
 
-The frontend (`frontend/lib/workflow-executor.ts`) adapts agent logic for browser:
-- Connects via Reown AppKit (WalletConnect v3)
-- Uses Viem for blockchain interactions (not ethers.js)
-- Executes workflow steps with state management
-- Extracts agentIds from transaction event logs
-- Supports both Anvil (local) and Base Sepolia (testnet)
+The frontend provides a complete web UI for the ZK rebalancing workflow:
 
-**See `tests/e2e/test-zk-rebalancing-workflow.ts` for complete reference implementation.**
+**Architecture** (`frontend/lib/workflow-executor.ts`):
+- **Wallet Connection**: Reown AppKit (WalletConnect v3) with Wagmi 2.17.5
+- **Blockchain Client**: Viem 2.38.0 for all contract interactions (no ethers.js)
+- **State Management**: React Query (TanStack Query) + React hooks
+- **Workflow Steps**: 10 interactive steps with real-time status updates
+- **Network Support**: Anvil (local), Base Sepolia (testnet)
+
+**Key Features**:
+- Agent wallet management (Rebalancer, Validator, Client)
+- Dual input modes: Portfolio Rebalancing + Opportunity Validation
+- Custom portfolio/opportunity data forms
+- ZK proof generation in browser (SnarkJS + WASM)
+- IPFS integration via Pinata for proof storage
+- On-chain verification and transaction monitoring
+- Deployed contract information panel
+- Responsive design with Tailwind CSS 4
+
+**Workflow Steps**:
+0. Register Agents (NFT-based identity)
+1. Load Opportunity Data (portfolio or rebalancer metrics)
+2. Generate ZK Proof (privacy-preserving validation)
+3. Submit for Validation (on-chain request)
+4. Validate Proof (Groth16 verification)
+5. Submit Validation (record result)
+6. Select Client (choose feedback provider)
+7. Authorize Feedback (signed authorization)
+8. Client Feedback (reputation rating)
+9. Check Reputation (view scores)
+
+**See `tests/e2e/test-zk-rebalancing-workflow.ts` for backend reference implementation.**
 
 ## Key Features
 
 ✅ **Privacy**: Balances and prices kept private (witness-only, not on-chain)  
-✅ **On-Chain Verification**: Proofs verified via deployed Groth16Verifier contract  
+✅ **On-Chain Verification**: Proofs verified via deployed Groth16Verifier contracts  
 ✅ **Trust**: Cryptographic validation without revealing sensitive data  
 ✅ **Transparency**: Validation responses and feedback recorded on-chain  
 ✅ **Reputation**: Decentralized feedback system for service quality  
 ✅ **Composability**: ERC-8004 standard for multi-agent coordination  
-✅ **Efficiency**: Only 4 public signals (minimized calldata/gas)
+✅ **Efficiency**: Only 3+2 public signals (minimized calldata/gas)  
+✅ **User Interface**: Complete web UI with wallet integration  
+✅ **Testnet Ready**: Deployed on Base Sepolia with verified contracts  
+✅ **Dual Circuits**: Portfolio rebalancing + ZyFI opportunity validation
 
 ## Documentation
 
-### 📚 Complete Guides
+### 📚 Key Resources
 
-1. **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Complete setup guide
+1. **[CLAUDE.md](CLAUDE.md)** - Comprehensive project context for AI-assisted development
+   - Project summary and quick context for debugging
+   - Common errors and solutions
+   - Key files reference
+   - Architecture overview
+   - State flow and data management
+   - Technology stack notes
+   - Troubleshooting checklist
+   - Development best practices
 
-   - Prerequisites and installation
-   - Quick start (5 minutes)
-   - Running the demo
-   - Usage examples
-   - Common commands
-   - Troubleshooting
+2. **[frontend/README.md](frontend/README.md)** - Frontend documentation
+   - Frontend architecture and features
+   - Setup and installation
+   - Workflow steps explanation
+   - Tech stack details
+   - Environment variables
 
-2. **[TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md)** - Technical details
-   - System architecture
-   - Agentic workflow
-   - Zero-knowledge proof system
-   - File explanations
-   - Smart contracts
-   - TypeScript implementation
-   - Circuit design
-   - Security considerations
-
-## Next Steps
+## Development Status
 
 ### Completed ✅
 
-1. ✅ Circuit compilation
-2. ✅ Trusted setup (Powers of Tau)
-3. ✅ Proof generation and verification
-4. ✅ Solidity verifier generation
-5. ✅ ERC-8004 registry integration
-6. ✅ Multi-agent orchestration
-7. ✅ Feedback and reputation system
-8. ✅ End-to-end demo workflow
+1. ✅ Dual ZK circuit implementation (Portfolio + ZyFI)
+2. ✅ Circuit compilation and trusted setup (Powers of Tau)
+3. ✅ Proof generation and verification (Groth16)
+4. ✅ Solidity verifier generation (dual verifiers)
+5. ✅ ERC-8004 registry integration (Identity, Validation, Reputation)
+6. ✅ Multi-agent orchestration (Rebalancer, Validator, Client)
+7. ✅ Feedback and reputation system with signature authorization
+8. ✅ End-to-end demo workflow (`run_demo.sh`)
+9. ✅ Web UI with wallet integration (Wagmi + Reown AppKit)
+10. ✅ Circom 2.x for private witness inputs
+11. ✅ On-chain proof verification via Verifier contracts
+12. ✅ Minimized public signals (3+2) for privacy
+13. ✅ Deployed to Base Sepolia testnet
+14. ✅ Comparison circuits for allocation constraints (circomlib)
+15. ✅ IPFS integration via Pinata
+16. ✅ Upgradeable contracts (UUPS pattern)
+17. ✅ Agent metadata management
 
 ### Roadmap 🔲
 
-1. ✅ Build web UI for agent interaction
-2. ✅ Upgrade to Circom 2.x for private witness inputs
-3. ✅ Add on-chain proof verification via Verifier contract
-4. ✅ Minimize public signals (4 instead of 16) for privacy
-5. 🔲 Deploy to testnet (Sepolia/Base Sepolia)
-6. 🔲 Implement TEE-based key management
-7. 🔲 Add range check circuits for allocation constraints (circomlib)
-8. 🔲 Production MPC ceremony for trusted setup
-9. 🔲 Security audit
+1. 🔲 Implement TEE-based key management for agent wallets
+2. 🔲 Production MPC ceremony for trusted setup (replace test entropy)
+3. 🔲 Security audit of circuits and smart contracts
+4. 🔲 Gas optimization for on-chain operations
+5. 🔲 Additional validation rules and constraint types
+6. 🔲 Multi-chain deployment (Ethereum mainnet, Polygon, Arbitrum)
+7. 🔲 Real-time monitoring dashboard for validators
+8. 🔲 Advanced reputation scoring algorithms
+9. 🔲 Integration with live DeFi protocols
 
 ## License
 
 MIT
+
+## Key Project Files
+
+When exploring the codebase, start with these files:
+
+### Core Implementation
+1. **[circuits/rebalancing.circom](circuits/rebalancing.circom)** - Portfolio rebalancing ZK circuit
+2. **[circuits/rebalancer-validation.circom](circuits/rebalancer-validation.circom)** - ZyFI validation ZK circuit
+3. **[agents/rebalancer-agent.ts](agents/rebalancer-agent.ts)** - Dual proof generation agent
+4. **[agents/validator-agent.ts](agents/validator-agent.ts)** - On-chain validation agent
+5. **[agents/client-agent.ts](agents/client-agent.ts)** - Feedback and reputation agent
+
+### Smart Contracts
+6. **[contracts/src/IdentityRegistry.sol](contracts/src/IdentityRegistry.sol)** - Agent registration (ERC-721)
+7. **[contracts/src/ValidationRegistry.sol](contracts/src/ValidationRegistry.sol)** - Validation workflows
+8. **[contracts/src/ReputationRegistry.sol](contracts/src/ReputationRegistry.sol)** - Feedback system
+9. **[contracts/src/Verifier.sol](contracts/src/Verifier.sol)** - Portfolio verifier (auto-generated)
+10. **[contracts/src/RebalancerVerifier.sol](contracts/src/RebalancerVerifier.sol)** - ZyFI verifier (auto-generated)
+
+### Frontend
+11. **[frontend/lib/workflow-executor.ts](frontend/lib/workflow-executor.ts)** - ⭐ Core workflow logic
+12. **[frontend/app/page.tsx](frontend/app/page.tsx)** - Main UI component
+13. **[frontend/lib/wagmi-config.ts](frontend/lib/wagmi-config.ts)** - Wallet configuration
+14. **[frontend/lib/constants.ts](frontend/lib/constants.ts)** - Network configurations
+
+### Testing & Scripts
+15. **[tests/e2e/test-zk-rebalancing-workflow.ts](tests/e2e/test-zk-rebalancing-workflow.ts)** - ⭐ Complete E2E test
+16. **[scripts/setup.sh](scripts/setup.sh)** - ZK circuit setup script
+17. **[run_demo.sh](run_demo.sh)** - Complete demo runner
+
+### Documentation
+18. **[CLAUDE.md](CLAUDE.md)** - ⭐ Comprehensive project context
+19. **[frontend/README.md](frontend/README.md)** - Frontend documentation
+
+## Environment Variables
+
+### Root Project
+No environment variables required for local development.
+
+### Frontend
+Create `frontend/.env.local`:
+
+```bash
+# Pinata JWT for IPFS uploads (required for proof storage)
+PINATA_JWT=your_pinata_jwt_token_here
+```
+
+Get your Pinata JWT from [Pinata Dashboard](https://app.pinata.cloud/developers/api-keys).
+
+### Deployment
+For testnet deployment, set in your shell:
+
+```bash
+# Base Sepolia RPC URL
+export RPC_URL_BASE_SEPOLIA="https://sepolia.base.org"
+
+# BaseScan API key (for contract verification)
+export BASESCAN_API_KEY="your_basescan_api_key"
+```
 
 ## References
 
@@ -719,3 +951,8 @@ MIT
 - [SnarkJS Documentation](https://github.com/iden3/snarkjs)
 - [ERC-8004 Standard](https://eips.ethereum.org/EIPS/eip-8004)
 - [Groth16 Paper](https://eprint.iacr.org/2016/260.pdf)
+- [Wagmi Documentation](https://wagmi.sh/)
+- [Viem Documentation](https://viem.sh/)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Foundry Book](https://book.getfoundry.sh/)
+- [Base Sepolia Testnet](https://docs.base.org/network-information/)
