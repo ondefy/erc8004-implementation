@@ -26,8 +26,8 @@ export const DEPLOYED_CONTRACTS = {
     groth16Verifier:
       "0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f" as `0x${string}`, // FIXED: All circuit bugs resolved (2,091 constraints)
     rebalancerVerifier:
-      "0x3CcB02561f39133214F5801626643c623D916e01" as `0x${string}`, // FIXED: Boolean validation + all checks enforced (1,043 constraints)
-    deploymentBlock: 33018974, // Latest deployment with all fixes
+      "0x68597ECEBE3AB0507838B93CF404275525cA63F7" as `0x${string}`, // REDEPLOYED: Synced with latest zkey (Nov 6, 2025)
+    deploymentBlock: 33342425, // Latest RebalancerVerifier deployment
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
     name: "Base Sepolia",
@@ -42,8 +42,8 @@ export const DEPLOYED_CONTRACTS = {
     groth16Verifier:
       "0xC10A3A32Ee429Eea2d5b80CF82357a093d919A44" as `0x${string}`,
     rebalancerVerifier:
-      "0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c" as `0x${string}`,
-    deploymentBlock: 9558786,
+      "0x7a7DeE97d8C75fB47293e618000214356e04f6bA" as `0x${string}`, // REDEPLOYED: Synced with latest zkey (Nov 6, 2025)
+    deploymentBlock: 9574399, // Latest RebalancerVerifier deployment
     chainId: 11155111,
     explorer: "https://sepolia.etherscan.io",
     name: "Ethereum Sepolia",
