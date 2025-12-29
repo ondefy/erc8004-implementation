@@ -4,15 +4,24 @@ import { useState } from "react";
 import { AlertCircle, Info, X } from "lucide-react";
 
 export interface OpportunityInput {
-  liquidity: number;           // Pool liquidity in dollars
-  zyfiTvl: number;             // Current ZyFI TVL in dollars
-  amount: number;              // Amount to rebalance (in token units)
-  poolTvl: number;             // Total pool TVL (in token units)
-  newApy: number;              // New APY (as percentage, will be multiplied by 100)
-  oldApy: number;              // Old APY (as percentage, will be multiplied by 100)
-  apyStable7Days: boolean;     // Is APY stable over 7 days?
-  apyStable10Days: boolean;    // Is APY stable over 10 days?
-  tvlStable: boolean;          // Is TVL stable?
+  // New opportunity data
+  liquidity: number; // Pool liquidity in dollars
+  zyfiTvl: number; // Current ZyFI TVL in dollars
+  amount: number; // Amount to rebalance (in token units)
+  poolTvl: number; // Total pool TVL (in token units)
+  newApy: number; // New APY (as percentage, will be multiplied by 10000)
+  apyStable7Days: boolean; // Is APY stable over 7 days?
+  tvlStable: boolean; // Is TVL stable?
+  // Old opportunity data (for circuit to compute shouldRebalanceFromOld)
+  oldApy: number; // Old APY (as percentage, will be multiplied by 10000)
+  oldLiquidity: number; // Old opportunity liquidity in dollars
+  oldZyfiTvl: number; // Old opportunity ZyFI TVL in dollars
+  oldTvlStable: boolean; // Is old opportunity TVL stable?
+  oldUtilizationStable: boolean; // Is old opportunity utilization stable?
+  oldCollateralHealth: boolean; // Is old opportunity collateral healthy?
+  oldZyfiTVLCheck: boolean; // Does old opportunity pass ZyFI TVL check?
+  // User preferences
+  supportsCurrentPool: boolean; // Is current pool supported in user preferences?
 }
 
 interface OpportunityInputFormProps {
@@ -20,17 +29,28 @@ interface OpportunityInputFormProps {
   onCancel?: () => void;
 }
 
-export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFormProps) {
+export function OpportunityInputForm({
+  onSubmit,
+  onCancel,
+}: OpportunityInputFormProps) {
   // Initialize with default values matching the UI design
   const [liquidity, setLiquidity] = useState("10000000");
   const [zyfiTvl, setZyfiTvl] = useState("500000");
   const [amount, setAmount] = useState("1000000");
   const [poolTvl, setPoolTvl] = useState("10000000");
   const [newApy, setNewApy] = useState("12");
-  const [oldApy, setOldApy] = useState("10");
   const [apyStable7Days, setApyStable7Days] = useState(true);
-  const [apyStable10Days, setApyStable10Days] = useState(true);
   const [tvlStable, setTvlStable] = useState(true);
+  // Old opportunity data
+  const [oldApy, setOldApy] = useState("10");
+  const [oldLiquidity, setOldLiquidity] = useState("8000000");
+  const [oldZyfiTvl, setOldZyfiTvl] = useState("400000");
+  const [oldTvlStable, setOldTvlStable] = useState(true);
+  const [oldUtilizationStable, setOldUtilizationStable] = useState(true);
+  const [oldCollateralHealth, setOldCollateralHealth] = useState(true);
+  const [oldZyfiTVLCheck, setOldZyfiTVLCheck] = useState(true);
+  // User preferences
+  const [supportsCurrentPool, setSupportsCurrentPool] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Helper function to format number with commas
@@ -97,35 +117,61 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
       return;
     }
 
+    // Validate old opportunity inputs
+    const oldLiquidityNum = parseFloat(oldLiquidity);
+    const oldZyfiTvlNum = parseFloat(oldZyfiTvl);
+
+    if (isNaN(oldLiquidityNum) || oldLiquidityNum < 0) {
+      setError("Old Liquidity must be a non-negative number");
+      return;
+    }
+
+    if (isNaN(oldZyfiTvlNum) || oldZyfiTvlNum < 0) {
+      setError("Old ZyFI TVL must be a non-negative number");
+      return;
+    }
+
     const input: OpportunityInput = {
+      // New opportunity data
       liquidity: Math.floor(liquidityNum),
       zyfiTvl: Math.floor(zyfiTvlNum),
       amount: Math.floor(amountNum),
       poolTvl: Math.floor(poolTvlNum),
       newApy: newApyNum,
-      oldApy: oldApyNum,
       apyStable7Days,
-      apyStable10Days,
       tvlStable,
+      // Old opportunity data
+      oldApy: oldApyNum,
+      oldLiquidity: Math.floor(oldLiquidityNum),
+      oldZyfiTvl: Math.floor(oldZyfiTvlNum),
+      oldTvlStable,
+      oldUtilizationStable,
+      oldCollateralHealth,
+      oldZyfiTVLCheck,
+      // User preferences
+      supportsCurrentPool,
     };
 
     onSubmit(input);
   };
 
   // Calculate utilization rate
-  const utilizationRate = poolTvl !== "0" && poolTvl !== ""
-    ? ((parseFloat(amount) / parseFloat(poolTvl)) * 100).toFixed(2)
-    : "0.00";
+  const utilizationRate =
+    poolTvl !== "0" && poolTvl !== ""
+      ? ((parseFloat(amount) / parseFloat(poolTvl)) * 100).toFixed(2)
+      : "0.00";
 
   // Calculate ZyFI utilization
-  const zyfiUtilization = liquidity !== "0" && liquidity !== ""
-    ? ((parseFloat(zyfiTvl) / parseFloat(liquidity)) * 100).toFixed(2)
-    : "0.00";
+  const zyfiUtilization =
+    liquidity !== "0" && liquidity !== ""
+      ? ((parseFloat(zyfiTvl) / parseFloat(liquidity)) * 100).toFixed(2)
+      : "0.00";
 
   // Calculate APY improvement
-  const apyImprovement = newApy !== "" && oldApy !== ""
-    ? (parseFloat(newApy) - parseFloat(oldApy)).toFixed(2)
-    : "0.00";
+  const apyImprovement =
+    newApy !== "" && oldApy !== ""
+      ? (parseFloat(newApy) - parseFloat(oldApy)).toFixed(2)
+      : "0.00";
 
   return (
     <div className="bg-zyfi-bg-secondary rounded-zyfi-lg shadow-zyfi-glow border border-zyfi-border p-6 max-w-4xl mx-auto">
@@ -135,7 +181,8 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
             DeFi Opportunity Validation Input
           </h2>
           <p className="text-slate-300">
-            Enter opportunity data to validate rebalancing decision with zero-knowledge proof
+            Enter opportunity data to validate rebalancing decision with
+            zero-knowledge proof
           </p>
         </div>
         {onCancel && (
@@ -154,13 +201,22 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
           <Info className="w-5 h-5 text-zyfi-accent-light flex-shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-zyfi-accent-light text-sm">
-              <strong>ZK Validation Rules:</strong> The circuit validates 5 DeFi constraints:
+              <strong>ZK Validation Rules:</strong> The circuit validates 5 DeFi
+              constraints:
             </p>
             <ul className="mt-2 space-y-1 text-xs text-slate-300">
-              <li>1. Liquidity Check: liquidity × 1.05 &gt; zyfiTvl + (amount / 1M)</li>
-              <li>2. TVL Constraint: poolTvl × 1M &gt; amount × 4 (max 25% allocation)</li>
+              <li>
+                1. Liquidity Check: liquidity × 1.05 &gt; zyfiTvl + (amount /
+                1M)
+              </li>
+              <li>
+                2. TVL Constraint: poolTvl × 1M &gt; amount × 4 (max 25%
+                allocation)
+              </li>
               <li>3. APY Performance: newApy &gt; oldApy + 0.1% improvement</li>
-              <li>4. APY Stability: At least 7-day OR 10-day stability required</li>
+              <li>
+                4. APY Stability: At least 7-day OR 10-day stability required
+              </li>
               <li>5. TVL Stability: Must be stable</li>
             </ul>
           </div>
@@ -186,7 +242,8 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Available Liquidity <span className="text-slate-400 text-xs">(USD)</span>
+              Available Liquidity{" "}
+              <span className="text-slate-400 text-xs">(USD)</span>
             </label>
             <input
               type="text"
@@ -201,7 +258,8 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Current ZyFI TVL <span className="text-slate-400 text-xs">(USD)</span>
+              Current ZyFI TVL{" "}
+              <span className="text-slate-400 text-xs">(USD)</span>
             </label>
             <input
               type="text"
@@ -225,7 +283,8 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Rebalance Amount <span className="text-slate-400 text-xs">(token units)</span>
+              Rebalance Amount{" "}
+              <span className="text-slate-400 text-xs">(token units)</span>
             </label>
             <input
               type="text"
@@ -240,7 +299,8 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Total Pool TVL <span className="text-slate-400 text-xs">(token units)</span>
+              Total Pool TVL{" "}
+              <span className="text-slate-400 text-xs">(token units)</span>
             </label>
             <input
               type="text"
@@ -258,21 +318,25 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
         {/* Utilization display */}
         <div className="mt-4 grid grid-cols-2 gap-4 p-4 bg-zyfi-accent-blue/10 border border-zyfi-accent-blue/30 rounded-zyfi">
           <div>
-            <p className="text-xs font-medium text-slate-400">Pool Utilization Rate</p>
+            <p className="text-xs font-medium text-slate-400">
+              Pool Utilization Rate
+            </p>
             <p className="text-lg font-bold text-slate-100 mt-1">
               {utilizationRate}%
             </p>
             <p className="text-xs text-slate-400 mt-1">
               {parseFloat(utilizationRate) > 25 && (
-                <span className="text-amber-400">⚠️ Exceeds 25% limit</span>
+                <span className="text-amber-400">Exceeds 25% limit</span>
               )}
               {parseFloat(utilizationRate) <= 25 && (
-                <span className="text-green-400">✓ Within safe limit</span>
+                <span className="text-green-400">Within safe limit</span>
               )}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-400">ZyFI Liquidity Usage</p>
+            <p className="text-xs font-medium text-slate-400">
+              ZyFI Liquidity Usage
+            </p>
             <p className="text-lg font-bold text-slate-100 mt-1">
               {zyfiUtilization}%
             </p>
@@ -333,10 +397,12 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
           </p>
           <p className="text-xs text-slate-400 mt-1">
             {parseFloat(apyImprovement) < 0.1 && (
-              <span className="text-amber-400">⚠️ Below 0.1% minimum improvement</span>
+              <span className="text-amber-400">
+                Below 0.1% minimum improvement
+              </span>
             )}
             {parseFloat(apyImprovement) >= 0.1 && (
-              <span className="text-green-400">✓ Meets minimum improvement</span>
+              <span className="text-green-400">Meets minimum improvement</span>
             )}
           </p>
         </div>
@@ -356,26 +422,13 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               onChange={(e) => setApyStable7Days(e.target.checked)}
               className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
             />
-            <label htmlFor="apyStable7Days" className="flex-1 text-sm text-slate-200 cursor-pointer">
+            <label
+              htmlFor="apyStable7Days"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
               APY Stable over 7 Days
               <span className="block text-xs text-slate-400 mt-0.5">
                 APY has remained relatively stable for the past 7 days
-              </span>
-            </label>
-          </div>
-
-          <div className="flex items-center gap-3 p-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi">
-            <input
-              type="checkbox"
-              id="apyStable10Days"
-              checked={apyStable10Days}
-              onChange={(e) => setApyStable10Days(e.target.checked)}
-              className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
-            />
-            <label htmlFor="apyStable10Days" className="flex-1 text-sm text-slate-200 cursor-pointer">
-              APY Stable over 10 Days
-              <span className="block text-xs text-slate-400 mt-0.5">
-                APY has remained relatively stable for the past 10 days
               </span>
             </label>
           </div>
@@ -388,7 +441,10 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
               onChange={(e) => setTvlStable(e.target.checked)}
               className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
             />
-            <label htmlFor="tvlStable" className="flex-1 text-sm text-slate-200 cursor-pointer">
+            <label
+              htmlFor="tvlStable"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
               TVL is Stable
               <span className="block text-xs text-slate-400 mt-0.5">
                 Total Value Locked has remained stable (required)
@@ -396,10 +452,143 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
             </label>
           </div>
 
-          {!apyStable7Days && !apyStable10Days && (
+          <div className="flex items-center gap-3 p-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi">
+            <input
+              type="checkbox"
+              id="supportsCurrentPool"
+              checked={supportsCurrentPool}
+              onChange={(e) => setSupportsCurrentPool(e.target.checked)}
+              className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
+            />
+            <label
+              htmlFor="supportsCurrentPool"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
+              Supports Current Pool
+              <span className="block text-xs text-slate-400 mt-0.5">
+                Current pool is supported in user preferences (uncheck to bypass
+                APY check)
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Old Opportunity Data */}
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold text-slate-100 mb-4">
+          Old Opportunity Data
+          <span className="text-sm font-normal text-slate-400 ml-2">
+            (Circuit computes shouldRebalanceFromOld from this data)
+          </span>
+        </h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Old Liquidity{" "}
+              <span className="text-slate-400 text-xs">(USD)</span>
+            </label>
+            <input
+              type="text"
+              value={formatNumber(oldLiquidity)}
+              onChange={(e) =>
+                handleNumberInput(e.target.value, setOldLiquidity)
+              }
+              className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
+              placeholder="8,000,000"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Old ZyFI TVL <span className="text-slate-400 text-xs">(USD)</span>
+            </label>
+            <input
+              type="text"
+              value={formatNumber(oldZyfiTvl)}
+              onChange={(e) => handleNumberInput(e.target.value, setOldZyfiTvl)}
+              className="w-full px-4 py-2 bg-zyfi-bg border border-zyfi-border rounded-zyfi text-slate-100 focus:outline-none focus:border-zyfi-accent-blue focus:ring-1 focus:ring-zyfi-accent-blue"
+              placeholder="400,000"
+            />
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 p-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi">
+            <input
+              type="checkbox"
+              id="oldTvlStable"
+              checked={oldTvlStable}
+              onChange={(e) => setOldTvlStable(e.target.checked)}
+              className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
+            />
+            <label
+              htmlFor="oldTvlStable"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
+              Old TVL is Stable
+              <span className="block text-xs text-slate-400 mt-0.5">
+                Old opportunity TVL has remained stable
+              </span>
+            </label>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi">
+            <input
+              type="checkbox"
+              id="oldUtilizationStable"
+              checked={oldUtilizationStable}
+              onChange={(e) => setOldUtilizationStable(e.target.checked)}
+              className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
+            />
+            <label
+              htmlFor="oldUtilizationStable"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
+              Old Utilization is Stable
+              <span className="block text-xs text-slate-400 mt-0.5">
+                Old opportunity utilization has remained stable
+              </span>
+            </label>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi">
+            <input
+              type="checkbox"
+              id="oldCollateralHealth"
+              checked={oldCollateralHealth}
+              onChange={(e) => setOldCollateralHealth(e.target.checked)}
+              className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
+            />
+            <label
+              htmlFor="oldCollateralHealth"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
+              Old Collateral is Healthy
+              <span className="block text-xs text-slate-400 mt-0.5">
+                Old opportunity collateral is healthy
+              </span>
+            </label>
+          </div>
+          <div className="flex items-center gap-3 p-3 bg-zyfi-bg border border-zyfi-border rounded-zyfi">
+            <input
+              type="checkbox"
+              id="oldZyfiTVLCheck"
+              checked={oldZyfiTVLCheck}
+              onChange={(e) => setOldZyfiTVLCheck(e.target.checked)}
+              className="w-5 h-5 rounded border-zyfi-border bg-zyfi-bg-secondary text-zyfi-accent-blue focus:ring-2 focus:ring-zyfi-accent-blue focus:ring-offset-0"
+            />
+            <label
+              htmlFor="oldZyfiTVLCheck"
+              className="flex-1 text-sm text-slate-200 cursor-pointer"
+            >
+              Old ZyFI TVL Check Passes
+              <span className="block text-xs text-slate-400 mt-0.5">
+                Old opportunity passes ZyFI TVL check (protocol-specific)
+              </span>
+            </label>
+          </div>
+
+          {!apyStable7Days && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/50 rounded-zyfi">
               <p className="text-xs text-amber-300">
-                ⚠️ At least one APY stability period (7-day or 10-day) must be selected
+                APY stability over 7 days is required for validation
               </p>
             </div>
           )}
@@ -407,7 +596,7 @@ export function OpportunityInputForm({ onSubmit, onCancel }: OpportunityInputFor
           {!tvlStable && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/50 rounded-zyfi">
               <p className="text-xs text-amber-300">
-                ⚠️ TVL stability is required for validation
+                TVL stability is required for validation
               </p>
             </div>
           )}

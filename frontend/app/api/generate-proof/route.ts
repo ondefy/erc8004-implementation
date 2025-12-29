@@ -26,10 +26,18 @@ export async function POST(req: Request) {
         amount,
         poolTvl,
         newApy,
-        oldApy,
         apyStable7Days,
-        apyStable10Days,
         tvlStable,
+        // Old opportunity data
+        oldApy,
+        oldLiquidity,
+        oldZyfiTvl,
+        oldTvlStable,
+        oldUtilizationStable,
+        oldCollateralHealth,
+        oldZyfiTVLCheck,
+        // User preferences
+        supportsCurrentPool,
       } = inputData;
 
       if (
@@ -38,28 +46,44 @@ export async function POST(req: Request) {
         amount === undefined ||
         poolTvl === undefined ||
         newApy === undefined ||
-        oldApy === undefined ||
         apyStable7Days === undefined ||
-        apyStable10Days === undefined ||
-        tvlStable === undefined
+        tvlStable === undefined ||
+        oldApy === undefined ||
+        oldLiquidity === undefined ||
+        oldZyfiTvl === undefined ||
+        oldTvlStable === undefined ||
+        oldUtilizationStable === undefined ||
+        oldCollateralHealth === undefined ||
+        oldZyfiTVLCheck === undefined ||
+        supportsCurrentPool === undefined
       ) {
         return NextResponse.json(
-          { error: "Missing required rebalancing input fields" },
+          {
+            error: "Missing required rebalancing input fields (need 15 inputs)",
+          },
           { status: 400 }
         );
       }
 
-      // Create input for witness generation
+      // Create input for witness generation (14 inputs total)
       const input = {
         liquidity,
         zyfiTvl,
         amount,
         poolTvl,
         newApy,
-        oldApy,
         apyStable7Days,
-        apyStable10Days,
         tvlStable,
+        // Old opportunity data
+        oldApy,
+        oldLiquidity,
+        oldZyfiTvl,
+        oldTvlStable,
+        oldUtilizationStable,
+        oldCollateralHealth,
+        oldZyfiTVLCheck,
+        // User preferences
+        supportsCurrentPool,
       };
 
       const projectRoot = join(process.cwd(), "..");

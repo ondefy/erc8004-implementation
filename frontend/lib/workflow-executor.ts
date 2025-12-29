@@ -258,7 +258,7 @@ async function registerAgents(
             } Already Registered\n\n` +
             `Address: ${currentAddress}\n` +
             (agentId !== undefined ? `Agent ID: ${agentId}\n` : "") +
-            `✓ Active agent`,
+            `Active agent`,
           stateUpdate:
             agentId !== undefined
               ? { agentIds: { [role]: agentId } }
@@ -345,15 +345,49 @@ async function loadInputData(
       isOpportunity = inputMode === "Rebalancing" && "liquidity" in customData;
       if (isOpportunity) {
         data = {
+          // New opportunity data
           liquidity: customData.liquidity,
           zyfiTvl: customData.zyfiTvl,
           amount: customData.amount,
           poolTvl: customData.poolTvl,
-          newApy: Math.round(customData.newApy * 100),
-          oldApy: Math.round(customData.oldApy * 100),
+          newApy: Math.round(customData.newApy * 10000), // 4 decimal precision
           apyStable7Days: customData.apyStable7Days ? 1 : 0,
-          apyStable10Days: customData.apyStable10Days ? 1 : 0,
           tvlStable: customData.tvlStable ? 1 : 0,
+          // Old opportunity data (for circuit to compute shouldRebalanceFromOld)
+          oldApy: Math.round((customData.oldApy ?? 0) * 10000), // 4 decimal precision
+          oldLiquidity: customData.oldLiquidity ?? 0,
+          oldZyfiTvl: customData.oldZyfiTvl ?? 0,
+          oldTvlStable:
+            customData.oldTvlStable !== undefined
+              ? customData.oldTvlStable
+                ? 1
+                : 0
+              : 1, // Default to 1 if not provided
+          oldUtilizationStable:
+            customData.oldUtilizationStable !== undefined
+              ? customData.oldUtilizationStable
+                ? 1
+                : 0
+              : 1, // Default to 1 if not provided
+          oldCollateralHealth:
+            customData.oldCollateralHealth !== undefined
+              ? customData.oldCollateralHealth
+                ? 1
+                : 0
+              : 1, // Default to 1 if not provided
+          oldZyfiTVLCheck:
+            customData.oldZyfiTVLCheck !== undefined
+              ? customData.oldZyfiTVLCheck
+                ? 1
+                : 0
+              : 1, // Default to 1 if not provided
+          // User preferences
+          supportsCurrentPool:
+            customData.supportsCurrentPool !== undefined
+              ? customData.supportsCurrentPool
+                ? 1
+                : 0
+              : 1, // Default to 1 if not provided
         };
       } else {
         const newTotalValue = customData.newBalances.reduce(
@@ -393,12 +427,22 @@ async function loadInputData(
         `Amount: ${amount.toLocaleString()}\n` +
         `Pool TVL: ${poolTvl.toLocaleString()}\n` +
         `Utilization: ${util}%\n\n` +
-        `Old APY: ${(oldApy / 100).toFixed(2)}%\n` +
-        `New APY: ${(newApy / 100).toFixed(2)}%\n` +
-        `Improvement: +${apyDiff}%\n\n` +
-        `7d: ${data.apyStable7Days ? "✓" : "✗"} | ` +
-        `10d: ${data.apyStable10Days ? "✓" : "✗"} | ` +
-        `TVL: ${data.tvlStable ? "✓" : "✗"}`;
+        `Old APY: ${(oldApy / 10000).toFixed(4)}%\n` +
+        `New APY: ${(newApy / 10000).toFixed(4)}%\n` +
+        `Improvement: +${((newApy - oldApy) / 10000).toFixed(4)}%\n\n` +
+        `7d: ${data.apyStable7Days ? "YES" : "NO"} | ` +
+        `TVL: ${data.tvlStable ? "YES" : "NO"}\n` +
+        `Supports Current Pool: ${
+          data.supportsCurrentPool ? "YES" : "NO"
+        }\n\n` +
+        `Old Opportunity:\n` +
+        `  APY: ${(data.oldApy / 10000).toFixed(4)}%\n` +
+        `  Liquidity: $${(data.oldLiquidity ?? 0).toLocaleString()}\n` +
+        `  ZyFI TVL: $${(data.oldZyfiTvl ?? 0).toLocaleString()}\n` +
+        `  TVL Stable: ${data.oldTvlStable ? "YES" : "NO"} | ` +
+        `Util Stable: ${data.oldUtilizationStable ? "YES" : "NO"} | ` +
+        `Collateral: ${data.oldCollateralHealth ? "YES" : "NO"} | ` +
+        `TVL Check: ${data.oldZyfiTVLCheck ? "YES" : "NO"}`;
     } else {
       details =
         `Portfolio Data (${data.oldBalances?.length ?? 0} assets)\n\n` +
@@ -488,8 +532,7 @@ async function generateZKProof(
           `ZK Proof Generated (Groth16)\n\n` +
           `Circuit: rebalancer-validation.circom\n` +
           `Mode: Rebalancing (DeFi Validation)\n` +
-          `Private: liquidity, zyfiTvl, amount, poolTvl, APYs\n` +
-          // `Public: validationCommitment, isValid\n\n` +
+          `Public Inputs: liquidity, zyfiTvl, amount, poolTvl, APYs, stability flags\n` +
           `\nRules:\n` +
           `1. Liquidity × 1.05 > zyfiTvl + (amount/1M)\n` +
           `2. poolTvl × 1M > amount × 4 (max 25%)\n` +
@@ -814,7 +857,7 @@ async function validateProof(
     // Determine which verifier was used based on input mode
     const isRebalancingMode =
       workflowState.inputMode === "Rebalancing" ||
-      (publicInputs && publicInputs.length === 2);
+      (publicInputs && publicInputs.length === 15);
     const verifierAddress = isRebalancingMode
       ? contractConfig.rebalancerVerifier
       : contractConfig.groth16Verifier;
@@ -830,7 +873,7 @@ async function validateProof(
         `Contract: ${verifierName}\n` +
         // `Address: ${verifierAddress}\n` +
         // `Public: [${publicInputs.join(", ")}]\n` +
-        `Result: ${isValid ? "✅ VALID" : "❌ INVALID"}\n` +
+        `Result: ${isValid ? "VALID" : "INVALID"}\n` +
         `Score: ${score}/100\n` +
         `DataHash: ${dataHash}`,
       stateUpdate: { validationResult: { isValid, score, dataHash } },
@@ -951,7 +994,7 @@ async function submitValidation(
       details:
         `Validation Response Submitted\n\n` +
         `Transaction: ${hash}\n` +
-        `Score: ${score}/100 ${score === 100 ? "✅" : "⚠️"}\n` +
+        `Score: ${score}/100\n` +
         `Request Hash (Event): ${requestHash}\n` +
         // `Response Data Hash: ${dataHash}` +
         (validationPinataGatewayUrl
@@ -1068,8 +1111,8 @@ async function authorizeFeedback(
         `Limit: ${indexLimit} feedbacks\n` +
         `Expiry: ${expiryDate.toLocaleDateString()}\n` +
         `Chain: ${chainId}\n\n` +
-        `✓ Off-chain authorization signed\n` +
-        `✓ This signature will be submitted on-chain in the next step`,
+        `Off-chain authorization signed\n` +
+        `This signature will be submitted on-chain in the next step`,
       stateUpdate: {
         feedbackAuthGenerated: true,
         feedbackAuth: feedbackAuth,
@@ -1123,7 +1166,7 @@ async function submitFeedback(
       success: false,
       details: "",
       error:
-        "⚠️ Self-feedback not allowed!\n\n" +
+        "Self-feedback not allowed!\n\n" +
         "The client wallet cannot be the same as the rebalancer wallet.\n" +
         "Please use a different wallet address for the client role.\n\n" +
         `Rebalancer: ${agents.rebalancer}\n` +
@@ -1204,9 +1247,9 @@ async function submitFeedback(
         `Client Feedback Submitted\n\n` +
         `Transaction: ${hash}\n` +
         `Agent ID: ${rebalancerAgentId}\n` +
-        `Score: ${score}/100 ⭐\n` +
+        `Score: ${score}/100\n` +
         `Comment: "${comment}"\n\n` +
-        `✓ Authorized and recorded on ReputationRegistry`,
+        `Authorized and recorded on ReputationRegistry`,
       txHash: hash,
     };
   } catch (error: any) {
@@ -1284,16 +1327,16 @@ async function checkReputation(
       details +=
         `\nValidations: ${totalValidations}\n` +
         `Feedback: ${totalFeedback}\n` +
-        `Score: ${averageScore}/100 ⭐\n` +
-        `Status: ${isActive ? "✓ Active" : "✗ Inactive"}\n`;
+        `Score: ${averageScore}/100\n` +
+        `Status: ${isActive ? "Active" : "Inactive"}\n`;
     } catch (error) {
       console.error("Failed to read reputation from blockchain:", error);
       details +=
-        `\n⚠️ Could not read reputation data from blockchain\n` +
+        `\nCould not read reputation data from blockchain\n` +
         `Error: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   } else {
-    details += `\n⚠️ Public client or agent ID not available for on-chain lookup`;
+    details += `\nPublic client or agent ID not available for on-chain lookup`;
   }
 
   // if (workflowState) {

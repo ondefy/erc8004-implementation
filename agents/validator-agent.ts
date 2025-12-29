@@ -124,15 +124,21 @@ export class ValidatorAgent extends ERC8004BaseAgent {
       );
       const lastInput = verifyItem?.inputs?.[3];
       const typeStr: string | undefined = lastInput?.type;
-      const match = typeStr ? /\[(\d+)\]$/.exec(typeStr) : null;
-      expectedLen = match ? Number(match[1]) : undefined;
+      // Handle both fixed-size arrays [9] and dynamic arrays []
+      const fixedMatch = typeStr ? /\[(\d+)\]$/.exec(typeStr) : null;
+      if (fixedMatch) {
+        expectedLen = Number(fixedMatch[1]);
+      } else if (typeStr?.endsWith("[]")) {
+        // Dynamic array - no fixed length check
+        expectedLen = undefined;
+      }
     } catch {}
 
     if (expectedLen !== undefined && pubSignals.length !== expectedLen) {
       throw new Error(
         `Verifier expects ${expectedLen} public signals, but proof contains ${pubSignals.length}.\n` +
           `Please regenerate zk artifacts and redeploy the verifier so they align:\n` +
-          `  1) npm run setup:zkp\n` +
+          `  1) npm run setup:zkp:rebalancer\n` +
           `  2) npm run forge:build\n` +
           `  3) npm run forge:deploy:local`
       );

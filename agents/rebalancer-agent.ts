@@ -33,15 +33,24 @@ interface ProofPackage {
 }
 
 interface RebalancerValidationInput {
+  // New opportunity data
   liquidity: number;
   zyfiTvl: number;
   amount: number;
   poolTvl: number;
   newApy: number;
-  oldApy: number;
   apyStable7Days: number;
-  apyStable10Days: number;
   tvlStable: number;
+  // Old opportunity data (for circuit to compute shouldRebalanceFromOld)
+  oldApy: number;
+  oldLiquidity: number;
+  oldZyfiTvl: number;
+  oldTvlStable: number;
+  oldUtilizationStable: number;
+  oldCollateralHealth: number;
+  oldZyfiTVLCheck: number;
+  // User preferences
+  supportsCurrentPool: number;
 }
 
 interface RebalancerProofPackage {
@@ -55,7 +64,7 @@ interface RebalancerProofPackage {
 export class RebalancerAgent extends ERC8004BaseAgent {
   constructor(agentDomain: string, privateKey: `0x${string}`) {
     super(agentDomain, privateKey);
-    console.log("💼 Rebalancer Agent initialized");
+    console.log("Rebalancer Agent initialized");
   }
 
   async createRebalancingPlan(
@@ -70,7 +79,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       0
     );
 
-    console.log(`📊 Plan created - Value: ${newTotal.toLocaleString()}`);
+    console.log(`Plan created - Value: ${newTotal.toLocaleString()}`);
 
     return {
       oldBalances,
@@ -83,7 +92,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
   }
 
   generateZkProof(plan: RebalancingPlan): ProofPackage {
-    console.log("🔐 Generating ZK proof...");
+    console.log("Generating ZK proof...");
 
     const input = {
       oldBalances: plan.oldBalances,
@@ -114,7 +123,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
         readFileSync("build/public.json", "utf-8")
       );
 
-      console.log("\n✅ ZK proof generated successfully");
+      console.log("\nZK proof generated successfully");
 
       return { proof, publicInputs, rebalancingPlan: plan };
     } finally {
@@ -125,27 +134,53 @@ export class RebalancerAgent extends ERC8004BaseAgent {
   generateRebalancerValidationProof(
     rebalancerInput: RebalancerValidationInput
   ): RebalancerProofPackage {
-    console.log("🔐 Generating Rebalancer Validation ZK proof...");
+    console.log("Generating Rebalancer Validation ZK proof...");
     console.log("─".repeat(50));
-    console.log("📊 Rebalancer Parameters:");
+    console.log("Rebalancer Parameters (New Opportunity):");
     console.log(`   Liquidity: $${rebalancerInput.liquidity.toLocaleString()}`);
     console.log(`   ZyFI TVL: $${rebalancerInput.zyfiTvl.toLocaleString()}`);
     console.log(`   Amount: ${rebalancerInput.amount.toLocaleString()}`);
-    console.log(`   Pool TVL: ${rebalancerInput.poolTvl.toLocaleString()}`);
-    console.log(`   New APY: ${rebalancerInput.newApy / 100}%`);
-    console.log(`   Old APY: ${rebalancerInput.oldApy / 100}%`);
+    console.log(`   Pool TVL: $${rebalancerInput.poolTvl.toLocaleString()}`);
+    console.log(`   New APY: ${rebalancerInput.newApy / 10000}%`);
     console.log(
       `   APY Stable (7d): ${
-        rebalancerInput.apyStable7Days === 1 ? "✅" : "❌"
+        rebalancerInput.apyStable7Days === 1 ? "YES" : "NO"
       }`
     );
     console.log(
-      `   APY Stable (10d): ${
-        rebalancerInput.apyStable10Days === 1 ? "✅" : "❌"
+      `   TVL Stable: ${rebalancerInput.tvlStable === 1 ? "YES" : "NO"}`
+    );
+    console.log("\nOld Opportunity Data:");
+    console.log(`   Old APY: ${rebalancerInput.oldApy / 10000}%`);
+    console.log(
+      `   Old Liquidity: $${rebalancerInput.oldLiquidity.toLocaleString()}`
+    );
+    console.log(
+      `   Old ZyFI TVL: $${rebalancerInput.oldZyfiTvl.toLocaleString()}`
+    );
+    console.log(
+      `   Old TVL Stable: ${rebalancerInput.oldTvlStable === 1 ? "YES" : "NO"}`
+    );
+    console.log(
+      `   Old Utilization Stable: ${
+        rebalancerInput.oldUtilizationStable === 1 ? "YES" : "NO"
       }`
     );
     console.log(
-      `   TVL Stable: ${rebalancerInput.tvlStable === 1 ? "✅" : "❌"}`
+      `   Old Collateral Health: ${
+        rebalancerInput.oldCollateralHealth === 1 ? "YES" : "NO"
+      }`
+    );
+    console.log(
+      `   Old ZyFI TVL Check: ${
+        rebalancerInput.oldZyfiTVLCheck === 1 ? "YES" : "NO"
+      }`
+    );
+    console.log("\nUser Preferences:");
+    console.log(
+      `   Supports Current Pool: ${
+        rebalancerInput.supportsCurrentPool === 1 ? "YES" : "NO"
+      }`
     );
     console.log("─".repeat(50));
 
@@ -155,10 +190,18 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       amount: rebalancerInput.amount,
       poolTvl: rebalancerInput.poolTvl,
       newApy: rebalancerInput.newApy,
-      oldApy: rebalancerInput.oldApy,
       apyStable7Days: rebalancerInput.apyStable7Days,
-      apyStable10Days: rebalancerInput.apyStable10Days,
       tvlStable: rebalancerInput.tvlStable,
+      // Old opportunity data
+      oldApy: rebalancerInput.oldApy,
+      oldLiquidity: rebalancerInput.oldLiquidity,
+      oldZyfiTvl: rebalancerInput.oldZyfiTvl,
+      oldTvlStable: rebalancerInput.oldTvlStable,
+      oldUtilizationStable: rebalancerInput.oldUtilizationStable,
+      oldCollateralHealth: rebalancerInput.oldCollateralHealth,
+      oldZyfiTVLCheck: rebalancerInput.oldZyfiTVLCheck,
+      // User preferences
+      supportsCurrentPool: rebalancerInput.supportsCurrentPool,
     };
 
     const tempPath = "build/rebalancer-validation/temp_rebalancer_input.json";
@@ -175,14 +218,14 @@ export class RebalancerAgent extends ERC8004BaseAgent {
 
     try {
       // Generate witness using rebalancer-validation circuit
-      console.log("\n🔄 Generating witness...");
+      console.log("\nGenerating witness...");
       execSync(
         `node build/rebalancer-validation/rebalancer-validation_js/generate_witness.js build/rebalancer-validation/rebalancer-validation_js/rebalancer-validation.wasm ${tempPath} ${witnessPath}`,
         { stdio: "inherit" }
       );
 
       // Generate proof
-      console.log("🔄 Generating proof...");
+      console.log("Generating proof...");
       execSync(
         `snarkjs groth16 prove build/rebalancer-validation/rebalancer_validation_final.zkey ${witnessPath} ${proofPath} ${publicPath}`,
         { stdio: "inherit" }
@@ -191,13 +234,27 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       const proof = JSON.parse(readFileSync(proofPath, "utf-8"));
       const publicInputs = JSON.parse(readFileSync(publicPath, "utf-8"));
 
-      console.log("\n✅ Rebalancer Validation ZK proof generated successfully");
+      console.log("\nRebalancer Validation ZK proof generated successfully");
       console.log("─".repeat(50));
-      console.log("📤 Public Outputs:");
-      console.log(`   Validation Commitment: ${publicInputs[0]}`);
-      console.log(
-        `   Is Valid: ${publicInputs[1] === "1" ? "✅ VALID" : "❌ INVALID"}`
-      );
+      console.log("Public Inputs (15 total):");
+      console.log("   New Opportunity:");
+      console.log(`     Liquidity: ${publicInputs[0]}`);
+      console.log(`     ZyFI TVL: ${publicInputs[1]}`);
+      console.log(`     Amount: ${publicInputs[2]}`);
+      console.log(`     Pool TVL: ${publicInputs[3]}`);
+      console.log(`     New APY: ${publicInputs[4]}`);
+      console.log(`     APY Stable 7d: ${publicInputs[5]}`);
+      console.log(`     TVL Stable: ${publicInputs[6]}`);
+      console.log("   Old Opportunity:");
+      console.log(`     Old APY: ${publicInputs[7]}`);
+      console.log(`     Old Liquidity: ${publicInputs[8]}`);
+      console.log(`     Old ZyFI TVL: ${publicInputs[9]}`);
+      console.log(`     Old TVL Stable: ${publicInputs[10]}`);
+      console.log(`     Old Utilization Stable: ${publicInputs[11]}`);
+      console.log(`     Old Collateral Health: ${publicInputs[12]}`);
+      console.log(`     Old ZyFI TVL Check: ${publicInputs[13]}`);
+      console.log("   User Preferences:");
+      console.log(`     Supports Current Pool: ${publicInputs[14]}`);
       console.log("─".repeat(50));
 
       return { proof, publicInputs, rebalancerInput };
@@ -220,9 +277,9 @@ export class RebalancerAgent extends ERC8004BaseAgent {
     if (!existsSync("data")) mkdirSync("data", { recursive: true });
     writeFileSync(`data/${dataHashHex}.json`, JSON.stringify(proof, null, 2));
 
-    console.log("\n📤 Submitting proof for validation");
+    console.log("\nSubmitting proof for validation");
     console.log("─".repeat(50));
-    console.log("📋 DataHash (SHA-256):");
+    console.log("DataHash (SHA-256):");
     console.log(`   Full: 0x${dataHashHex}`);
     console.log("─".repeat(50));
 
@@ -252,7 +309,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
       signerAddress: string;
     };
   }> {
-    console.log(`🔐 Generating feedback authorization for ${clientAddress}`);
+    console.log(`Generating feedback authorization for ${clientAddress}`);
 
     if (this.agentId === null || this.agentId === undefined) {
       throw new Error("Agent must be registered first");
@@ -304,7 +361,7 @@ export class RebalancerAgent extends ERC8004BaseAgent {
     )}` as `0x${string}`;
 
     console.log(
-      `✅ Authorization generated (expires: ${new Date(
+      `Authorization generated (expires: ${new Date(
         Number(expiry) * 1000
       ).toISOString()})`
     );
