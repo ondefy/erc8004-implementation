@@ -21,7 +21,7 @@ const NETWORKS = {
   ETHEREUM_SEPOLIA: {
     name: "Ethereum Sepolia",
     chain: sepolia,
-    rpc: process.env.ETHEREUM_SEPOLIA_RPC || "https://rpc.sepolia.org",
+    rpc: process.env.RPC_URL_SEPOLIA || "https://rpc.sepolia.org",
     identityRegistry: "0x8004a6090Cd10A7288092483047B097295Fb8847" as const,
     agentId: 961, // Your Ethereum Sepolia agent ID
     explorer: "https://sepolia.etherscan.io",

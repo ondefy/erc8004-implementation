@@ -14,8 +14,8 @@ import * as dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-const ETHEREUM_SEPOLIA_RPC =
-  process.env.ETHEREUM_SEPOLIA_RPC || "https://rpc.sepolia.org";
+const RPC_URL_SEPOLIA =
+  process.env.RPC_URL_SEPOLIA || "https://rpc.sepolia.org";
 const IDENTITY_REGISTRY_ADDRESS =
   "0x8004a6090Cd10A7288092483047B097295Fb8847" as const;
 
@@ -61,13 +61,13 @@ async function main() {
 
   const publicClient = createPublicClient({
     chain: sepolia,
-    transport: http(ETHEREUM_SEPOLIA_RPC),
+    transport: http(RPC_URL_SEPOLIA),
   });
 
   const walletClient = createWalletClient({
     account,
     chain: sepolia,
-    transport: http(ETHEREUM_SEPOLIA_RPC),
+    transport: http(RPC_URL_SEPOLIA),
   });
 
   // Verify ownership

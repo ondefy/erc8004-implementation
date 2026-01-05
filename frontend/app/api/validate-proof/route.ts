@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       chain = sepolia;
       // Support both NEXT_PUBLIC and server-side env var naming
       rpcUrl =
-        process.env.NEXT_PUBLIC_ETHEREUM_SEPOLIA_RPC_URL ||
+        process.env.ETHEREUM_SEPOLIA_RPC ||
         process.env.RPC_URL_SEPOLIA ||
         sepolia.rpcUrls.default.http[0];
       const contracts = getContractsForNetwork(11155111);

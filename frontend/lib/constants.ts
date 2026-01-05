@@ -26,7 +26,7 @@ export const DEPLOYED_CONTRACTS = {
     groth16Verifier:
       "0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f" as `0x${string}`, // FIXED: All circuit bugs resolved (2,091 constraints)
     rebalancerVerifier:
-      "0x4baf957830423f36978039e32d95ee958aa0560c" as `0x${string}`, // REDEPLOYED: Synced with latest zkey (Nov 6, 2025)
+      "0xBdEAA316E5aB8B9d27b44296794c43A0EEB3eB30" as `0x${string}`, // REDEPLOYED: Synced with latest zkey (Nov 6, 2025)
     deploymentBlock: 33602716, // Latest RebalancerVerifier deployment
     chainId: 84532,
     explorer: "https://sepolia.basescan.org",
