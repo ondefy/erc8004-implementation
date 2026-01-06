@@ -104,11 +104,26 @@ echo -e "${GREEN}✅ Verification key exported${NC}"
 
 echo ""
 echo "6️⃣  Generating Solidity verifier..."
+# Generate verifier to a temporary file first
+TEMP_VERIFIER=$(mktemp)
 snarkjs zkesv \
   build/rebalancer-validation/rebalancer_validation_final.zkey \
-  contracts/src/RebalancerVerifier.sol
+  "$TEMP_VERIFIER"
 
-echo -e "${GREEN}✅ Solidity verifier generated${NC}"
+# Replace Groth16Verifier with RebalancerVerifier in the generated contract
+# Use sed with backup extension (works on both macOS and Linux)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    sed -i '' 's/contract Groth16Verifier/contract RebalancerVerifier/g' "$TEMP_VERIFIER"
+else
+    # Linux
+    sed -i 's/contract Groth16Verifier/contract RebalancerVerifier/g' "$TEMP_VERIFIER"
+fi
+
+# Move the renamed contract to the final location
+mv "$TEMP_VERIFIER" contracts/src/RebalancerVerifier.sol
+
+echo -e "${GREEN}✅ Solidity verifier generated as RebalancerVerifier${NC}"
 
 echo ""
 echo "7️⃣  Testing with example input..."

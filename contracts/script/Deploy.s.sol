@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {ValidationRegistry} from "../src/ValidationRegistry.sol";
 import {ReputationRegistry} from "../src/ReputationRegistry.sol";
-import {Groth16Verifier} from "../src/Verifier.sol";
+import {Groth16Verifier as PortfolioVerifier} from "../src/Verifier.sol";
 import {RebalancerVerifier} from "../src/RebalancerVerifier.sol";
 
 /**
@@ -42,7 +42,7 @@ contract Deploy is Script {
         console.log("ReputationRegistry deployed at:", address(reputationRegistry));
 
         // 4. Deploy Groth16 Verifier (used for on-chain ZK verification)
-        Groth16Verifier verifier = new Groth16Verifier();
+        PortfolioVerifier verifier = new PortfolioVerifier();
         console.log("Groth16Verifier deployed at:", address(verifier));
 
         // 5. Deploy Rebalancer Validation Verifier (for ZyFI rebalancer validation)
