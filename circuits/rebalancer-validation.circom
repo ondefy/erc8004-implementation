@@ -179,7 +179,7 @@ template RebalancerValidation() {
     // );
     // Where:
     // - enoughLiquidity = oldOpportunity.liquidity * 1e6 >= amount
-    // - liqudityIsLow = oldOpportunity.liquidity * 1.05 < oldOpportunity.zyfiTvl
+    // - liqudityIsLow = oldOpportunity.liquidity * .85 < oldOpportunity.zyfiTvl
     // - tvlStableCheck = oldOpportunity.isTvlStable
     // - utilizationStableCheck = oldOpportunity.isUtilizationStable ?? true
     // - collateralHealthCheck = !(collateralHealth?.checkedTokens?.length > 0 && isHealthy === false)
@@ -199,9 +199,9 @@ template RebalancerValidation() {
     enoughLiquidityCheck.in[1] <== amountScaled;
     signal enoughLiquidityValue <== enoughLiquidityCheck.out;
     
-    // Check 2: liqudityIsLow = oldLiquidity * 1.05 < oldZyfiTvl
-    // To avoid floating point: oldLiquidity * 105 < oldZyfiTvl * 100
-    signal oldLiquidityLowLeft <== oldLiquidity * 105;
+    // Check 2: liqudityIsLow = oldLiquidity * .85 < oldZyfiTvl
+    // To avoid floating point: oldLiquidity * 85 < oldZyfiTvl * 100
+    signal oldLiquidityLowLeft <== oldLiquidity * 85;
     signal oldLiquidityLowRight <== oldZyfiTvl * 100;
     component oldLiquidityLowCheck = GreaterThan(252);
     oldLiquidityLowCheck.in[0] <== oldLiquidityLowRight;
