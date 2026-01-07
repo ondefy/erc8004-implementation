@@ -455,7 +455,7 @@ The project is deployed on Base Sepolia testnet with the following contract addr
     "IdentityRegistry": "0xCfec11aF0101f1D1C034E5fa8A8F490b78D3d188",
     "ValidationRegistry": "0xc4708fdE00Af35888D8ecC183D24e60fe3bE37b0",
     "ReputationRegistry": "0x9547b6d3F808A8A8F9e0aF3EfED53595e6E172dC",
-    "RebalancerVerifier": "0x3CcB02561f39133214F5801626643c623D916e01"
+    "RebalancerVerifier": "0x07A1Dc74Ec0C2F3F9e605Ad464A048099793be09"
   },
   "deploymentBlock": 33018974
 }

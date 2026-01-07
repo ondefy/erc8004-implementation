@@ -33,7 +33,7 @@
         "proofSystem": "Groth16",
         "verifierContracts": {
           "ethereumSepolia": "eip155:11155111:0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c",
-          "baseSepolia": "eip155:84532:0x3CcB02561f39133214F5801626643c623D916e01"
+          "baseSepolia": "eip155:84532:0x07A1Dc74Ec0C2F3F9e605Ad464A048099793be09"
         },
         "circuitConstraints": 1043,
         "privateInputs": [
@@ -62,11 +62,6 @@
       "acceptsFeedback": true
     }
   },
-  "pricing": {
-    "model": "pay-per-validation",
-    "proofGeneration": "Free (off-chain computation)",
-    "onChainValidation": "Gas costs only"
-  },
   "technology": {
     "zkCircuits": "Circom 2.2.2+",
     "proofSystem": "SnarkJS 0.7.5 (Groth16)",
@@ -74,17 +69,11 @@
     "smartContracts": "Solidity 0.8.20"
   },
   "links": {
-    "documentation": "https://github.com/ZyFAI/rebalancing-poc",
-    "sourceCode": "https://github.com/ZyFAI/rebalancing-poc",
-    "ethereumSepolia": {
-      "identityRegistry": "https://sepolia.etherscan.io/address/0x8004a6090Cd10A7288092483047B097295Fb8847",
-      "rebalancerVerifier": "https://sepolia.etherscan.io/address/0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c",
-      "portfolioVerifier": "https://sepolia.etherscan.io/address/0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2"
-    },
+    "documentation": "https://github.com/ondefy/erc8004-implementation",
+    "sourceCode": "https://github.com/ondefy/erc8004-implementation",
     "baseSepolia": {
       "identityRegistry": "https://sepolia.basescan.org/address/0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
-      "rebalancerVerifier": "https://sepolia.basescan.org/address/0x3CcB02561f39133214F5801626643c623D916e01",
-      "portfolioVerifier": "https://sepolia.basescan.org/address/0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f"
+      "rebalancerVerifier": "https://sepolia.basescan.org/address/0x07A1Dc74Ec0C2F3F9e605Ad464A048099793be09"
     }
   }
 }
