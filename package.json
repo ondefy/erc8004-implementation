@@ -24,6 +24,7 @@
     "anvil": "export PATH=\"$HOME/.foundry/bin:$PATH\" && anvil",
     "pretest:e2e": "node scripts/check-zkp-setup.js",
     "test:e2e": "ts-node tests/e2e/test-zk-rebalancing-workflow.ts",
+    "test:rebalancer-circuit": "ts-node tests/test-rebalancer-circuit.ts",
     "test": "npm run forge:test",
     "build": "tsc",
     "clean:zkp": "rm -rf build/*.r1cs build/*.wasm build/*.sym build/*.wtns build/*.zkey build/*.ptau build/proof.json build/public.json build/witness.json build/rebalancing_js",
@@ -75,5 +76,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@types/snarkjs": "^0.7.9"
   }
 }
