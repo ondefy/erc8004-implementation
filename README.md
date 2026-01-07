@@ -1,4 +1,4 @@
-# ZK Rebalancing PoC - Zyfai Rebalancer Validation
+# ZK Rebalancing - Zyfai Rebalancer Validation
 
 A Zero-Knowledge proof system for validating DeFi rebalancing opportunities using Circom and Groth16, with **ERC-8004 Agentic Orchestration** for trustless multi-agent workflows.
 
@@ -53,7 +53,7 @@ npm run test:verifier-proof
 ## Project Structure
 
 ```
-erc8004-rebalancing-poc/
+erc8004-implementation/
 ├── circuits/                        # 🔐 ZK Circuit (Circom 2.x)
 │   └── rebalancer-validation.circom # Zyfai rebalancer validation circuit
 ├── contracts/                       # 📜 Smart Contracts (Solidity 0.8.20)
