@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import "../src/RebalancerVerifier.sol";
+import {RebalancerVerifier} from "../src/RebalancerVerifier.sol";
 
 /**
  * @title Deploy RebalancerVerifier

@@ -5,36 +5,18 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "postinstall": "node scripts/check-zkp-setup.js || echo '\n First time setup required. Run: npm run setup:zkp\n'",
-    "setup:zkp": "bash scripts/setup.sh",
     "setup:zkp:rebalancer": "bash scripts/setup-rebalancer-validation.sh",
-    "setup:forge": "cd contracts && mkdir -p lib && cd lib && (git clone https://github.com/foundry-rs/forge-std.git 2>/dev/null || echo 'forge-std already exists')",
     "check:zkp": "node scripts/check-zkp-setup.js",
-    "circuit:compile": "circom circuits/rebalancing.circom --r1cs --wasm --sym -o build/ && ([ -f rebalancing.r1cs ] && mv rebalancing.* build/ || true)",
-    "circuit:info": "snarkjs r1cs info build/rebalancing.r1cs",
-    "proof:generate": "bash scripts/generate-proof.sh",
-    "proof:verify": "snarkjs groth16 verify build/verification_key.json build/public.json build/proof.json",
-    "verifier:export": "snarkjs zkey export solidityverifier build/rebalancing_final.zkey contracts/src/Verifier.sol",
+    "test:rebalancer-circuit": "ts-node tests/test-rebalancer-circuit.ts",
     "forge:build": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge build",
     "forge:test": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge test -vvv",
     "forge:deploy:local": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",
     "forge:deploy:sepolia": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_SEPOLIA --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",
     "forge:deploy:base-sepolia": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url $RPC_URL_BASE_SEPOLIA --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",
     "forge:clean": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge clean",
-    "anvil": "export PATH=\"$HOME/.foundry/bin:$PATH\" && anvil",
-    "pretest:e2e": "node scripts/check-zkp-setup.js",
-    "test:e2e": "ts-node tests/e2e/test-zk-rebalancing-workflow.ts",
-    "test": "npm run forge:test",
-    "build": "tsc",
-    "clean:zkp": "rm -rf build/*.r1cs build/*.wasm build/*.sym build/*.wtns build/*.zkey build/*.ptau build/proof.json build/public.json build/witness.json build/rebalancing_js",
+    "clean:zkp": "rm -rf build/rebalancer-validation",
     "clean:ts": "rm -rf dist",
-    "clean": "npm run clean:zkp && npm run clean:ts && npm run forge:clean",
-    "frontend:dev": "cd frontend && npm run dev",
-    "frontend:build": "cd frontend && npm run build",
-    "frontend:start": "cd frontend && npm start",
-    "frontend:install": "cd frontend && npm install",
-    "demo:full": "./run_demo.sh",
-    "demo:frontend": "./start_frontend.sh"
+    "clean": "npm run clean:zkp && npm run clean:ts && npm run forge:clean"
   },
   "keywords": [
     "zero-knowledge",
@@ -60,7 +42,10 @@
   },
   "dependencies": {
     "@types/node": "^20.19.19",
+    "axios": "^1.13.1",
+    "circomlib": "^2.0.5",
     "dotenv": "^16.6.1",
+    "form-data": "^4.0.4",
     "snarkjs": "^0.7.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
@@ -68,5 +53,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@types/snarkjs": "^0.7.9"
   }
 }

@@ -28,7 +28,7 @@ async function deployContracts(): Promise<void> {
       stdio: "inherit",
       cwd: process.cwd(),
     });
-    console.log("✅ Contracts deployed\n");
+    console.log("Contracts deployed\n");
   } catch (error) {
     throw new Error("Failed to deploy contracts. Is Anvil running?");
   }
@@ -46,7 +46,7 @@ async function testZkRebalancingE2E(): Promise<void> {
     transport: http(rpcUrl),
   });
 
-  console.log("✅ Connected to blockchain\n");
+  console.log("Connected to blockchain\n");
 
   // Deploy contracts
   await deployContracts();
@@ -99,7 +99,7 @@ async function testZkRebalancingE2E(): Promise<void> {
     }
   }
 
-  console.log("✅ All agents funded\n");
+  console.log("All agents funded\n");
 
   // Register agents
   console.log("─".repeat(70));
@@ -129,8 +129,8 @@ async function testZkRebalancingE2E(): Promise<void> {
     `   Rebalancer Amount: ${rebalancerData.amount.toLocaleString()}`
   );
   console.log(`   Pool TVL: ${rebalancerData.poolTvl.toLocaleString()}`);
-  console.log(`   New APY: ${rebalancerData.newApy / 100}%`);
-  console.log(`   Old APY: ${rebalancerData.oldApy / 100}%`);
+  console.log(`   New APY: ${rebalancerData.newApy / 10000}%`);
+  console.log(`   Old APY: ${rebalancerData.oldApy / 10000}%`);
 
   // Generate rebalancer validation proof
   console.log("\n" + "─".repeat(70));
@@ -138,15 +138,24 @@ async function testZkRebalancingE2E(): Promise<void> {
   console.log("─".repeat(70));
 
   const proof = rebalancer.generateRebalancerValidationProof({
+    // New opportunity data
     liquidity: rebalancerData.liquidity,
     zyfiTvl: rebalancerData.zyfiTvl,
     amount: rebalancerData.amount,
     poolTvl: rebalancerData.poolTvl,
     newApy: rebalancerData.newApy,
-    oldApy: rebalancerData.oldApy,
     apyStable7Days: rebalancerData.apyStable7Days,
-    apyStable10Days: rebalancerData.apyStable10Days,
     tvlStable: rebalancerData.tvlStable,
+    // Old opportunity data
+    oldApy: rebalancerData.oldApy,
+    oldLiquidity: rebalancerData.oldLiquidity ?? 0,
+    oldZyfiTvl: rebalancerData.oldZyfiTvl ?? 0,
+    oldTvlStable: rebalancerData.oldTvlStable ?? 1,
+    oldUtilizationStable: rebalancerData.oldUtilizationStable ?? 1,
+    oldCollateralHealth: rebalancerData.oldCollateralHealth ?? 1,
+    oldZyfiTVLCheck: rebalancerData.oldZyfiTVLCheck ?? 1,
+    // User preferences
+    supportsCurrentPool: rebalancerData.supportsCurrentPool ?? 1,
   });
 
   // Submit for validation
@@ -203,7 +212,7 @@ async function testZkRebalancingE2E(): Promise<void> {
 
   // Summary
   console.log("\n" + "=".repeat(70));
-  console.log("  ✅ REBALANCER VALIDATION TEST COMPLETE");
+  console.log("  REBALANCER VALIDATION TEST COMPLETE");
   console.log("=".repeat(70));
   console.log("\nAll steps executed successfully!");
   console.log(
@@ -224,11 +233,11 @@ async function testZkRebalancingE2E(): Promise<void> {
 if (require.main === module) {
   testZkRebalancingE2E()
     .then(() => {
-      console.log("✅ Test completed successfully");
+      console.log("Test completed successfully");
       process.exit(0);
     })
     .catch((error) => {
-      console.error("\n❌ Test failed");
+      console.error("\nTest failed");
       console.error(error);
       process.exit(1);
     });

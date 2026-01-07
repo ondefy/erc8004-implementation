@@ -1,0 +1,90 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "ZyFAI Rebalancer Agent",
+  "description": "A zero-knowledge proof-powered DeFi portfolio rebalancing agent that validates liquidity opportunities across protocols while maintaining privacy. Supports portfolio rebalancing validation with constraints on TVL, APY, liquidity depth, and risk scores. Uses Groth16 ZK proofs for private portfolio data validation.",
+  "image": "https://raw.githubusercontent.com/ZyFAI/assets/main/zyfai-rebalancer-logo.png",
+  "endpoints": [
+    {
+      "name": "agentWallet",
+      "endpoint": "eip155:11155111:0x0868fefa0e5f254fbac27ef8f82364f06fd4c47f",
+      "version": "v1"
+    },
+    {
+      "name": "agentWalletBaseSepolia",
+      "endpoint": "eip155:84532:0x0868fefa0e5f254fbac27ef8f82364f06fd4c47f",
+      "version": "v1"
+    }
+  ],
+  "registrations": [
+    {
+      "agentId": 961,
+      "agentRegistry": "eip155:11155111:0x8004a6090Cd10A7288092483047B097295Fb8847"
+    },
+    {
+      "agentId": 56,
+      "agentRegistry": "eip155:84532:0x8004AA63c570c570eBF15376c0dB199918BFe9Fb"
+    }
+  ],
+  "supportedTrust": ["crypto-economic", "reputation"],
+  "capabilities": {
+    "zkProofGeneration": {
+      "defiOpportunityValidation": {
+        "description": "Validates DeFi rebalancing opportunities with liquidity, APY, TVL, and risk constraints",
+        "proofSystem": "Groth16",
+        "verifierContracts": {
+          "ethereumSepolia": "eip155:11155111:0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c",
+          "baseSepolia": "eip155:84532:0x3CcB02561f39133214F5801626643c623D916e01"
+        },
+        "circuitConstraints": 1043,
+        "privateInputs": [
+          "apy",
+          "tvl",
+          "liquidityDepth",
+          "riskScore",
+          "isActive"
+        ]
+      }
+    },
+    "validation": {
+      "onChainVerification": true,
+      "validationRegistries": {
+        "ethereumSepolia": "eip155:11155111:0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5",
+        "baseSepolia": "eip155:84532:0x8004C269D0A5647E51E121FeB226200ECE932d55"
+      },
+      "supportedProofTypes": ["zkProofs"]
+    },
+    "reputation": {
+      "feedbackEnabled": true,
+      "reputationRegistries": {
+        "ethereumSepolia": "eip155:11155111:0x8004B8FD1A363aa02fDC07635C0c5F94f6Af5B7E",
+        "baseSepolia": "eip155:84532:0x8004bd8daB57f14Ed299135749a5CB5c42d341BF"
+      },
+      "acceptsFeedback": true
+    }
+  },
+  "pricing": {
+    "model": "pay-per-validation",
+    "proofGeneration": "Free (off-chain computation)",
+    "onChainValidation": "Gas costs only"
+  },
+  "technology": {
+    "zkCircuits": "Circom 2.2.2+",
+    "proofSystem": "SnarkJS 0.7.5 (Groth16)",
+    "blockchains": ["Ethereum Sepolia (Testnet)", "Base Sepolia (Testnet)"],
+    "smartContracts": "Solidity 0.8.20"
+  },
+  "links": {
+    "documentation": "https://github.com/ZyFAI/rebalancing-poc",
+    "sourceCode": "https://github.com/ZyFAI/rebalancing-poc",
+    "ethereumSepolia": {
+      "identityRegistry": "https://sepolia.etherscan.io/address/0x8004a6090Cd10A7288092483047B097295Fb8847",
+      "rebalancerVerifier": "https://sepolia.etherscan.io/address/0x17A9B7EdB6f3aE3D13B413974Cc228805FD3831c",
+      "portfolioVerifier": "https://sepolia.etherscan.io/address/0x5A86a43E9E08C450a7909e845Ea5E4d16A3C23F2"
+    },
+    "baseSepolia": {
+      "identityRegistry": "https://sepolia.basescan.org/address/0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
+      "rebalancerVerifier": "https://sepolia.basescan.org/address/0x3CcB02561f39133214F5801626643c623D916e01",
+      "portfolioVerifier": "https://sepolia.basescan.org/address/0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f"
+    }
+  }
+}

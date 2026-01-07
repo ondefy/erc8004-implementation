@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -164,16 +164,16 @@ contract ReputationRegistryUpgradeable is Initializable, OwnableUpgradeable, UUP
     function _verifySignature(FeedbackAuth memory auth, bytes calldata signature) internal view {
         // Construct message hash
         bytes32 messageHash = keccak256(
-            abi.encode(
-                auth.agentId,
-                auth.clientAddress,
-                auth.indexLimit,
-                auth.expiry,
-                auth.chainId,
-                auth.identityRegistry,
-                auth.signerAddress
-            )
-        ).toEthSignedMessageHash();
+                abi.encode(
+                    auth.agentId,
+                    auth.clientAddress,
+                    auth.indexLimit,
+                    auth.expiry,
+                    auth.chainId,
+                    auth.identityRegistry,
+                    auth.signerAddress
+                )
+            ).toEthSignedMessageHash();
 
         // verify signature: EOA or ERC-1271 contract
         address recoveredSigner = messageHash.recover(signature);
