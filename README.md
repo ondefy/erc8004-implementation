@@ -31,8 +31,6 @@ npm run test:rebalancer-circuit
 npm run test:verifier-proof
 ```
 
-**For project context and debugging**, see [CLAUDE.md](CLAUDE.md) - comprehensive guide for AI-assisted development
-
 ## Technology Stack
 
 ### Zero-Knowledge Proofs
@@ -510,18 +508,6 @@ This project **requires Circom 2.x** (>= 2.0.0). Key features used:
   - APY values: Scaled by 10000 (4 decimal precision)
   - Amount: Token smallest unit (no scaling)
 
-### Circuit Limitations
-
-This is a **proof-of-concept**. For production:
-
-1. ✅ Comparison circuits implemented (GreaterThan, IsEqual from circomlib)
-2. ✅ Boolean validation for stability flags (0 or 1 enforcement)
-3. ✅ Edge case handling (shouldRebalanceFromOld, no old opportunity, etc.)
-4. 🔲 Add overflow protection for large numbers
-5. 🔲 Conduct security audit for business logic constraints
-6. 🔲 Perform multi-party computation (MPC) ceremony for trusted setup
-7. 🔲 Implement privacy features (currently all inputs are public)
-
 ## Gas Considerations
 
 - Groth16 verification: ~250k-300k gas per proof
@@ -534,13 +520,6 @@ This is a **proof-of-concept**. For production:
   - Feedback submission: ~100k gas (ReputationRegistry with signature verification)
 
 ## Security Notes
-
-⚠️ **For Development/Testing Only**
-
-- The trusted setup uses test entropy (`date +%s`)
-- No proper MPC ceremony conducted
-- Circuit needs security audit before production use
-- Current setup regenerates zkey on every `npm run setup:zkp:rebalancer`
 
 ✅ **Current Implementation**:
 
