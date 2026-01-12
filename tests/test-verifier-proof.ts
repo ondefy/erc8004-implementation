@@ -1,6 +1,6 @@
 /**
  * Test script to verify a proof against the deployed RebalancerVerifier contract
- * 
+ *
  * Usage:
  *   REBALANCER_VERIFIER_ADDRESS=0x... RPC_URL=... ts-node tests/test-verifier-proof.ts
  */
@@ -11,40 +11,40 @@ import { baseSepolia } from "viem/chains";
 const proofData = {
   proof: {
     pi_a: [
-      "5808506367496076115137797681117303818077944624938341183253977674074579472000",
-      "5270605745182145652419062500066814998958339653653406012878574410992405335197",
+      "10598892650137383277942058771425304378824841544963276060674047720063260535523",
+      "7846709327565689082764439546026227652494660258671054704842630258561550482378",
       "1",
     ],
     pi_b: [
       [
-        "8885883170907692575755782708677151047002902901633178809746155613569504943041",
-        "2104291103560247205867869460199313096763832805523160723889115166617766269812",
+        "11995047261804797775721300718467390927486715731708683180377210931380040584685",
+        "18048300820497311947382636819430336043947608631729900708849384999189915106830",
       ],
       [
-        "4139120738324171264782533843539667641395287267295767580511397833291611466534",
-        "20711683582567592498512458532375874526005602943189073671020975015312597527994",
+        "5175993259332735261107895036740040408281006739713285523147485957891887240915",
+        "14140636184071334089594151969251698661351704802349425790216988781840606189421",
       ],
       ["1", "0"],
     ],
     pi_c: [
-      "7860446099379479482474800662495255899670532148371157572789152603873989580234",
-      "2283997298364557245522178535412552623378609119793354021413476810608393180800",
+      "180465996080860691788571053418256801922020844593135150899766645127853804070",
+      "8616687746436002206452894977593265645861924456990356103983468812480300295700",
       "1",
     ],
     protocol: "groth16",
     curve: "bn128",
   },
   publicSignals: [
-    "707759754",
-    "17716",
-    "1503385",
-    "3279845307",
-    "54352",
+    "235442332",
+    "20196044",
+    "1010877551",
+    "873309100",
+    "58905",
     "1",
     "1",
-    "0",
-    "0",
-    "0",
+    "55481",
+    "1618605129",
+    "106211928",
     "1",
     "1",
     "1",
@@ -52,28 +52,28 @@ const proofData = {
     "1",
   ],
   publicSignalsDescription: [
-    "liquidity: New opportunity liquidity",
-    "zyfaiTvl: Zyfai TVL in the pool",
-    "amount: Rebalancer amount",
-    "poolTvl: Adjusted pool TVL",
-    "newApy: New opportunity APY",
-    "apyStable7Days: Boolean",
-    "tvlStable: Boolean",
-    "oldApy: Previous opportunity APY",
-    "oldLiquidity: Old opportunity liquidity",
-    "oldZyfaiTvl: Old opportunity Zyfai TVL",
-    "oldTvlStable: Boolean",
-    "oldUtilizationStable: Boolean",
-    "oldCollateralHealth: Boolean",
-    "oldZyfaiTVLCheck: Boolean",
-    "supportsCurrentPool: Boolean",
+    "liquidity: New opportunity liquidity (scaled by 100, 2 decimal precision)",
+    "zyfaiTvl: Zyfai TVL in the pool (scaled by 100, 2 decimal precision)",
+    "amount: Rebalancer amount (token smallest units, no scaling)",
+    "poolTvl: Adjusted pool TVL (scaled by 100, 2 decimal precision)",
+    "newApy: New opportunity APY (scaled by 10000, 4 decimal precision, e.g., 54352 = 5.4352%)",
+    "apyStable7Days: Boolean (0 or 1)",
+    "tvlStable: Boolean (0 or 1)",
+    "oldApy: Previous opportunity APY (scaled by 10000, 4 decimal precision)",
+    "oldLiquidity: Old opportunity liquidity (scaled by 100, 2 decimal precision)",
+    "oldZyfaiTvl: Old opportunity Zyfai TVL (scaled by 100, 2 decimal precision)",
+    "oldTvlStable: Boolean (0 or 1)",
+    "oldUtilizationStable: Boolean (0 or 1)",
+    "oldCollateralHealth: Boolean (0 or 1)",
+    "oldZyfaiTVLCheck: Boolean (0 or 1)",
+    "supportsCurrentPool: Boolean (0 or 1)",
   ],
   verifierAddress: "0x07A1Dc74Ec0C2F3F9e605Ad464A048099793be09",
   validationRegistryAddress: "0x8004C269D0A5647E51E121FeB226200ECE932d55",
   chainId: 84532,
   version: "1.0",
   circuit: "zyfi-rebalancing-validation",
-  timestamp: 1767784082270,
+  timestamp: 1768210243024,
 };
 
 async function testVerifierProof() {
@@ -141,14 +141,8 @@ async function testVerifierProof() {
     BigInt(proofData.proof.pi_a[1]),
   ];
   const pB: [[bigint, bigint], [bigint, bigint]] = [
-    [
-      BigInt(proofData.proof.pi_b[0][1]),
-      BigInt(proofData.proof.pi_b[0][0]),
-    ],
-    [
-      BigInt(proofData.proof.pi_b[1][1]),
-      BigInt(proofData.proof.pi_b[1][0]),
-    ],
+    [BigInt(proofData.proof.pi_b[0][1]), BigInt(proofData.proof.pi_b[0][0])],
+    [BigInt(proofData.proof.pi_b[1][1]), BigInt(proofData.proof.pi_b[1][0])],
   ];
   const pC: [bigint, bigint] = [
     BigInt(proofData.proof.pi_c[0]),
@@ -171,7 +165,7 @@ async function testVerifierProof() {
     bigint,
     bigint,
     bigint,
-    bigint,
+    bigint
   ] = proofData.publicSignals.map((s) => BigInt(s)) as any;
 
   console.log("📊 Public Signals:");
@@ -195,7 +189,9 @@ async function testVerifierProof() {
     console.log("=".repeat(80));
     if (isValid) {
       console.log("✅ SUCCESS - Proof verified successfully!");
-      console.log("\nThe proof is valid and matches the verification key in the contract.");
+      console.log(
+        "\nThe proof is valid and matches the verification key in the contract."
+      );
     } else {
       console.log("❌ FAILED - Proof verification returned false");
       console.log("\nPossible reasons:");
@@ -232,4 +228,3 @@ testVerifierProof()
     console.error("Fatal error:", error);
     process.exit(1);
   });
-
