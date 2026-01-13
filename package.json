@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "setup:zkp:rebalancer": "bash scripts/setup-rebalancer-validation.sh",
     "check:zkp": "node scripts/check-zkp-setup.js",
+    "setup:zkp:rebalancer": "bash scripts/setup-rebalancer-validation.sh",
     "test:rebalancer-circuit": "ts-node tests/test-rebalancer-circuit.ts",
     "test:verifier-proof": "ts-node tests/test-verifier-proof.ts",
     "forge:build": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge build",
