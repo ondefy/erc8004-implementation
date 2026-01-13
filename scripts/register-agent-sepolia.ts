@@ -21,9 +21,9 @@ dotenv.config();
 
 // Configuration
 const RPC_URL_SEPOLIA =
-  process.env.RPC_URL_SEPOLIA || "https://rpc.sepolia.org";
+  process.env.RPC_URL_SEPOLIA || "https://sepolia.drpc.org";
 const IDENTITY_REGISTRY_ADDRESS =
-  "0x8004a6090Cd10A7288092483047B097295Fb8847" as const;
+  "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const;
 
 // IPFS CID from environment or from latest-ipfs-cid.txt file
 const getIPFSCID = (): string => {
@@ -172,7 +172,7 @@ async function main() {
         const agentId = parseInt(transferLog.topics[3], 16);
         console.log(`🎫 Agent ID: ${agentId}`);
         console.log(
-          `🆔 Full Agent Reference: eip155:11155111:0x8004a6090Cd10A7288092483047B097295Fb8847:${agentId}\n`
+          `🆔 Full Agent Reference: eip155:11155111:0x8004A818BFB912233c491871b3d84c89A494BD9e:${agentId}\n`
         );
 
         // Verify registration
