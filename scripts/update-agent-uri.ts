@@ -15,9 +15,9 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const RPC_URL_SEPOLIA =
-  process.env.RPC_URL_SEPOLIA || "https://rpc.sepolia.org";
+  process.env.RPC_URL_SEPOLIA || "https://sepolia.drpc.org";
 const IDENTITY_REGISTRY_ADDRESS =
-  "0x8004a6090Cd10A7288092483047B097295Fb8847" as const;
+  "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const;
 
 const IDENTITY_REGISTRY_ABI = parseAbi([
   "function setAgentUri(uint256 agentId, string calldata newUri) external",

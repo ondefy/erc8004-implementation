@@ -5,10 +5,12 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "setup:zkp:rebalancer": "bash scripts/setup-rebalancer-validation.sh",
     "check:zkp": "node scripts/check-zkp-setup.js",
+    "setup:zkp:rebalancer": "bash scripts/setup-rebalancer-validation.sh",
     "test:rebalancer-circuit": "ts-node tests/test-rebalancer-circuit.ts",
     "test:verifier-proof": "ts-node tests/test-verifier-proof.ts",
+    "agent:upload-ipfs": "ts-node scripts/upload-agent-card-ipfs.ts",
+    "agent:set-uri": "ts-node scripts/set-agent-uri.ts",
     "forge:build": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge build",
     "forge:test": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge test -vvv",
     "forge:deploy:local": "export PATH=\"$HOME/.foundry/bin:$PATH\" && cd contracts && forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast && cd .. && ts-node scripts/create-deployed-contracts.ts",

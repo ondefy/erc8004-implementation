@@ -21,17 +21,17 @@ const NETWORKS = {
   ETHEREUM_SEPOLIA: {
     name: "Ethereum Sepolia",
     chain: sepolia,
-    rpc: process.env.RPC_URL_SEPOLIA || "https://rpc.sepolia.org",
-    identityRegistry: "0x8004a6090Cd10A7288092483047B097295Fb8847" as const,
-    agentId: 961, // Your Ethereum Sepolia agent ID
+    rpc: process.env.RPC_URL_SEPOLIA || "https://sepolia.drpc.org",
+    identityRegistry: "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const,
+    agentId: 323, // Your Ethereum Sepolia agent ID
     explorer: "https://sepolia.etherscan.io",
   },
   BASE_SEPOLIA: {
     name: "Base Sepolia",
     chain: baseSepolia,
-    rpc: process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org",
-    identityRegistry: "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb" as const,
-    agentId: 56, // Your Base Sepolia agent ID
+    rpc: process.env.RPC_URL_BASE_SEPOLIA || "https://sepolia.base.org",
+    identityRegistry: "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const,
+    agentId: -1, // Your Base Sepolia agent ID
     explorer: "https://sepolia.basescan.org",
   },
 };
@@ -234,10 +234,10 @@ async function main() {
     console.log("🎉 All networks updated successfully!\n");
     console.log("🌐 Your agent is now accessible on both chains:");
     console.log(
-      "   • Ethereum Sepolia: eip155:11155111:0x8004a6090Cd10A7288092483047B097295Fb8847:961"
+      "   • Ethereum Sepolia: eip155:11155111:0x8004A818BFB912233c491871b3d84c89A494BD9e:961"
     );
     console.log(
-      "   • Base Sepolia: eip155:84532:0x8004AA63c570c570eBF15376c0dB199918BFe9Fb:56"
+      "   • Base Sepolia: eip155:84532:0x8004A818BFB912233c491871b3d84c89A494BD9e:56"
     );
     console.log(`\n📦 IPFS Card: ipfs://${newCid}`);
   } else {
