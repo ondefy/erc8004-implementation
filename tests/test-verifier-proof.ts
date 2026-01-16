@@ -77,7 +77,7 @@ const proofData = {
 };
 
 async function testVerifierProof() {
-  console.log("🔍 Testing RebalancerVerifier Contract\n");
+  console.log("Testing RebalancerVerifier Contract\n");
   console.log("=".repeat(80));
 
   const verifierAddress =
@@ -168,14 +168,14 @@ async function testVerifierProof() {
     bigint
   ] = proofData.publicSignals.map((s) => BigInt(s)) as any;
 
-  console.log("📊 Public Signals:");
+  console.log("Public Signals:");
   proofData.publicSignals.forEach((signal, i) => {
     const desc = proofData.publicSignalsDescription[i] || `Signal ${i}`;
     console.log(`   ${i}: ${signal} (${desc})`);
   });
   console.log();
 
-  console.log("🔐 Verifying proof on-chain...\n");
+  console.log("Verifying proof on-chain...\n");
 
   try {
     // Verify proof
@@ -188,17 +188,17 @@ async function testVerifierProof() {
 
     console.log("=".repeat(80));
     if (isValid) {
-      console.log("✅ SUCCESS - Proof verified successfully!");
+      console.log("SUCCESS - Proof verified successfully!");
       console.log(
         "\nThe proof is valid and matches the verification key in the contract."
       );
     } else {
-      console.log("❌ FAILED - Proof verification returned false");
+      console.log("FAILED - Proof verification returned false");
       console.log("\nPossible reasons:");
       console.log("  - Verification key in contract doesn't match the circuit");
       console.log("  - Proof was generated with a different circuit version");
       console.log("  - Public signals don't match the proof");
-      console.log("\n💡 Solution: Regenerate the verifier contract with:");
+      console.log("\nNote: Solution: Regenerate the verifier contract with:");
       console.log("   npm run setup:zkp:rebalancer");
       console.log("   Then redeploy the RebalancerVerifier contract");
     }
@@ -206,12 +206,12 @@ async function testVerifierProof() {
 
     return isValid;
   } catch (error: any) {
-    console.error("❌ ERROR during verification:");
+    console.error("ERROR during verification:");
     console.error(`   ${error.message}`);
     if (error.cause) {
       console.error(`   Cause: ${error.cause.message || error.cause}`);
     }
-    console.log("\n💡 Troubleshooting:");
+    console.log("\nNote: Troubleshooting:");
     console.log("  - Check if contract is deployed at the address");
     console.log("  - Verify RPC URL is correct");
     console.log("  - Ensure contract ABI matches RebalancerVerifier");
