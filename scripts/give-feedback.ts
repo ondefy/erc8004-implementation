@@ -75,12 +75,14 @@ const CHAIN_CONFIGS: Record<
 };
 
 // Reputation Registry ABI (minimal - just what we need)
+// NOTE: keep this in sync with contracts/src/ReputationRegistryUpgradeable.sol
 const REPUTATION_REGISTRY_ABI = parseAbi([
-  "function giveFeedback(uint256 agentId, uint8 score, string calldata tag1, string calldata tag2, string calldata endpoint, string calldata feedbackURI, bytes32 feedbackHash) external",
+  "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string calldata tag1, string calldata tag2, string calldata endpoint, string calldata feedbackURI, bytes32 feedbackHash) external",
   "function getLastIndex(uint256 agentId, address clientAddress) external view returns (uint64)",
-  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) external view returns (uint8 score, string memory tag1, string memory tag2, bool isRevoked)",
-  "function getSummary(uint256 agentId, address[] calldata clientAddresses, string calldata tag1, string calldata tag2) external view returns (uint64 count, uint8 averageScore)",
-  "event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, uint8 score, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
+  // Contract returns fixed-point representation of the score
+  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) external view returns (int128 value, uint8 valueDecimals, string memory tag1, string memory tag2, bool isRevoked)",
+  "function getSummary(uint256 agentId, address[] calldata clientAddresses, string calldata tag1, string calldata tag2) external view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
+  "event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
 ]);
 
 // Pinata API configuration
@@ -213,7 +215,7 @@ async function main() {
   }
   const agentId = BigInt(agentIdStr);
 
-  const scoreStr = process.env.SCORE;
+  const scoreStr = "100";
   if (!scoreStr) {
     console.error("Error: SCORE environment variable not set");
     console.log("\nNote: Score must be between 0 and 100");
@@ -258,8 +260,8 @@ async function main() {
   const explorerUrl = process.env.EXPLORER_URL || chainConfig.defaultExplorer;
 
   // Optional parameters
-  const tag1 = process.env.TAG1 || "";
-  const tag2 = process.env.TAG2 || "";
+  const tag1 = "starred";
+  const tag2 = "starred";
   const endpoint = process.env.ENDPOINT || "";
   const context = process.env.CONTEXT || tag1 || "";
   const capability = process.env.CAPABILITY || tag1 || "";
@@ -442,11 +444,12 @@ async function main() {
       functionName: "giveFeedback",
       args: [
         agentId,
-        score as number,
+        BigInt(score),
+        0, // valueDecimals
         tag1,
         tag2,
         endpoint,
-        feedbackURI,
+        feedbackURI as `0x${string}`,
         feedbackHash,
       ],
     });
@@ -482,24 +485,45 @@ async function main() {
         args: [agentId, account.address, newIndex],
       });
 
+      const [valueDecimals, fbTag1, fbTag2, isRevoked] = feedback as [
+        bigint,
+        number,
+        string,
+        string,
+        boolean
+      ];
+
       console.log(`Verification:`);
       console.log(`   Feedback Index: ${newIndex.toString()}`);
-      console.log(`   Score: ${feedback[0]}/100`);
-      console.log(`   Tag 1: ${feedback[1] || "(empty)"}`);
-      console.log(`   Tag 2: ${feedback[2] || "(empty)"}`);
-      console.log(`   Revoked: ${feedback[3] ? "Yes" : "No"}\n`);
+      console.log(`   Score: 100/100 (valueDecimals=${valueDecimals})`);
+      console.log(`   Tag 1: ${fbTag1 || "(empty)"}`);
+      console.log(`   Tag 2: ${fbTag2 || "(empty)"}`);
+      console.log(`   Revoked: ${isRevoked ? "Yes" : "No"}\n`);
 
       // Get summary for the agent
       const summary = await publicClient.readContract({
         address: reputationRegistryAddress as `0x${string}`,
         abi: REPUTATION_REGISTRY_ABI,
         functionName: "getSummary",
-        args: [agentId, [], "", ""],
+        args: [agentId, [account.address], "", ""],
       });
 
+      const [summaryCount, summaryValue, summaryValueDecimals] = summary as [
+        bigint,
+        bigint,
+        number
+      ];
+
+      const averageScore =
+        summaryValueDecimals === 0
+          ? Number(summaryValue)
+          : Number(summaryValue) / 10 ** summaryValueDecimals;
+
       console.log(`Agent Reputation Summary:`);
-      console.log(`   Total Feedback Count: ${summary[0].toString()}`);
-      console.log(`   Average Score: ${summary[1]}/100\n`);
+      console.log(`   Total Feedback Count: ${summaryCount.toString()}`);
+      console.log(
+        `   Average Score: ${averageScore}/100 (valueDecimals=${summaryValueDecimals})\n`
+      );
 
       console.log("Feedback submission complete!\n");
 
