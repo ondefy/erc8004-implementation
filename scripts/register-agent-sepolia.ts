@@ -48,6 +48,7 @@ const IPFS_CID = getIPFSCID();
 
 // Identity Registry ABI (minimal - just what we need)
 const IDENTITY_REGISTRY_ABI = parseAbi([
+  "function register() external returns (uint256 agentId)",
   "function register(string memory tokenUri) external returns (uint256 agentId)",
   "function register(string tokenUri, (string key, bytes value)[] metadata) external returns (uint256 agentId)",
   "function tokenURI(uint256 tokenId) external view returns (string memory)",
