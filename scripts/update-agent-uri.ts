@@ -8,19 +8,18 @@
 
 import { createWalletClient, createPublicClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
+import { mainnet } from "viem/chains";
 import * as dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
 
-const RPC_URL_SEPOLIA =
-  process.env.RPC_URL_SEPOLIA || "https://sepolia.drpc.org";
+const RPC_URL_MAINNET = "https://eth.drpc.org";
 const IDENTITY_REGISTRY_ADDRESS =
-  "0x8004A818BFB912233c491871b3d84c89A494BD9e" as const;
+  "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as const;
 
 const IDENTITY_REGISTRY_ABI = parseAbi([
-  "function setAgentUri(uint256 agentId, string calldata newUri) external",
+  "function setAgentURI(uint256 agentId, string calldata newURI) external",
   "function tokenURI(uint256 tokenId) external view returns (string memory)",
   "function ownerOf(uint256 tokenId) external view returns (address)",
   "event UriUpdated(uint256 indexed agentId, string newUri, address indexed updatedBy)",
@@ -45,7 +44,7 @@ async function main() {
   const newCid = newCidArg.split("=")[1];
   const newTokenURI = `ipfs://${newCid}`;
 
-  console.log("🔄 Updating Agent URI on Ethereum Sepolia\n");
+  console.log("🔄 Updating Agent URI on Ethereum Mainnet\n");
   console.log(`🎫 Agent ID: ${agentId}`);
   console.log(`📝 New URI: ${newTokenURI}`);
   console.log(`🌐 Gateway: https://ipfs.io/ipfs/${newCid}\n`);
@@ -60,14 +59,14 @@ async function main() {
   console.log(`📍 Updating from address: ${account.address}\n`);
 
   const publicClient = createPublicClient({
-    chain: sepolia,
-    transport: http(RPC_URL_SEPOLIA),
+    chain: mainnet,
+    transport: http(RPC_URL_MAINNET),
   });
 
   const walletClient = createWalletClient({
     account,
-    chain: sepolia,
-    transport: http(RPC_URL_SEPOLIA),
+    chain: mainnet,
+    transport: http(RPC_URL_MAINNET),
   });
 
   // Verify ownership
@@ -110,13 +109,13 @@ async function main() {
     const hash = await walletClient.writeContract({
       address: IDENTITY_REGISTRY_ADDRESS,
       abi: IDENTITY_REGISTRY_ABI,
-      functionName: "setAgentUri",
+      functionName: "setAgentURI",
       args: [agentId, newTokenURI],
     });
 
     console.log(`✅ Transaction submitted!`);
     console.log(`🔗 Tx Hash: ${hash}`);
-    console.log(`🔍 Explorer: https://sepolia.etherscan.io/tx/${hash}\n`);
+    console.log(`🔍 Explorer: https://etherscan.io/tx/${hash}\n`);
 
     console.log("⏳ Waiting for confirmation...\n");
 

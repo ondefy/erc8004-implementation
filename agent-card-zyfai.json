@@ -6,7 +6,8 @@
   "services": [
     {
       "name": "MCP",
-      "endpoint": "https://mcp.zyf.ai/mcp"
+      "endpoint": "https://mcp.zyf.ai/mcp",
+      "version": "2025-11-25"
     },
     {
       "name": "OASF",
