@@ -9,7 +9,7 @@ import {IdentityRegistryTest} from "../src/IdentityRegistryTest.sol";
  * For a fresh proxy, we deploy with empty init data, then set the owner
  * storage slot, then call initialize().
  */
-contract DeployIdentityRegistryUpgradeable is Script {
+contract DeployIdentityRegistryTest is Script {
     function run() external {
         uint256 deployerPrivateKey;
         address deployerAddress;
