@@ -1,5 +1,5 @@
 /**
- * Script to register ZyFAI Rebalancer Agent on Ethereum Sepolia
+ * Script to register Zyfai Rebalancer Agent on Ethereum Sepolia
  * Following ERC-8004 standard
  *
  * Usage:
@@ -58,7 +58,7 @@ const IDENTITY_REGISTRY_ABI = parseAbi([
 ]);
 
 async function main() {
-  console.log("🚀 ZyFAI Rebalancer Agent Registration on Ethereum Sepolia\n");
+  console.log("🚀 Zyfai Rebalancer Agent Registration on Ethereum Sepolia\n");
   console.log("📋 ERC-8004 Standard Compliance\n");
 
   // Check for private key
@@ -120,7 +120,7 @@ async function main() {
   const metadata = [
     {
       key: "agentName",
-      value: `0x${Buffer.from("ZyFAI Rebalancer Agent", "utf-8").toString(
+      value: `0x${Buffer.from("Zyfai Rebalancer Agent", "utf-8").toString(
         "hex"
       )}` as `0x${string}`,
     },

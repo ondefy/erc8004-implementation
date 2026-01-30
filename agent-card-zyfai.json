@@ -3,34 +3,61 @@
   "name": "Zyfai Rebalancer Agent",
   "description": "A ZK powered rebalancer agent that finds the best yet low risk yield opportunities for you across various bluechip protocols on multiple chains, such as Base, Arbitrum, Plasma, etc.",
   "image": "https://www.zyf.ai/Zyfai-logo-png.png",
-  "endpoints": [
-    {
-      "name": "web",
-      "endpoint": "https://www.zyf.ai"
-    },
+  "services": [
     {
       "name": "MCP",
-      "endpoint": "https://mcp.zyf.ai",
+      "endpoint": "https://mcp.zyf.ai/mcp"
+    },
+    {
+      "name": "OASF",
+      "endpoint": "https://github.com/agntcy/oasf/",
+      "version": "v0.8.0",
+      "skills": [
+        "advanced_reasoning_planning/strategic_planning",
+        "data_engineering/data_transformation_pipeline",
+        "evaluation_monitoring/anomaly_detection",
+        "agent_orchestration/task_decomposition"
+      ],
+      "domains": [
+        "finance_and_business/investment_services",
+        "technology/blockchain/defi",
+        "technology/data_science/data_engineering"
+      ]
+    },
+    {
+      "name": "web",
+      "endpoint": "https://www.zyf.ai",
       "version": "v1"
+    },
+    {
+      "name": "agentWallet",
+      "endpoint": "eip155:1:0x0868feFa0E5f254fbac27EF8F82364F06FD4C47f"
     }
   ],
-  "x402Support": false,
-  "active": true,
   "registrations": [
     {
-      "agentId": 323,
-      "agentRegistry": "eip155:11155111:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+      "agentId": 14162,
+      "agentRegistry": "eip155:1:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
     }
   ],
-  "supportedTrust": ["crypto-economic", "reputation"],
+  "supportedTrust": [
+    "crypto-economic",
+    "reputation"
+  ],
   "technology": {
     "zkCircuits": "Circom 2.2.2+",
     "proofSystem": "SnarkJS 0.7.5 (Groth16)",
-    "blockchains": ["Base", "Arbitrum", "Plasma", "Sonic"]
+    "blockchains": [
+      "Base",
+      "Arbitrum", 
+      "Plasma"
+    ]
   },
   "links": {
     "documentation": "https://docs.zyf.ai",
     "sourceCode": "https://github.com/ondefy/erc8004-implementation",
     "package": "https://www.npmjs.com/package/@zyfai/sdk"
-  }
+  },
+  "active": true,
+  "x402Support": false
 }
