@@ -5,13 +5,18 @@
  *
  * Reads the latest deployment from Forge's broadcast directory and creates
  * a deployed_contracts.json file for the TypeScript agents to use.
+ *
+ * The deploy script creates proxies (ERC1967Proxy) for each registry.
+ * Each proxy CREATE follows its implementation CREATE in transaction order:
+ *   CREATE IdentityRegistryUpgradeable → CREATE ERC1967Proxy (identity proxy)
+ *   CREATE ValidationRegistryUpgradeable → CREATE ERC1967Proxy (validation proxy)
+ *   CREATE ReputationRegistryUpgradeable → CREATE ERC1967Proxy (reputation proxy)
+ *   CREATE RebalancerVerifier
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { getAddress } from "viem";
-
-// ============ Types ============
 
 interface Transaction {
   contractName?: string;
@@ -28,23 +33,27 @@ interface DeployedContracts {
   network: string;
   chainId: number;
   contracts: {
-    IdentityRegistry?: string;
-    ValidationRegistry?: string;
-    ReputationRegistry?: string;
-    Groth16Verifier?: string;
-    RebalancerVerifier?: string;
+    IdentityRegistry: string;
+    ValidationRegistry: string;
+    ReputationRegistry: string;
+    RebalancerVerifier: string;
   };
 }
 
-// ============ Helper Functions ============
+// Map from implementation contract name to the friendly name used in deployed_contracts.json
+const IMPL_TO_REGISTRY: Record<string, keyof DeployedContracts["contracts"]> = {
+  IdentityRegistryUpgradeable: "IdentityRegistry",
+  ValidationRegistryUpgradeable: "ValidationRegistry",
+  ReputationRegistryUpgradeable: "ReputationRegistry",
+};
 
-function findLatestDeployment(): string | null {
-  const broadcastDir = "contracts/broadcast/Deploy.s.sol/31337";
+function findLatestDeployment(chainId: string): string | null {
+  const broadcastDir = `contracts/broadcast/Deploy.s.sol/${chainId}`;
 
   try {
     const files = readdirSync(broadcastDir)
       .filter((f) => f.startsWith("run-") && f.endsWith(".json"))
-      .filter((f) => f !== "run-latest.json") // Exclude the symlink
+      .filter((f) => f !== "run-latest.json")
       .map((f) => ({
         name: f,
         path: join(broadcastDir, f),
@@ -56,12 +65,12 @@ function findLatestDeployment(): string | null {
       return null;
     }
 
-    console.log(`\n   Using deployment: ${files[0].name}\n`);
+    console.log(`   Using deployment: ${files[0].name}\n`);
     return files[0].path;
   } catch (error) {
-    console.error(`❌ Broadcast directory not found: ${broadcastDir}`);
+    console.error(`Broadcast directory not found: ${broadcastDir}`);
     console.error(
-      "   Please deploy contracts first using: npm run forge:deploy:local"
+      "   Deploy contracts first: npm run forge:deploy:local"
     );
     return null;
   }
@@ -70,123 +79,107 @@ function findLatestDeployment(): string | null {
 function extractContractAddresses(
   deploymentFile: string
 ): Record<string, string> {
-  try {
-    const data: DeploymentData = JSON.parse(
-      readFileSync(deploymentFile, "utf-8")
-    );
-    const contracts: Record<string, string> = {};
+  const data: DeploymentData = JSON.parse(
+    readFileSync(deploymentFile, "utf-8")
+  );
+  const contracts: Record<string, string> = {};
 
-    // Parse transactions to find contract deployments
-    for (const tx of data.transactions || []) {
-      const contractName = tx.contractName;
-      const contractAddress = tx.contractAddress;
+  // Walk through CREATE transactions in order.
+  // When we see an implementation deploy (e.g. IdentityRegistryUpgradeable),
+  // the next ERC1967Proxy CREATE is its proxy — that's the address we want.
+  let pendingRegistry: string | null = null;
 
-      if (contractName && contractAddress) {
-        // Convert to checksummed address for web3/viem compatibility
-        const checksummedAddress = getAddress(contractAddress);
-        contracts[contractName] = checksummedAddress;
-        console.log(`   Found ${contractName}: ${checksummedAddress}`);
-      }
+  for (const tx of data.transactions || []) {
+    if (tx.transactionType !== "CREATE" || !tx.contractName || !tx.contractAddress) {
+      continue;
     }
 
-    return contracts;
-  } catch (error) {
-    console.error(`❌ Error reading deployment file: ${error}`);
-    throw error;
+    const addr = getAddress(tx.contractAddress);
+
+    if (tx.contractName in IMPL_TO_REGISTRY) {
+      // Remember which registry we're about to deploy a proxy for
+      pendingRegistry = IMPL_TO_REGISTRY[tx.contractName];
+      console.log(`   ${tx.contractName} impl: ${addr}`);
+    } else if (tx.contractName === "ERC1967Proxy" && pendingRegistry) {
+      // This proxy belongs to the registry we just saw
+      contracts[pendingRegistry] = addr;
+      console.log(`   ${pendingRegistry} proxy: ${addr}`);
+      pendingRegistry = null;
+    } else if (tx.contractName === "RebalancerVerifier") {
+      contracts["RebalancerVerifier"] = addr;
+      console.log(`   RebalancerVerifier: ${addr}`);
+    }
+    // Skip BootstrapUUPS and other helper contracts
   }
+
+  return contracts;
 }
-
-function createDeployedContractsFile(
-  contracts: Record<string, string>,
-  chainId: number
-): void {
-  // Validate required contracts
-  const requiredContracts = [
-    "IdentityRegistry",
-    "ValidationRegistry",
-    "ReputationRegistry",
-    "Groth16Verifier",
-  ];
-  const missingContracts = requiredContracts.filter((name) => !contracts[name]);
-
-  if (missingContracts.length > 0) {
-    throw new Error(
-      `Missing required contracts: ${missingContracts.join(", ")}`
-    );
-  }
-
-  // Create deployed contracts object
-  const deployedContracts: DeployedContracts = {
-    network:
-      chainId === 31337 ? "anvil" : chainId === 1 ? "mainnet" : "unknown",
-    chainId,
-    contracts: {
-      IdentityRegistry: contracts.IdentityRegistry,
-      ValidationRegistry: contracts.ValidationRegistry,
-      ReputationRegistry: contracts.ReputationRegistry,
-      Groth16Verifier: contracts.Groth16Verifier,
-      RebalancerVerifier: contracts.RebalancerVerifier,
-    },
-  };
-
-  // Write to file
-  const outputPath = "deployed_contracts.json";
-  writeFileSync(outputPath, JSON.stringify(deployedContracts, null, 2));
-
-  console.log(`\n✅ Created ${outputPath}`);
-  console.log(
-    `   Network: ${deployedContracts.network} (chainId: ${deployedContracts.chainId})`
-  );
-  console.log("   Contracts:");
-  console.log(
-    `   - IdentityRegistry: ${deployedContracts.contracts.IdentityRegistry}`
-  );
-  console.log(
-    `   - ValidationRegistry: ${deployedContracts.contracts.ValidationRegistry}`
-  );
-  console.log(
-    `   - ReputationRegistry: ${deployedContracts.contracts.ReputationRegistry}`
-  );
-  console.log(
-    `   - Groth16Verifier: ${deployedContracts.contracts.Groth16Verifier}`
-  );
-  if (contracts.RebalancerVerifier) {
-    console.log(
-      `   - RebalancerVerifier: ${deployedContracts.contracts.RebalancerVerifier}`
-    );
-  }
-}
-
-// ============ Main Execution ============
 
 function main(): void {
-  console.log("📝 Creating deployed_contracts.json from Forge deployment...");
+  console.log("Creating deployed_contracts.json from Forge deployment...\n");
 
-  // Find latest deployment
-  const deploymentFile = findLatestDeployment();
+  // Determine chain ID from args or default to 31337
+  const chainId = process.argv[2] || "31337";
+
+  const deploymentFile = findLatestDeployment(chainId);
   if (!deploymentFile) {
     process.exit(1);
   }
 
-  // Extract contract addresses
   const contracts = extractContractAddresses(deploymentFile);
 
-  // Get chain ID from deployment file
+  // Validate
+  const required = [
+    "IdentityRegistry",
+    "ValidationRegistry",
+    "ReputationRegistry",
+    "RebalancerVerifier",
+  ];
+  const missing = required.filter((name) => !contracts[name]);
+  if (missing.length > 0) {
+    console.error(`\nMissing contracts: ${missing.join(", ")}`);
+    console.error("Check the deployment broadcast for errors.");
+    process.exit(1);
+  }
+
   const deploymentData: DeploymentData = JSON.parse(
     readFileSync(deploymentFile, "utf-8")
   );
-  const chainId = deploymentData.chain || 31337;
+  const chain = deploymentData.chain || parseInt(chainId);
+  const networkName =
+    chain === 31337
+      ? "anvil"
+      : chain === 84532
+      ? "base-sepolia"
+      : chain === 1
+      ? "mainnet"
+      : `chain-${chain}`;
 
-  // Create deployed_contracts.json
-  createDeployedContractsFile(contracts, chainId);
+  const deployed: DeployedContracts = {
+    network: networkName,
+    chainId: chain,
+    contracts: {
+      IdentityRegistry: contracts.IdentityRegistry,
+      ValidationRegistry: contracts.ValidationRegistry,
+      ReputationRegistry: contracts.ReputationRegistry,
+      RebalancerVerifier: contracts.RebalancerVerifier,
+    },
+  };
+
+  writeFileSync("deployed_contracts.json", JSON.stringify(deployed, null, 2));
+
+  console.log(`\nCreated deployed_contracts.json`);
+  console.log(`   Network: ${deployed.network} (chainId: ${deployed.chainId})`);
+  for (const [name, addr] of Object.entries(deployed.contracts)) {
+    console.log(`   ${name}: ${addr}`);
+  }
 }
 
-// Run if executed directly
 if (require.main === module) {
   try {
     main();
   } catch (error) {
-    console.error(`\n❌ Error: ${error}`);
+    console.error(`Error: ${error}`);
     process.exit(1);
   }
 }
@@ -194,5 +187,4 @@ if (require.main === module) {
 export {
   findLatestDeployment,
   extractContractAddresses,
-  createDeployedContractsFile,
 };

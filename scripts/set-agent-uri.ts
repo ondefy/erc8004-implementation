@@ -138,7 +138,7 @@ async function main() {
   // Check balance
   const balance = await publicClient.getBalance({ address: account.address });
   const symbol = chainConfig.chain.nativeCurrency.symbol;
-  console.log(`💰 Balance: ${(Number(balance) / 10n ** BigInt(chainConfig.chain.nativeCurrency.decimals)).toFixed(4)} ${symbol}`);
+  console.log(`💰 Balance: ${(Number(balance) / Number(10n ** BigInt(chainConfig.chain.nativeCurrency.decimals))).toFixed(4)} ${symbol}`);
 
   if (balance === 0n) {
     console.error(`\n❌ Error: Insufficient balance. Get ${symbol} for ${chainConfig.name}`);
