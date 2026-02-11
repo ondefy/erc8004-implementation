@@ -1,0 +1,17 @@
+{
+  "liquidity": 10000000,
+  "zyfiTvl": 500000,
+  "amount": 1000000,
+  "poolTvl": 10000000,
+  "newApy": 120000,
+  "apyStable7Days": 1,
+  "tvlStable": 1,
+  "oldApy": 100000,
+  "oldLiquidity": 8000000,
+  "oldZyfiTvl": 400000,
+  "oldTvlStable": 1,
+  "oldUtilizationStable": 1,
+  "oldCollateralHealth": 1,
+  "oldZyfiTVLCheck": 1,
+  "supportsCurrentPool": 1
+}
