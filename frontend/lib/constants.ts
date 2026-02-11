@@ -23,8 +23,6 @@ export const DEPLOYED_CONTRACTS = {
       "0x8004bd8daB57f14Ed299135749a5CB5c42d341BF" as `0x${string}`,
     validationRegistry:
       "0x8004C269D0A5647E51E121FeB226200ECE932d55" as `0x${string}`,
-    groth16Verifier:
-      "0x7D339bb4B9a05C2Bd114D8A39A40Fd1783343D5f" as `0x${string}`, // FIXED: All circuit bugs resolved (2,091 constraints)
     rebalancerVerifier:
       "0xBdEAA316E5aB8B9d27b44296794c43A0EEB3eB30" as `0x${string}`, // REDEPLOYED: Synced with latest zkey (Nov 6, 2025)
     deploymentBlock: 33602716, // Latest RebalancerVerifier deployment
@@ -39,8 +37,6 @@ export const DEPLOYED_CONTRACTS = {
       "0x8004B8FD1A363aa02fDC07635C0c5F94f6Af5B7E" as `0x${string}`,
     validationRegistry:
       "0x8004CB39f29c09145F24Ad9dDe2A108C1A2cdfC5" as `0x${string}`,
-    groth16Verifier:
-      "0xC10A3A32Ee429Eea2d5b80CF82357a093d919A44" as `0x${string}`,
     rebalancerVerifier:
       "0xFA4199310e49aBD31f5D0c3Aed1267Ca4F9A2828" as `0x${string}`, // REDEPLOYED: Synced with latest zkey (Nov 6, 2025)
     deploymentBlock: 9616067, // Latest RebalancerVerifier deployment
@@ -154,12 +150,6 @@ export function getAllContracts(chainId: number) {
       explorerUrl: `${contracts.explorer}/address/${contracts.reputationRegistry}`,
       description: "Agent reputation & feedback system",
     },
-    // {
-    //   name: "Groth16Verifier",
-    //   address: contracts.groth16Verifier,
-    //   explorerUrl: `${contracts.explorer}/address/${contracts.groth16Verifier}`,
-    //   description: "ZK proof verifier for Math mode (portfolio allocation)",
-    // },
     {
       name: "RebalancerVerifier",
       address: contracts.rebalancerVerifier,

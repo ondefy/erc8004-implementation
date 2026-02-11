@@ -4,7 +4,7 @@ import { Providers } from "@/lib/providers";
 
 export const metadata: Metadata = {
   title: "ZK Rebalancing Workflow",
-  description: "Zero-Knowledge proof system for portfolio rebalancing validation",
+  description: "Zero-Knowledge proof system for DeFi rebalancing validation",
 };
 
 export default function RootLayout({

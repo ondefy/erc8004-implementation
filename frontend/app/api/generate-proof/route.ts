@@ -16,9 +16,14 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { inputData, mode } = body;
 
-    const isRebalancingMode = mode === "rebalancing";
+    if (mode !== "rebalancing") {
+      return NextResponse.json(
+        { error: "Only rebalancing mode is supported" },
+        { status: 400 }
+      );
+    }
 
-    if (isRebalancingMode) {
+    {
       // Rebalancing mode - use rebalancer-validation circuit
       const {
         liquidity,
@@ -194,193 +199,6 @@ export async function POST(req: Request) {
           console.log("SnarkJS output:", result.toString());
         } catch (snarkjsError: any) {
           console.error("SnarkJS error:", snarkjsError.message);
-          if (snarkjsError.stderr) {
-            console.error("Stderr:", snarkjsError.stderr.toString());
-          }
-          if (snarkjsError.stdout) {
-            console.error("Stdout:", snarkjsError.stdout.toString());
-          }
-          throw new Error(
-            `SnarkJS proof generation failed: ${
-              snarkjsError.stderr?.toString() || snarkjsError.message
-            }`
-          );
-        }
-
-        console.log("✅ Proof generated successfully");
-
-        // Read generated proof and public inputs
-        const proof = JSON.parse(readFileSync(proofPath, "utf-8"));
-        const publicInputs = JSON.parse(readFileSync(publicPath, "utf-8"));
-
-        return NextResponse.json({
-          proof,
-          publicInputs,
-          success: true,
-        });
-      } finally {
-        // Clean up temp files (including temp zkey)
-        [tempPath, witnessPath, proofPath, publicPath, tempZkeyPath].forEach(
-          (file) => {
-            if (existsSync(file)) {
-              try {
-                unlinkSync(file);
-              } catch (e) {
-                console.warn(`Failed to delete temp file ${file}:`, e);
-              }
-            }
-          }
-        );
-      }
-    } else {
-      // Math mode - use original rebalancing circuit (portfolio allocation)
-      const {
-        oldBalances,
-        newBalances,
-        prices,
-        minAllocationPct,
-        maxAllocationPct,
-      } = inputData;
-
-      if (
-        !oldBalances ||
-        !newBalances ||
-        !prices ||
-        !minAllocationPct ||
-        !maxAllocationPct
-      ) {
-        return NextResponse.json(
-          { error: "Missing required portfolio input fields" },
-          { status: 400 }
-        );
-      }
-
-      // Calculate total value commitment
-      const newTotalValue = newBalances.reduce(
-        (sum: number, bal: string, i: number) =>
-          sum + parseInt(bal) * parseInt(prices[i]),
-        0
-      );
-
-      // Create input for witness generation (matching rebalancer-agent.ts)
-      const input = {
-        oldBalances,
-        newBalances,
-        prices,
-        totalValueCommitment: String(newTotalValue),
-        minAllocationPct,
-        maxAllocationPct,
-      };
-
-      const projectRoot = join(process.cwd(), "..");
-      const buildDir = join(projectRoot, "build");
-
-      // Use system temp directory for writable files
-      const tempDir = join(tmpdir(), "zkp-proof-gen");
-      if (!existsSync(tempDir)) {
-        mkdirSync(tempDir, { recursive: true });
-      }
-
-      // Generate unique timestamp for ALL temp files in this request
-      const timestamp = Date.now();
-      const tempPath = join(tempDir, `temp_input_${timestamp}.json`);
-      const witnessPath = join(tempDir, `witness_${timestamp}.wtns`);
-      const proofPath = join(tempDir, `proof_${timestamp}.json`);
-      const publicPath = join(tempDir, `public_${timestamp}.json`);
-
-      // Check if build directory exists
-      if (!existsSync(buildDir)) {
-        return NextResponse.json(
-          {
-            error: "Portfolio rebalancing circuit not built",
-            details: `Build directory not found: ${buildDir}`,
-            solution: "Run: npm run setup:zkp",
-          },
-          { status: 500 }
-        );
-      }
-
-      const wasmPath = join(buildDir, "rebalancing_js/rebalancing.wasm");
-      const zkeyPath = join(buildDir, "rebalancing_final.zkey");
-
-      if (!existsSync(wasmPath)) {
-        return NextResponse.json(
-          {
-            error: "Circuit WASM not found",
-            details: `Missing: ${wasmPath}`,
-            solution: "Run: npm run setup:zkp",
-          },
-          { status: 500 }
-        );
-      }
-
-      if (!existsSync(zkeyPath)) {
-        return NextResponse.json(
-          {
-            error: "Proving key not found",
-            details: `Missing: ${zkeyPath}`,
-            solution: "Run: npm run setup:zkp",
-          },
-          { status: 500 }
-        );
-      }
-
-      const tempZkeyPath = join(tempDir, `zkey_${timestamp}.zkey`);
-
-      try {
-        // Copy zkey to temp directory (snarkjs needs write access to zkey directory)
-        copyFileSync(zkeyPath, tempZkeyPath);
-
-        // Write input to temp file
-        writeFileSync(tempPath, JSON.stringify(input, null, 2));
-
-        // Generate witness using Circom 2.x witness generator
-        console.log("Generating witness...");
-        console.log("  WASM:", wasmPath);
-        console.log("  Input:", tempPath);
-        console.log("  Output:", witnessPath);
-        execSync(
-          `node ${join(
-            buildDir,
-            "rebalancing_js/generate_witness.js"
-          )} ${wasmPath} ${tempPath} ${witnessPath}`,
-          { stdio: "inherit", cwd: projectRoot }
-        );
-
-        // Verify witness was created
-        if (!existsSync(witnessPath)) {
-          throw new Error(`Witness file not created: ${witnessPath}`);
-        }
-        console.log("✅ Witness generated successfully");
-
-        // Generate proof using snarkjs with temp zkey
-        console.log("Generating proof with snarkjs...");
-        console.log(
-          "  Zkey:",
-          tempZkeyPath,
-          `(exists: ${existsSync(tempZkeyPath)})`
-        );
-        console.log(
-          "  Witness:",
-          witnessPath,
-          `(exists: ${existsSync(witnessPath)})`
-        );
-        console.log("  Proof output:", proofPath);
-        console.log("  Public output:", publicPath);
-
-        try {
-          const result = execSync(
-            `npx --yes snarkjs groth16 prove ${tempZkeyPath} ${witnessPath} ${proofPath} ${publicPath}`,
-            {
-              stdio: "pipe",
-              cwd: projectRoot,
-              env: { ...process.env, NODE_NO_WARNINGS: "1" },
-              maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-            }
-          );
-          console.log("SnarkJS output:", result.toString());
-        } catch (snarkjsError: any) {
-          console.error("❌ SnarkJS error:", snarkjsError.message);
           if (snarkjsError.stderr) {
             console.error("Stderr:", snarkjsError.stderr.toString());
           }

@@ -23,7 +23,7 @@ export interface WorkflowExecutorParams {
   walletClient?: any; // viem wallet client for signing messages
   workflowState?: WorkflowState;
   customData?: any; // Custom portfolio/opportunity data from user form
-  inputMode?: "Rebalancing" | "Math"; // Which input mode is being used
+  inputMode?: "Rebalancing"; // Which input mode is being used
 }
 
 export interface WorkflowState {
@@ -38,7 +38,7 @@ export interface WorkflowState {
   responseCid?: string; // IPFS CID for stored validation
   dataHash?: string;
   inputData?: any; // Can be either portfolio or opportunity data
-  inputMode?: "Math" | "Rebalancing"; // Track which mode is active
+  inputMode?: "Rebalancing"; // Track which mode is active
   feedbackAuth?: `0x${string}`; // The signed authorization for feedback
   [key: string]: any;
 }
@@ -335,124 +335,94 @@ async function registerAgents(
 
 async function loadInputData(
   customData?: any,
-  inputMode: "Rebalancing" | "Math" = "Rebalancing"
+  inputMode: "Rebalancing" = "Rebalancing"
 ): Promise<StepResult> {
   try {
     let data;
-    let isOpportunity = false;
 
     if (customData) {
-      isOpportunity = inputMode === "Rebalancing" && "liquidity" in customData;
-      if (isOpportunity) {
-        data = {
-          // New opportunity data
-          liquidity: customData.liquidity,
-          zyfiTvl: customData.zyfiTvl,
-          amount: customData.amount,
-          poolTvl: customData.poolTvl,
-          newApy: Math.round(customData.newApy * 10000), // 4 decimal precision
-          apyStable7Days: customData.apyStable7Days ? 1 : 0,
-          tvlStable: customData.tvlStable ? 1 : 0,
-          // Old opportunity data (for circuit to compute shouldRebalanceFromOld)
-          oldApy: Math.round((customData.oldApy ?? 0) * 10000), // 4 decimal precision
-          oldLiquidity: customData.oldLiquidity ?? 0,
-          oldZyfiTvl: customData.oldZyfiTvl ?? 0,
-          oldTvlStable:
-            customData.oldTvlStable !== undefined
-              ? customData.oldTvlStable
-                ? 1
-                : 0
-              : 1, // Default to 1 if not provided
-          oldUtilizationStable:
-            customData.oldUtilizationStable !== undefined
-              ? customData.oldUtilizationStable
-                ? 1
-                : 0
-              : 1, // Default to 1 if not provided
-          oldCollateralHealth:
-            customData.oldCollateralHealth !== undefined
-              ? customData.oldCollateralHealth
-                ? 1
-                : 0
-              : 1, // Default to 1 if not provided
-          oldZyfiTVLCheck:
-            customData.oldZyfiTVLCheck !== undefined
-              ? customData.oldZyfiTVLCheck
-                ? 1
-                : 0
-              : 1, // Default to 1 if not provided
-          // User preferences
-          supportsCurrentPool:
-            customData.supportsCurrentPool !== undefined
-              ? customData.supportsCurrentPool
-                ? 1
-                : 0
-              : 1, // Default to 1 if not provided
-        };
-      } else {
-        const newTotalValue = customData.newBalances.reduce(
-          (sum: number, bal: string, i: number) =>
-            sum + parseInt(bal) * parseInt(customData.prices[i]),
-          0
-        );
-        data = { ...customData, totalValueCommitment: String(newTotalValue) };
-      }
+      data = {
+        // New opportunity data
+        liquidity: customData.liquidity,
+        zyfiTvl: customData.zyfiTvl,
+        amount: customData.amount,
+        poolTvl: customData.poolTvl,
+        newApy: Math.round(customData.newApy * 10000), // 4 decimal precision
+        apyStable7Days: customData.apyStable7Days ? 1 : 0,
+        tvlStable: customData.tvlStable ? 1 : 0,
+        // Old opportunity data (for circuit to compute shouldRebalanceFromOld)
+        oldApy: Math.round((customData.oldApy ?? 0) * 10000), // 4 decimal precision
+        oldLiquidity: customData.oldLiquidity ?? 0,
+        oldZyfiTvl: customData.oldZyfiTvl ?? 0,
+        oldTvlStable:
+          customData.oldTvlStable !== undefined
+            ? customData.oldTvlStable
+              ? 1
+              : 0
+            : 1, // Default to 1 if not provided
+        oldUtilizationStable:
+          customData.oldUtilizationStable !== undefined
+            ? customData.oldUtilizationStable
+              ? 1
+              : 0
+            : 1, // Default to 1 if not provided
+        oldCollateralHealth:
+          customData.oldCollateralHealth !== undefined
+            ? customData.oldCollateralHealth
+              ? 1
+              : 0
+            : 1, // Default to 1 if not provided
+        oldZyfiTVLCheck:
+          customData.oldZyfiTVLCheck !== undefined
+            ? customData.oldZyfiTVLCheck
+              ? 1
+              : 0
+            : 1, // Default to 1 if not provided
+        // User preferences
+        supportsCurrentPool:
+          customData.supportsCurrentPool !== undefined
+            ? customData.supportsCurrentPool
+              ? 1
+              : 0
+            : 1, // Default to 1 if not provided
+      };
     } else {
-      const endpoint =
-        inputMode === "Rebalancing"
-          ? "/api/load-input?type=Rebalancing"
-          : "/api/load-input?type=Math";
-      const response = await fetch(endpoint);
-      if (!response.ok) throw new Error(`Failed to load ${inputMode} data`);
+      const response = await fetch("/api/load-input?type=Rebalancing");
+      if (!response.ok) throw new Error("Failed to load rebalancing data");
       data = await response.json();
-      isOpportunity = inputMode === "Rebalancing";
     }
 
-    let details;
-    if (isOpportunity) {
-      // Add null/undefined checks before accessing properties
-      const liquidity = data.liquidity ?? 0;
-      const zyfiTvl = data.zyfiTvl ?? 0;
-      const amount = data.amount ?? 0;
-      const poolTvl = data.poolTvl ?? 1; // Prevent division by zero
-      const newApy = data.newApy ?? 0;
-      const oldApy = data.oldApy ?? 0;
+    const liquidity = data.liquidity ?? 0;
+    const zyfiTvl = data.zyfiTvl ?? 0;
+    const amount = data.amount ?? 0;
+    const poolTvl = data.poolTvl ?? 1; // Prevent division by zero
+    const newApy = data.newApy ?? 0;
+    const oldApy = data.oldApy ?? 0;
 
-      const util = ((amount / poolTvl) * 100).toFixed(2);
-      const apyDiff = ((newApy - oldApy) / 100).toFixed(2);
-      details =
-        `DeFi Opportunity Data\n\n` +
-        `Liquidity: $${liquidity.toLocaleString()}\n` +
-        `ZyFI TVL: $${zyfiTvl.toLocaleString()}\n` +
-        `Amount: ${amount.toLocaleString()}\n` +
-        `Pool TVL: ${poolTvl.toLocaleString()}\n` +
-        `Utilization: ${util}%\n\n` +
-        `Old APY: ${(oldApy / 10000).toFixed(4)}%\n` +
-        `New APY: ${(newApy / 10000).toFixed(4)}%\n` +
-        `Improvement: +${((newApy - oldApy) / 10000).toFixed(4)}%\n\n` +
-        `7d: ${data.apyStable7Days ? "YES" : "NO"} | ` +
-        `TVL: ${data.tvlStable ? "YES" : "NO"}\n` +
-        `Supports Current Pool: ${
-          data.supportsCurrentPool ? "YES" : "NO"
-        }\n\n` +
-        `Old Opportunity:\n` +
-        `  APY: ${(data.oldApy / 10000).toFixed(4)}%\n` +
-        `  Liquidity: $${(data.oldLiquidity ?? 0).toLocaleString()}\n` +
-        `  ZyFI TVL: $${(data.oldZyfiTvl ?? 0).toLocaleString()}\n` +
-        `  TVL Stable: ${data.oldTvlStable ? "YES" : "NO"} | ` +
-        `Util Stable: ${data.oldUtilizationStable ? "YES" : "NO"} | ` +
-        `Collateral: ${data.oldCollateralHealth ? "YES" : "NO"} | ` +
-        `TVL Check: ${data.oldZyfiTVLCheck ? "YES" : "NO"}`;
-    } else {
-      details =
-        `Portfolio Data (${data.oldBalances?.length ?? 0} assets)\n\n` +
-        `Value: ${parseInt(
-          data.totalValueCommitment ?? 0
-        ).toLocaleString()}\n` +
-        `Range: ${data.minAllocationPct ?? 0}% - ${
-          data.maxAllocationPct ?? 0
-        }%`;
-    }
+    const util = ((amount / poolTvl) * 100).toFixed(2);
+    const details =
+      `DeFi Opportunity Data\n\n` +
+      `Liquidity: $${liquidity.toLocaleString()}\n` +
+      `ZyFI TVL: $${zyfiTvl.toLocaleString()}\n` +
+      `Amount: ${amount.toLocaleString()}\n` +
+      `Pool TVL: ${poolTvl.toLocaleString()}\n` +
+      `Utilization: ${util}%\n\n` +
+      `Old APY: ${(oldApy / 10000).toFixed(4)}%\n` +
+      `New APY: ${(newApy / 10000).toFixed(4)}%\n` +
+      `Improvement: +${((newApy - oldApy) / 10000).toFixed(4)}%\n\n` +
+      `7d: ${data.apyStable7Days ? "YES" : "NO"} | ` +
+      `TVL: ${data.tvlStable ? "YES" : "NO"}\n` +
+      `Supports Current Pool: ${
+        data.supportsCurrentPool ? "YES" : "NO"
+      }\n\n` +
+      `Old Opportunity:\n` +
+      `  APY: ${(data.oldApy / 10000).toFixed(4)}%\n` +
+      `  Liquidity: $${(data.oldLiquidity ?? 0).toLocaleString()}\n` +
+      `  ZyFI TVL: $${(data.oldZyfiTvl ?? 0).toLocaleString()}\n` +
+      `  TVL Stable: ${data.oldTvlStable ? "YES" : "NO"} | ` +
+      `Util Stable: ${data.oldUtilizationStable ? "YES" : "NO"} | ` +
+      `Collateral: ${data.oldCollateralHealth ? "YES" : "NO"} | ` +
+      `TVL Check: ${data.oldZyfiTVLCheck ? "YES" : "NO"}`;
 
     return {
       success: true,
@@ -460,7 +430,7 @@ async function loadInputData(
       data,
       stateUpdate: {
         inputData: data,
-        inputMode: isOpportunity ? "Rebalancing" : "Math",
+        inputMode: "Rebalancing",
       },
     };
   } catch (error) {
@@ -477,7 +447,6 @@ async function generateZKProof(
   workflowState: WorkflowState
 ): Promise<StepResult> {
   const inputData = workflowState.inputData;
-  const inputMode = workflowState.inputMode || "Rebalancing";
 
   if (!inputData) {
     return {
@@ -487,152 +456,74 @@ async function generateZKProof(
     };
   }
 
-  const isRebalancingMode =
-    inputMode === "Rebalancing" || "liquidity" in inputData;
+  try {
+    const response = await fetch("/api/generate-proof", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inputData, mode: "rebalancing" }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to generate proof");
+    }
+    const result = await response.json();
 
-  if (isRebalancingMode) {
+    // Store proof to Pinata
+    let pinataGatewayUrl: string | undefined;
+    let dataHash: string | undefined;
+    let ipfsCid: string | undefined;
     try {
-      const response = await fetch("/api/generate-proof", {
+      const storeResponse = await fetch("/api/store-proof", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputData, mode: "rebalancing" }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate proof");
-      }
-      const result = await response.json();
-
-      // Store proof to Pinata
-      let pinataGatewayUrl: string | undefined;
-      let dataHash: string | undefined;
-      let ipfsCid: string | undefined;
-      try {
-        const storeResponse = await fetch("/api/store-proof", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            proof: result.proof,
-            publicInputs: result.publicInputs,
-          }),
-        });
-        if (storeResponse.ok) {
-          const storeResult = await storeResponse.json();
-          pinataGatewayUrl = storeResult.pinataGatewayUrl;
-          dataHash = storeResult.dataHash;
-          ipfsCid = storeResult.ipfsCid;
-        }
-      } catch (error) {
-        console.warn("Failed to store proof to Pinata:", error);
-      }
-
-      return {
-        success: true,
-        details:
-          `ZK Proof Generated (Groth16)\n\n` +
-          `Circuit: rebalancer-validation.circom\n` +
-          `Mode: Rebalancing (DeFi Validation)\n` +
-          `Public Inputs: liquidity, zyfiTvl, amount, poolTvl, APYs, stability flags\n` +
-          `\nRules:\n` +
-          `1. Liquidity × 1.05 > zyfiTvl + (amount/1M)\n` +
-          `2. poolTvl × 1M > amount × 4 (max 25%)\n` +
-          `3. newApy > oldApy + 10 (0.1% min)\n` +
-          `4. 7d OR 10d stability\n` +
-          `5. TVL stable` +
-          (pinataGatewayUrl && dataHash
-            ? `\n\nData Hash: ${dataHash}\nView proof on Pinata: ${pinataGatewayUrl}`
-            : ""),
-        stateUpdate: {
-          proofGenerated: true,
+        body: JSON.stringify({
           proof: result.proof,
           publicInputs: result.publicInputs,
-          dataHash,
-          requestCid: ipfsCid, // Store CID for Step 3 to reuse
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        details: "",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate ZK proof",
-      };
-    }
-  } else {
-    const newTotalValue = inputData.newBalances.reduce(
-      (sum: number, bal: string, i: number) =>
-        sum + parseInt(bal) * parseInt(inputData.prices[i]),
-      0
-    );
-
-    try {
-      const { generateProofInBrowser } = await import("@/lib/proof-generator");
-      const result = await generateProofInBrowser({
-        oldBalances: inputData.oldBalances,
-        newBalances: inputData.newBalances,
-        prices: inputData.prices,
-        minAllocationPct: inputData.minAllocationPct,
-        maxAllocationPct: inputData.maxAllocationPct,
+        }),
       });
-      if (!result.success)
-        throw new Error(result.error || "Failed to generate proof");
-
-      // Store proof to Pinata
-      let pinataGatewayUrl: string | undefined;
-      let dataHash: string | undefined;
-      let ipfsCid: string | undefined;
-      try {
-        const storeResponse = await fetch("/api/store-proof", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            proof: result.proof,
-            publicInputs: result.publicInputs,
-          }),
-        });
-        if (storeResponse.ok) {
-          const storeResult = await storeResponse.json();
-          pinataGatewayUrl = storeResult.pinataGatewayUrl;
-          dataHash = storeResult.dataHash;
-          ipfsCid = storeResult.ipfsCid;
-        }
-      } catch (error) {
-        console.warn("Failed to store proof to Pinata:", error);
+      if (storeResponse.ok) {
+        const storeResult = await storeResponse.json();
+        pinataGatewayUrl = storeResult.pinataGatewayUrl;
+        dataHash = storeResult.dataHash;
+        ipfsCid = storeResult.ipfsCid;
       }
-
-      return {
-        success: true,
-        details:
-          `ZK Proof Generated (Groth16 - Browser)\n\n` +
-          `Circuit: rebalancing.circom\n` +
-          `Mode: Math (Portfolio)\n` +
-          `Assets: ${inputData.oldBalances.length}\n` +
-          `Range: ${inputData.minAllocationPct}%-${inputData.maxAllocationPct}%\n` +
-          // `Public: [${result.publicInputs.join(", ")}]` +
-          (pinataGatewayUrl && dataHash
-            ? `\nData Hash: ${dataHash}\nView proof on Pinata: ${pinataGatewayUrl}`
-            : ""),
-        stateUpdate: {
-          proofGenerated: true,
-          newTotalValue,
-          proof: result.proof,
-          publicInputs: result.publicInputs,
-          dataHash,
-          requestCid: ipfsCid, // Store CID for Step 3 to reuse
-        },
-      };
     } catch (error) {
-      return {
-        success: false,
-        details: "",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate ZK proof",
-      };
+      console.warn("Failed to store proof to Pinata:", error);
     }
+
+    return {
+      success: true,
+      details:
+        `ZK Proof Generated (Groth16)\n\n` +
+        `Circuit: rebalancer-validation.circom\n` +
+        `Mode: Rebalancing (DeFi Validation)\n` +
+        `Public Inputs: liquidity, zyfiTvl, amount, poolTvl, APYs, stability flags\n` +
+        `\nRules:\n` +
+        `1. Liquidity × 1.05 > zyfiTvl + (amount/1M)\n` +
+        `2. poolTvl × 1M > amount × 4 (max 25%)\n` +
+        `3. newApy > oldApy + 10 (0.1% min)\n` +
+        `4. 7d OR 10d stability\n` +
+        `5. TVL stable` +
+        (pinataGatewayUrl && dataHash
+          ? `\n\nData Hash: ${dataHash}\nView proof on Pinata: ${pinataGatewayUrl}`
+          : ""),
+      stateUpdate: {
+        proofGenerated: true,
+        proof: result.proof,
+        publicInputs: result.publicInputs,
+        dataHash,
+        requestCid: ipfsCid, // Store CID for Step 3 to reuse
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      details: "",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to generate ZK proof",
+    };
   }
 }
 
@@ -854,22 +745,13 @@ async function validateProof(
     const isValid = result.isValid;
     const score = isValid ? 100 : 0;
 
-    // Determine which verifier was used based on input mode
-    const isRebalancingMode =
-      workflowState.inputMode === "Rebalancing" ||
-      (publicInputs && publicInputs.length === 15);
-    const verifierAddress = isRebalancingMode
-      ? contractConfig.rebalancerVerifier
-      : contractConfig.groth16Verifier;
-    const verifierName = isRebalancingMode
-      ? "RebalancerVerifier"
-      : "Groth16Verifier";
+    const verifierName = "RebalancerVerifier";
 
     return {
       success: true,
       details:
         `ZK Proof Validation\n\n` +
-        `Groth16 Verifier (on-chain)\n` +
+        `RebalancerVerifier (on-chain Groth16)\n` +
         `Contract: ${verifierName}\n` +
         // `Address: ${verifierAddress}\n` +
         // `Public: [${publicInputs.join(", ")}]\n` +

@@ -1,64 +1,73 @@
 interface InputDataPanelProps {
     data: {
-        oldBalances?: string[];
-        newBalances?: string[];
-        prices?: string[];
-        totalValueCommitment?: string;
-        minAllocationPct?: string;
-        maxAllocationPct?: string;
+        liquidity?: number;
+        zyfiTvl?: number;
+        amount?: number;
+        poolTvl?: number;
+        newApy?: number;
+        oldApy?: number;
+        apyStable7Days?: number;
+        tvlStable?: number;
+        supportsCurrentPool?: number;
     };
 }
 
 export function InputDataPanel({ data }: InputDataPanelProps) {
     if (!data) return null;
 
-    const formatNumber = (num: string) => {
-        return parseInt(num).toLocaleString();
-    };
-
     return (
         <div className="bg-zyfi-bg-secondary rounded-zyfi-lg shadow-zyfi-glow p-6 border border-zyfi-border">
             <h3 className="text-lg font-semibold gradient--primary mb-4">
-                📊 Input Data
+                Input Data
             </h3>
             <div className="space-y-3">
-                {data.oldBalances && (
+                {data.liquidity !== undefined && (
                     <div>
                         <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
-                            Assets
+                            Liquidity
                         </p>
                         <p className="text-sm font-semibold text-slate-100">
-                            {data.oldBalances.length} Positions
+                            ${data.liquidity.toLocaleString()}
                         </p>
                     </div>
                 )}
-                {data.totalValueCommitment && (
+                {data.zyfiTvl !== undefined && (
                     <div>
                         <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
-                            Total Value
+                            ZyFI TVL
                         </p>
                         <p className="text-sm font-semibold text-slate-100">
-                            {formatNumber(data.totalValueCommitment)}
+                            ${data.zyfiTvl.toLocaleString()}
                         </p>
                     </div>
                 )}
-                {data.minAllocationPct && (
+                {data.amount !== undefined && (
                     <div>
                         <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
-                            Min Allocation
+                            Amount
                         </p>
                         <p className="text-sm font-semibold text-slate-100">
-                            {data.minAllocationPct}%
+                            {data.amount.toLocaleString()}
                         </p>
                     </div>
                 )}
-                {data.maxAllocationPct && (
+                {data.newApy !== undefined && (
                     <div>
                         <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
-                            Max Allocation
+                            New APY
                         </p>
                         <p className="text-sm font-semibold text-slate-100">
-                            {data.maxAllocationPct}%
+                            {(data.newApy / 10000).toFixed(4)}%
+                        </p>
+                    </div>
+                )}
+                {data.oldApy !== undefined && (
+                    <div>
+                        <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
+                            Old APY
+                        </p>
+                        <p className="text-sm font-semibold text-slate-100">
+                            {(data.oldApy / 10000).toFixed(4)}%
                         </p>
                     </div>
                 )}

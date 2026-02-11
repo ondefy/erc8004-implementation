@@ -7,11 +7,10 @@ import { StatusBadge } from "@/components/status-badge";
 import { WalletConnect } from "@/components/wallet-connect";
 import { AgentWalletManager } from "@/components/agent-wallet-manager";
 import { DeployedContractsPanel } from "@/components/deployed-contracts-panel";
-import { PortfolioInputForm } from "@/components/portfolio-input-form";
 import { OpportunityInputForm, OpportunityInput } from "@/components/opportunity-input-form";
 import { isSupportedNetwork, getNetworkInfo, getContractsForNetwork } from "@/lib/constants";
 import { executeWorkflowStep, WorkflowState } from "@/lib/workflow-executor";
-import { PortfolioInput } from "@/lib/proof-generator";
+
 
 type StepStatus = "pending" | "in_progress" | "completed" | "error";
 
@@ -121,10 +120,8 @@ export default function Home() {
   } | null>(null);
   const [manualAgentId, setManualAgentId] = useState("");
   const [showInputForm, setShowInputForm] = useState(false);
-  const [portfolioData, setPortfolioData] = useState<PortfolioInput | null>(null);
   const [opportunityData, setOpportunityData] = useState<OpportunityInput | null>(null);
   const [useCustomInput, setUseCustomInput] = useState(false);
-  const [inputMode, setInputMode] = useState<"Rebalancing" | "Math">("Rebalancing");
 
   // Prevent hydration mismatch by only rendering after client mount
   useEffect(() => {
@@ -220,14 +217,12 @@ export default function Home() {
 
     // Handle input step (step 1) - show form if custom input is enabled
     if (i === 1 && useCustomInput) {
-      const hasInputData = inputMode === "Rebalancing" ? opportunityData : portfolioData;
-      if (!hasInputData) {
+      if (!opportunityData) {
         setShowInputForm(true);
         // Wait for user to submit the form
         await new Promise<void>((resolve) => {
           const checkInterval = setInterval(() => {
-            const currentData = inputMode === "Rebalancing" ? opportunityData : portfolioData;
-            if (currentData) {
+            if (opportunityData) {
               clearInterval(checkInterval);
               setShowInputForm(false);
               resolve();
@@ -301,8 +296,7 @@ export default function Home() {
         publicClient,
         walletClient, // Pass wallet client for message signing
         workflowState: currentState, // Use the current accumulated state
-        customData: opportunityData || portfolioData, // Pass opportunity or portfolio data
-        inputMode, // Pass the input mode so executor knows which type
+        customData: opportunityData,
       });
     } catch (stepError: any) {
       console.error(`Error in step ${i}:`, stepError);
@@ -432,7 +426,6 @@ export default function Home() {
     setSteps(initialSteps);
     setCurrentStep(null);
     setInputData(null);
-    setPortfolioData(null);
     setOpportunityData(null);
     setShowInputForm(false);
   };
@@ -440,12 +433,6 @@ export default function Home() {
   const handleAgentsReady = (agents: AgentConfig) => {
     setAgentConfig(agents);
     setShowAgentSetup(false);
-  };
-
-  const handlePortfolioSubmit = (data: PortfolioInput) => {
-    console.log("Portfolio data submitted:", data);
-    setPortfolioData(data);
-    setShowInputForm(false);
   };
 
   const handleOpportunitySubmit = (data: OpportunityInput) => {
@@ -457,7 +444,6 @@ export default function Home() {
   const handlePortfolioCancel = () => {
     setShowInputForm(false);
     setUseCustomInput(false);
-    setPortfolioData(null);
     setOpportunityData(null);
   };
 
@@ -562,7 +548,7 @@ export default function Home() {
                 ZK Rebalancing Workflow
               </h1>
               <p className="text-slate-300 text-lg">
-                Base Sepolia • Zero-Knowledge Portfolio Rebalancing
+                Base Sepolia • Zero-Knowledge DeFi Rebalancing Validation
               </p>
             </div>
             <WalletConnect />
@@ -602,7 +588,7 @@ export default function Home() {
               ZK Rebalancing Workflow
             </h1>
             <p className="text-slate-300 text-lg">
-              {networkInfo?.name || "Testnet"} • Zero-Knowledge Portfolio Rebalancing
+              {networkInfo?.name || "Testnet"} • Zero-Knowledge DeFi Rebalancing Validation
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -722,7 +708,6 @@ export default function Home() {
                 if (!useCustomInput) {
                   setShowInputForm(true);
                 } else {
-                  setPortfolioData(null);
                   setOpportunityData(null);
                 }
               }}
@@ -733,13 +718,6 @@ export default function Home() {
                 }`}
             >
               {useCustomInput ? "✓ Using Custom Input" : "📝 Enter Custom Input"}
-            </button>
-            <button
-              onClick={() => setInputMode(inputMode === "Rebalancing" ? "Math" : "Rebalancing")}
-              disabled={true}
-              className="px-6 py-3 bg-zyfi-bg-secondary border border-zyfi-border text-slate-200 font-semibold rounded-zyfi shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:bg-zyfi-border"
-            >
-              Mode: {inputMode === "Rebalancing" ? "Rebalancing" : "Math"}
             </button>
           </div>
 
@@ -839,17 +817,10 @@ export default function Home() {
         {showInputForm && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-              {inputMode === "Rebalancing" ? (
-                <OpportunityInputForm
-                  onSubmit={handleOpportunitySubmit}
-                  onCancel={handlePortfolioCancel}
-                />
-              ) : (
-                <PortfolioInputForm
-                  onSubmit={handlePortfolioSubmit}
-                  onCancel={handlePortfolioCancel}
-                />
-              )}
+              <OpportunityInputForm
+                onSubmit={handleOpportunitySubmit}
+                onCancel={handlePortfolioCancel}
+              />
             </div>
           </div>
         )}

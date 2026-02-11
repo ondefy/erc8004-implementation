@@ -17,10 +17,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Determine mode based on public inputs length
-    // Rebalancing mode has 15 public inputs (all inputs are public), Math mode has more
-    const isRebalancingMode = (publicInputs as any[]).length === 15;
-
     // Get chain configuration
     let chain: Chain;
     let rpcUrl: string;
@@ -41,9 +37,7 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
-      verifierAddress = isRebalancingMode
-        ? contracts.rebalancerVerifier
-        : contracts.groth16Verifier;
+      verifierAddress = contracts.rebalancerVerifier;
     } else if (chainId === 11155111) {
       // Ethereum Sepolia
       chain = sepolia;
@@ -59,9 +53,7 @@ export async function POST(req: Request) {
           { status: 500 }
         );
       }
-      verifierAddress = isRebalancingMode
-        ? contracts.rebalancerVerifier
-        : contracts.groth16Verifier;
+      verifierAddress = contracts.rebalancerVerifier;
     } else if (chainId === 31337) {
       // Local Anvil
       chain = foundry;
@@ -74,11 +66,7 @@ export async function POST(req: Request) {
         "deployed_contracts.json"
       );
       const deployed = JSON.parse(readFileSync(deployedContractsPath, "utf-8"));
-      verifierAddress = (
-        isRebalancingMode
-          ? deployed.contracts?.RebalancerVerifier
-          : deployed.contracts?.Groth16Verifier
-      ) as `0x${string}`;
+      verifierAddress = deployed.contracts?.RebalancerVerifier as `0x${string}`;
 
       if (!verifierAddress) {
         return NextResponse.json(
@@ -103,11 +91,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Load appropriate Verifier ABI from frontend/lib/abis
+    // Load RebalancerVerifier ABI from frontend/lib/abis
     const verifierAbiPath = join(
       process.cwd(),
       "lib/abis",
-      isRebalancingMode ? "RebalancerVerifier.json" : "Groth16Verifier.json"
+      "RebalancerVerifier.json"
     );
     const verifierArtifact = JSON.parse(readFileSync(verifierAbiPath, "utf-8"));
     const verifierAbi = verifierArtifact.abi;
@@ -140,70 +128,47 @@ export async function POST(req: Request) {
       }),
     });
 
-    console.log(
-      `🔐 Verifying on-chain using ${
-        isRebalancingMode ? "RebalancerVerifier" : "Groth16Verifier"
-      } (eth_call)...`
-    );
+    console.log("🔐 Verifying on-chain using RebalancerVerifier (eth_call)...");
     console.log("chainId", chainId);
     console.log("chain", chain.name);
     console.log("verifierAddress", verifierAddress);
     console.log("rpcUrl", rpcUrl);
 
-    // Convert public signals based on mode
-    let isValid: boolean;
-
-    if (isRebalancingMode) {
-      // RebalancerVerifier expects exactly 15 public signals as uint256[15]
-      if ((publicInputs as any[]).length !== 15) {
-        throw new Error(
-          `RebalancerVerifier expects exactly 15 public inputs, got ${
-            (publicInputs as any[]).length
-          }`
-        );
-      }
-      // RebalancerVerifier expects exactly 15 public signals (all inputs are public)
-      const pubSignals: bigint[] = [
-        BigInt(publicInputs[0]), // liquidity
-        BigInt(publicInputs[1]), // zyfiTvl
-        BigInt(publicInputs[2]), // amount
-        BigInt(publicInputs[3]), // poolTvl
-        BigInt(publicInputs[4]), // newApy
-        BigInt(publicInputs[5]), // apyStable7Days
-        BigInt(publicInputs[6]), // tvlStable
-        // Old opportunity data
-        BigInt(publicInputs[7]), // oldApy
-        BigInt(publicInputs[8]), // oldLiquidity
-        BigInt(publicInputs[9]), // oldZyfiTvl
-        BigInt(publicInputs[10]), // oldTvlStable
-        BigInt(publicInputs[11]), // oldUtilizationStable
-        BigInt(publicInputs[12]), // oldCollateralHealth
-        BigInt(publicInputs[13]), // oldZyfiTVLCheck
-        // User preferences
-        BigInt(publicInputs[14]), // supportsCurrentPool
-      ];
-      console.log("pubSignals (rebalancing)", pubSignals);
-
-      isValid = (await publicClient.readContract({
-        address: verifierAddress as `0x${string}`,
-        abi: verifierAbi,
-        functionName: "verifyProof",
-        args: [pA, pB, pC, pubSignals],
-      })) as boolean;
-    } else {
-      // Groth16Verifier uses dynamic array
-      const pubSignals = (publicInputs as (string | number)[]).map((v) =>
-        BigInt(v)
+    // RebalancerVerifier expects exactly 15 public signals as uint256[15]
+    if ((publicInputs as any[]).length !== 15) {
+      throw new Error(
+        `RebalancerVerifier expects exactly 15 public inputs, got ${
+          (publicInputs as any[]).length
+        }`
       );
-      console.log("pubSignals (groth16)", pubSignals);
-
-      isValid = (await publicClient.readContract({
-        address: verifierAddress as `0x${string}`,
-        abi: verifierAbi,
-        functionName: "verifyProof",
-        args: [pA, pB, pC, pubSignals],
-      })) as boolean;
     }
+    const pubSignals: bigint[] = [
+      BigInt(publicInputs[0]), // liquidity
+      BigInt(publicInputs[1]), // zyfiTvl
+      BigInt(publicInputs[2]), // amount
+      BigInt(publicInputs[3]), // poolTvl
+      BigInt(publicInputs[4]), // newApy
+      BigInt(publicInputs[5]), // apyStable7Days
+      BigInt(publicInputs[6]), // tvlStable
+      // Old opportunity data
+      BigInt(publicInputs[7]), // oldApy
+      BigInt(publicInputs[8]), // oldLiquidity
+      BigInt(publicInputs[9]), // oldZyfiTvl
+      BigInt(publicInputs[10]), // oldTvlStable
+      BigInt(publicInputs[11]), // oldUtilizationStable
+      BigInt(publicInputs[12]), // oldCollateralHealth
+      BigInt(publicInputs[13]), // oldZyfiTVLCheck
+      // User preferences
+      BigInt(publicInputs[14]), // supportsCurrentPool
+    ];
+    console.log("pubSignals", pubSignals);
+
+    const isValid = (await publicClient.readContract({
+      address: verifierAddress as `0x${string}`,
+      abi: verifierAbi,
+      functionName: "verifyProof",
+      args: [pA, pB, pC, pubSignals],
+    })) as boolean;
 
     console.log(`Result: ${isValid ? "✅ VALID" : "❌ INVALID"}`);
 

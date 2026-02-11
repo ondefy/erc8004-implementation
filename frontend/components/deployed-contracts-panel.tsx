@@ -117,7 +117,7 @@ export function DeployedContractsPanel() {
                                     <h3 className="font-mono text-sm font-semibold text-slate-100">
                                         {contract.name}
                                     </h3>
-                                    {contract.name === "Groth16Verifier" && (
+                                    {contract.name === "RebalancerVerifier" && (
                                         <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/50 text-xs font-medium rounded-full">
                                             ZK
                                         </span>
