@@ -450,9 +450,9 @@ The project is deployed on Base Sepolia testnet with the following contract addr
   "chainId": 84532,
   "name": "Base Sepolia",
   "contracts": {
-    "IdentityRegistry": "0xCfec11aF0101f1D1C034E5fa8A8F490b78D3d188",
+    "IdentityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "ValidationRegistry": "0xc4708fdE00Af35888D8ecC183D24e60fe3bE37b0",
-    "ReputationRegistry": "0x9547b6d3F808A8A8F9e0aF3EfED53595e6E172dC",
+    "ReputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
     "RebalancerVerifier": "0x07A1Dc74Ec0C2F3F9e605Ad464A048099793be09"
   },
   "deploymentBlock": 33018974
